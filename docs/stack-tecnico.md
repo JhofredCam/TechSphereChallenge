@@ -13,21 +13,52 @@ obligaciones, y puedes usar otras si lo consideras.
 
 ## 1. Los modelos permitidos
 
-El modelo de lenguaje que razona en tu agente debe ser **uno de estos**:
+El modelo de lenguaje que razona en tu agente debe pertenecer a **una de estas familias**,
+corriendo en su **nivel gratuito** (nube) o **local** según el caso:
 
-| Modelo | Dónde corre | Detalle |
+| Familia | Dónde corre | Detalle |
 |---|---|---|
-| **Google Gemini 1.5 Flash** | Nube, nivel gratuito | [§2](#2-inferencia-en-la-nube-niveles-gratuitos) |
-| **Llama 3.1 70B** (vía Groq) | Nube, nivel gratuito | [§2](#2-inferencia-en-la-nube-niveles-gratuitos) |
-| **Llama 3.2** (1B o 3B) | Local, CPU | [§3](#3-modelos-locales-para-cpu) |
-| **Phi-3.5 Mini** (3.8B) | Local, CPU | [§3](#3-modelos-locales-para-cpu) |
+| **Google Gemini**, gama Flash | Nube, nivel gratuito | [§2](#2-inferencia-en-la-nube-niveles-gratuitos) |
+| **Meta Llama** (vía Groq) | Nube, nivel gratuito | [§2](#2-inferencia-en-la-nube-niveles-gratuitos) |
+| **Meta Llama** (serie 3.x, 1B–3B) | Local, CPU | [§3](#3-modelos-locales-para-cpu) |
+| **Microsoft Phi Mini** (serie 3.5+, ~3–4B) | Local, CPU | [§3](#3-modelos-locales-para-cpu) |
 
-Elige el que prefieras según tu arquitectura. **Tu informe final debe declarar cuál
-usaste y por qué lo elegiste.** Usar un modelo fuera de esta lista descalifica la entrega
-(compuerta G3 de la [rúbrica](rubrica-evaluacion.md#g3--usas-uno-de-los-modelos-permitidos)).
+Elige el que prefieras según tu arquitectura. **Tu informe final debe declarar el modelo
+exacto que usaste (nombre y versión) y por qué lo elegiste.** Usar un modelo fuera de estas
+familias descalifica la entrega (compuerta G3 de la
+[rúbrica](rubrica-evaluacion.md#g3--usas-uno-de-los-modelos-permitidos)).
 
-La lista es cerrada porque el costo del modelo no debe decidir el reto: con las mismas
-opciones sobre la mesa, la diferencia la hace la ingeniería.
+La lista fija familias, no versiones puntuales, porque los proveedores retiran o
+reemplazan snapshots sin previo aviso.
+
+> **Nota — los modelos vencen, las familias no.** Los modelos de la tabla son una
+> referencia del momento en que se publicó este documento, no una lista congelada de IDs
+> exactos. Es normal que alguno ya no esté disponible para cuando estés construyendo (por
+> ejemplo, Gemini 1.5 Flash puede haber sido reemplazado por una generación Flash más
+> reciente).
+>
+> Si un modelo sugerido ya no existe, usa el sucesor vigente **de la misma familia y
+> proveedor**: la versión más reciente de Llama disponible en Groq, la generación actual
+> de Gemini Flash en Google, o la versión más nueva de Llama o Phi Mini local vía Ollama o
+> Hugging Face. Puedes apoyarte en [arena.ai](https://arena.ai/) para comparar el
+> desempeño de las alternativas vigentes **dentro de las familias permitidas** — no lo
+> uses para elegir entre todos los modelos del ranking, muchos son de proveedores fuera de
+> la lista. Si tienes dudas sobre si un modelo específico califica, pregunta a la
+> organización antes de construir tu solución sobre él.
+>
+> Esto no cambia cómo se revisa la compuerta G3: lo que se evalúa es que el modelo
+> pertenezca a una de las familias permitidas y esté vigente en su nivel gratuito o local,
+> no que coincida un identificador exacto de versión.
+>
+> *Fuentes sobre arena.ai (antes LMArena / Chatbot Arena, comparación de modelos por
+> votación humana):
+> [arena.ai](https://arena.ai/) ·
+> [Arena (AI platform) — Wikipedia](https://en.wikipedia.org/wiki/Arena_(AI_platform)) ·
+> [LMArena — Wikipedia](https://en.wikipedia.org/wiki/LMArena)*
+
+La lista de familias es cerrada —aunque la versión exacta dentro de cada una sea
+flexible— porque el costo del modelo no debe decidir el reto: con las mismas opciones
+sobre la mesa, la diferencia la hace la ingeniería.
 
 Lo demás no está restringido. El reconocimiento de voz, la síntesis de voz, la base
 vectorial, los embeddings y el framework de orquestación son decisión tuya, uses o no las
@@ -39,15 +70,17 @@ herramientas de este documento.
 
 Para razonamiento complejo o ventanas de contexto grandes sin hardware local costoso.
 
-### Google Gemini 1.5 Flash — 15 RPM gratis
+### Google Gemini, gama Flash
 
-Su ventaja competitiva es la **ventana de contexto de 1 millón de tokens**: permite
-cargar múltiples guías de práctica clínica, protocolos de triaje y el historial completo
-del paciente en una sola consulta, sin fragmentar la información en exceso, lo que
-preserva la coherencia del razonamiento médico.
+Su ventaja competitiva es la **ventana de contexto grande** (del orden de 1 millón de
+tokens en los modelos Flash recientes): permite cargar múltiples guías de práctica
+clínica, protocolos de triaje y el historial completo del paciente en una sola consulta,
+sin fragmentar la información en exceso, lo que preserva la coherencia del razonamiento
+médico.
 
-El nivel gratuito de Google AI Studio ofrece **15 solicitudes por minuto**, suficiente
-para desarrollar y para la demostración en vivo.
+El nivel gratuito de Google AI Studio impone un límite de solicitudes por minuto —revisa
+el vigente para el modelo Flash que elijas—, suficiente para desarrollar y para la
+demostración en vivo.
 
 → [Google AI Studio](https://aistudio.google.com/)
 
@@ -57,9 +90,10 @@ Fundamental cuando la prioridad es la fluidez de la conversación. Sus unidades 
 procesamiento de lenguaje (LPU) entregan tokens a velocidad casi instantánea y eliminan
 el lag de la interacción.
 
-Da acceso gratuito a modelos potentes como **Llama 3.1 70B** y, sobre todo, a **Whisper
-Large V3** para transcripción de voz a texto. Procesar el audio en milisegundos permite
-que el agente responda casi en cuanto el paciente termina de hablar.
+Da acceso gratuito a modelos potentes de la familia **Llama** (revisa cuáles tiene
+disponibles en cada momento) y, sobre todo, a **Whisper Large V3** para transcripción de
+voz a texto. Procesar el audio en milisegundos permite que el agente responda casi en
+cuanto el paciente termina de hablar.
 
 → [Consola de Groq (Llama & Whisper)](https://console.groq.com/)
 
@@ -70,19 +104,21 @@ que el agente responda casi en cuanto el paciente termina de hablar.
 Modelos de lenguaje pequeños (SLM) optimizados para correr en computadores comunes, sin
 GPU dedicada.
 
-### Llama 3.2 (1B y 3B)
+### Llama, serie 3.x (1B y 3B)
 
 Los modelos más eficientes de Meta para computación de borde. El de **1B parámetros
 consume ~1.2 GB de RAM**, lo que permite resumir notas clínicas y hacer triaje básico de
-forma 100 % privada y local, incluso en laptops de gama media-baja.
+forma 100 % privada y local, incluso en laptops de gama media-baja. Usa la versión más
+reciente de esta serie disponible al momento de tu entrega.
 
 → [Descargar vía Ollama](https://ollama.com/library/llama3.2)
 
-### Phi-3.5 Mini (3.8B)
+### Phi Mini, serie 3.5+ (~3–4B)
 
 El modelo de Microsoft diseñado para razonamiento lógico superior. Pese a su tamaño,
 compite con modelos dos o tres veces más grandes en capacidad de seguir instrucciones
-complejas y de adherirse a protocolos médicos estrictos sin desviarse.
+complejas y de adherirse a protocolos médicos estrictos sin desviarse. Usa la versión más
+reciente de esta serie disponible al momento de tu entrega.
 
 → [Ver en Hugging Face](https://huggingface.co/microsoft/Phi-3.5-mini-instruct)
 
@@ -162,7 +198,7 @@ Los modelos recomendados (1B a 3B parámetros) corren en una laptop estándar de
 | Componente | RAM aproximada |
 |---|---:|
 | Sistema operativo | 3.2 GB |
-| Llama 3.2 (1B) *o* Phi-3.5 Mini (3.8B) | 1.2 GB / 2.8 GB |
+| Llama serie 3.x (1B) *o* Phi Mini serie 3.5+ (~3–4B) | 1.2 GB / 2.8 GB |
 | Voz (Kokoro / Piper) | 0.6 GB |
 | RAG (ChromaDB + aplicación) | 0.9 GB |
 
