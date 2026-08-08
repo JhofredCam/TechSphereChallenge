@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Consola local para administrar el conocimiento clinico.">
+    <title>Conocimiento | Seguimiento por voz</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body data-page="admin">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Ir a la llamada">
+        <span class="brand-mark" aria-hidden="true">+</span>
+        <span>Voz postoperatoria</span>
+      </a>
+      <nav class="nav-links" aria-label="Navegacion principal">
+        <a href="/call">Llamada</a>
+        <a class="active" href="/admin" aria-current="page">Conocimiento</a>
+      </nav>
+    </header>
+
+    <main class="page-shell">
+      <section class="intro-grid">
+        <div>
+          <p class="eyebrow">Consola de operaciones</p>
+          <h1>Un corpus vivo para cada respuesta.</h1>
+          <p class="lede">Sube protocolos y guias locales. Cada fuente se procesa, queda trazable y puede olvidarse sin reiniciar la aplicacion.</p>
+        </div>
+        <div class="signal-card" aria-label="Regla de disponibilidad">
+          <span class="signal-dot" aria-hidden="true"></span>
+          <div>
+            <strong>Estado en tiempo real</strong>
+            <p>Disponible significa que tiene texto extraible. Los escaneos quedan marcados como necesita OCR.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel upload-panel" aria-labelledby="upload-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Nueva fuente</p>
+            <h2 id="upload-title">Agregar conocimiento</h2>
+          </div>
+          <span class="file-rule">PDF · TXT · MD</span>
+        </div>
+        <form id="upload-form" class="upload-form" enctype="multipart/form-data">
+          <label class="file-picker" for="knowledge-file">
+            <span class="file-picker-icon" aria-hidden="true">↑</span>
+            <span>
+              <strong id="file-label">Elegir un documento</strong>
+              <small>Maximo 25 MB. El procesamiento es local.</small>
+            </span>
+          </label>
+          <input id="knowledge-file" name="file" type="file" accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown" required>
+          <button class="button button-primary" id="upload-button" type="submit">Procesar documento</button>
+        </form>
+        <p id="upload-status" class="form-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="documents-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Inventario</p>
+            <h2 id="documents-title">Fuentes cargadas</h2>
+          </div>
+          <button class="button button-quiet" id="refresh-documents" type="button">Actualizar</button>
+        </div>
+        <div class="table-wrap">
+          <table class="documents-table">
+            <caption class="visually-hidden">Documentos y estado de procesamiento</caption>
+            <thead>
+              <tr>
+                <th scope="col">Documento</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Tamano</th>
+                <th scope="col"><span class="visually-hidden">Acciones</span></th>
+              </tr>
+            </thead>
+            <tbody id="document-rows">
+              <tr><td colspan="4" class="empty-state">Cargando fuentes...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="documents-status" class="form-status" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <footer class="site-footer">Datos sinteticos del reto. No usar para decisiones clinicas reales.</footer>
+  </body>
+</html>

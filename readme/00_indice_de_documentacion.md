@@ -1,0 +1,47 @@
+# Indice de documentacion
+
+Este directorio contiene la documentacion operativa del MVP y una copia historica del
+README del repositorio base anterior al fork. Las fuentes originales del reto siguen en sus
+rutas canonicas; aqui se enlazan, no se duplican.
+
+## Navegacion
+
+| Documento | Uso |
+|---|---|
+| [Repositorio base pre-fork](01_repositorio_base_pre_fork/README.md) | Snapshot del README original con enlaces relativos corregidos |
+| [Manifest del snapshot](01_repositorio_base_pre_fork/MANIFEST.md) | Origen commit `595989d` y reglas de preservacion |
+| [Setup local](02_setup_local.md) | Instalacion, bootstrap y arranque operativos |
+| [Demo funcional](03_demo_funcional.md) | Guion de consola, conocimiento vivo y llamada de voz |
+| [Metricas y evidencia](04_metricas_y_evidencia.md) | Metricas obligatorias, compuertas y artefactos verificables |
+| [Bitacora de sesiones](06_bitacora_de_sesiones/README.md) | Memoria de decisiones y estado del checkout |
+
+## Documentacion de producto
+
+- [Indice CRISP-DM del MVP](../mvp/README.md).
+- [Arquitectura](../docs/arquitectura.md).
+- [Informe final, estado del MVP](../docs/informe-final.md).
+- [README actual del repositorio](../README.md).
+- [Especificacion del MVP](../specs/00_mvp_specification.md).
+
+## Estado de evidencia
+
+Al 2026-08-08 el checkout tiene implementacion en `app/`, pruebas en `tests/`,
+`requirements.txt`, `app.bootstrap` y `app.main`. Pasaron 38 tests con
+`python -m pytest -q --basetemp <temp>`, `ruff check .` no reporto hallazgos y el validador
+confirmo el dataset `3991/40/40/160`. El bootstrap proceso 104 documentos: 103
+`available` y 1 `needs_ocr`; su prueba de idempotencia tambien paso.
+
+El setup esta documentado pero G2 sigue `PENDIENTE` de cronometraje desde un entorno limpio.
+G4 sigue `PENDIENTE` de smoke manual con microfono y audio. G5 tiene prueba automatizada e
+integracion local verificadas, pero sigue `PENDIENTE` de evidencia en demo con un documento
+externo al corpus. G1 conserva el pendiente del video de entrega.
+
+El snapshot pre-fork de `readme/01_repositorio_base_pre_fork/` se conserva sin incorporar
+cambios posteriores. `dataset/` y los documentos canonicos de `docs/` se referencian, no se
+copian.
+
+## Fuentes canonicas
+
+- El dataset permanece en [`dataset/`](../dataset/).
+- La rubrica y el stack permanecen en [`docs/`](../docs/).
+- El README base actual permanece en [`README.md`](../README.md).

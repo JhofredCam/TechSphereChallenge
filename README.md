@@ -1,184 +1,231 @@
-# Tech Sphere Challenge 2026 — Repositorio base
+# Tech Sphere Challenge 2026 | MVP de seguimiento postoperatorio
 
-**Vas a construir un agente de voz con IA para seguimiento postoperatorio.**
+MVP web local para seguimiento postoperatorio por voz en español colombiano. Expone una
+consola de conocimiento y una interfaz de llamada browser/API. Las respuestas clínicas usan
+fuentes recuperadas, registran citas y se abstienen cuando el corpus no alcanza.
 
-Un paciente sale de un procedimiento y necesita que alguien esté pendiente de él en las
-primeras horas. Tu agente hace esa llamada: conversa con el paciente, entiende sus
-síntomas con información clínica real, y decide cuándo alertar a personal capacitado.
+> Los datos del reto son sintéticos y no están validados clínicamente. Este proyecto no es una
+> herramienta diagnóstica ni asistencial.
 
-Este es el **repositorio base del reto**. Clónalo: aquí están los datos con los que vas
-a trabajar, la definición de lo que se espera de tu solución y las reglas con las que se
-va a evaluar.
+## Inicio en 15 minutos
 
-- **Cómo se evalúa tu entrega** → [`docs/rubrica-evaluacion.md`](docs/rubrica-evaluacion.md)
-- **Stack abierto y modelos permitidos** → [`docs/stack-tecnico.md`](docs/stack-tecnico.md)
-- **Los datos** → [`dataset/`](dataset/)
+Requisitos: Python 3.11 o superior, navegador Chrome o Edge para el camino de voz, y los
+archivos locales de `dataset/` que ya vienen en este repositorio. No se descarga el dataset ni
+un modelo durante el bootstrap.
 
----
+```text
+python -m venv .venv
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m app.bootstrap
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
 
-## El problema
+Abrir:
 
-El seguimiento postoperatorio depende hoy de personal humano: es costoso, no escala y
-está sujeto a errores. El paciente, mientras tanto, no tiene conocimiento médico —a veces
-ni un termómetro— y describe lo que siente en lenguaje cotidiano, ambiguo y regional:
+- `http://127.0.0.1:8000/admin` para subir, listar y eliminar documentos.
+- `http://127.0.0.1:8000/call` para iniciar una llamada, hablar y escuchar al agente.
+- `http://127.0.0.1:8000/health` para comprobar FTS5, corpus, voz y modelo declarado.
 
-> *"Me duele como aquí abajito de la axila hace como 20 minutos."*
+Para detener el servidor, presiona `Ctrl+C`. El estado generado queda en `data/`, ignorado por
+Git. Si la máquina no permite crear el directorio temporal por defecto de pytest, usa un
+directorio temporal con permisos, por ejemplo:
 
-En paralelo, la operación clínica vive en conocimiento no estructurado —manuales,
-instructivos, guías, PDFs, notas— que **cambia de versión constantemente**. El agente
-debe reflejar siempre la versión vigente sin contaminarse con la anterior.
+```text
+python -m pytest -q --basetemp C:\temp\techsphere-pytest
+```
 
-Tres cosas hacen este reto distinto de un chatbot cualquiera:
+### LLM y voz del servidor
 
-- **Es voz, no chat.** Conversación en tiempo real, con todo lo que eso implica:
-  latencia, silencios incómodos, respuestas largas inviables.
-- **Es salud, no e-commerce.** Cero tolerancia a alucinaciones, respuestas fundamentadas
-  en el corpus clínico, y honestidad explícita cuando el agente no sabe.
-- **El conocimiento es vivo, no estático.** El RAG debe poder actualizarse —aprender y
-  olvidar— en caliente.
+El MVP no exige credenciales para bootstrap, pruebas ni fallback extractivo. Para activar el
+razonamiento remoto y Whisper, define la clave antes de iniciar Uvicorn:
 
-## Qué construyes
+```text
+GROQ_API_KEY=tu_clave
+GROQ_MODEL=llama-3.1-8b-instant
+GROQ_WHISPER_MODEL=whisper-large-v3
+```
 
-- Una conversación de voz que se adapta a las respuestas del paciente.
-- Respuestas fundamentadas en una base de conocimiento clínico (RAG).
-- Una consola para actualizar el conocimiento en caliente: subes un documento y el agente
-  lo aprende; lo eliminas y lo olvida.
-- Trazabilidad: cada respuesta clínica registra qué documento la sustenta.
-- Una lógica de decisión: ¿esto amerita alertar a un humano, o no?
-- Un resumen estructurado de cada llamada.
+Usa el formato de variables de tu sistema (`$env:GROQ_API_KEY="..."` en PowerShell o
+`export GROQ_API_KEY="..."` en bash). `.env.example` documenta los valores sin contener
+secretos. La demo básica de navegador usa `SpeechRecognition` `es-CO` y `SpeechSynthesis`,
+por lo que mantiene entrada por micrófono y audio aun sin una clave. La disponibilidad del
+modelo exacto debe comprobarse antes de la demo; si Groq retira el ID, usa un sucesor vigente
+de la misma familia Meta Llama y actualiza el informe.
 
-### Qué no necesitas construir
+## Qué funciona
 
-Telefonía real en producción · integración con sistemas hospitalarios reales ·
-autenticación empresarial o gestión de roles · cobertura de todos los procedimientos
-médicos existentes.
+### Consola de administración
 
-### Las dos superficies
+1. Entra a `/admin`.
+2. Sube un `.pdf`, `.txt` o `.md`.
+3. Confirma `Disponible` o `Necesita OCR` en el inventario.
+4. Usa `Eliminar`; se borran sus páginas, chunks y filas FTS5 sin reiniciar el servidor.
 
-Tu solución debe exponer dos superficies. Pueden ser una sola aplicación o dos; el diseño
-visual no se evalúa, pero el contrato funcional sí:
+Los documentos se identifican por SHA-256, se procesan de forma síncrona y conservan página,
+chunk, cita y revisión del corpus. Un PDF sin texto no se presenta como disponible.
 
-| Superficie | Qué representa | Contrato funcional mínimo |
+### Llamada de voz
+
+1. Entra a `/call`, completa nombre/procedimiento y pulsa `Iniciar llamada`.
+2. Permite el micrófono y pulsa `Hablar`; el idioma configurado es `es-CO`.
+3. El agente muestra la transcripción, consulta el corpus, muestra fuentes y reproduce la
+   respuesta con la voz del navegador.
+4. Si Web Speech API no está disponible, usa el campo de texto; sigue siendo el mismo endpoint
+   auditable. El endpoint `/api/calls/{id}/audio` acepta audio para Whisper cuando hay clave.
+5. Pulsa `Finalizar llamada` para guardar el resumen estructurado.
+
+El triaje determinista no delega la seguridad al LLM:
+
+- `rojo`: escala inmediatamente y nunca baja de nivel.
+- `amarillo`: crea alerta persistente para contacto oportuno con el equipo clínico.
+- `verde`: no se detecta alarma en la información disponible.
+- `unknown`: pide aclaración antes de concluir.
+
+### Prueba de conocimiento vivo
+
+Usa una frase que no exista en el corpus, por ejemplo `La señal lunar exige llamar al equipo
+azul`, en un archivo de texto:
+
+1. Súbelo en `/admin` y confirma `Disponible`.
+2. Pregunta por `señal lunar` en `/call`; la respuesta debe mostrar la cita del archivo.
+3. Elimina el archivo en `/admin` sin reiniciar.
+4. Repite la pregunta; el agente debe abstenerse y no mostrar esa fuente.
+
+La prueba automatizada equivalente es:
+
+```text
+python -m pytest tests/test_live_knowledge.py -q
+```
+
+## Arquitectura
+
+```text
+Navegador
+  ├── /admin: upload, listado, delete
+  └── /call: SpeechRecognition -> API -> SpeechSynthesis
+                         │
+                         ▼
+                    FastAPI monolito
+      ┌────────────────┼──────────────────┐
+      │                │                  │
+  DocumentService   CallService       VoiceService
+      │                │                  │
+      └────────── SQLite + FTS5 ──────────┘
+                         │
+                   RagService + triaje
+                         │
+              Groq Llama opcional / fallback
+```
+
+El diagrama detallado y el flujo de decisión están en [`docs/arquitectura.md`](docs/arquitectura.md).
+La API está documentada por OpenAPI en `http://127.0.0.1:8000/docs` cuando el servidor está
+levantado.
+
+## Modelo permitido
+
+| Componente | Selección | Justificación |
 |---|---|---|
-| **Consola de administración** | El back-office del producto real: gestión del conocimiento | Subir documento · listar documentos cargados · eliminar documento · indicación visible de "procesado y disponible" |
-| **Interfaz de llamada** | La llamada telefónica de producción | Iniciar llamada de voz desde el navegador · hablar (micrófono) · escuchar al agente |
+| Razonamiento | `llama-3.1-8b-instant` vía Groq | Meta Llama está permitida; ofrece baja latencia y evita descargar un modelo local en 24 horas. |
+| STT opcional | `whisper-large-v3` vía Groq | La voz está abierta por la rúbrica; centraliza el camino de audio remoto. |
+| TTS principal | `SpeechSynthesis` del navegador, idioma `es-CO` | Cero descarga y audio real en la superficie browser. |
+| Fallback local | Extractivo FTS5 y reglas deterministas | Permite probar grounding, abstención y triaje sin credenciales ni modelo no autorizado. |
 
-Puedes ofrecer además API, CLI o una carpeta que el sistema vigile e ingiera
-automáticamente, pero la consola es exigida.
+La familia del modelo de razonamiento es la restricción cerrada del reto. No se usa ningún
+modelo alternativo fuera de `docs/stack-tecnico.md`.
 
-### Restricciones
+## Datos y bootstrap
 
-- **El stack es abierto; el modelo, no.** Orquestación, voz, RAG y embeddings los eliges
-  tú, pero el modelo de lenguaje debe ser uno de los
-  [permitidos](docs/stack-tecnico.md#1-los-modelos-permitidos) — y tienes que declarar en
-  tu informe cuál usaste y por qué. Mismas opciones sobre la mesa: gana la ingeniería, no
-  la billetera.
-- La llamada va vía **navegador/API**. No hay telefonía real.
-- El agente conversa en **español**, con pacientes colombianos que usan regionalismos y
-  descripciones ambiguas.
-- Tu repositorio debe ser **público en GitHub**, con README y dependencias declaradas.
+`dataset/` y `docs/` son las copias canónicas del reto y permanecen fuera de carpetas de
+implementación. El bootstrap:
 
----
+- valida las cuatro hojas `result`, encabezados, conteos, JSON embebido y joins;
+- respeta `paciente_id` y `caso_id = "caso_" + trayectoria_id`;
+- no mezcla `capa1_limpia` con `capa2_ruidosa`;
+- recorre `dataset/textos/` de forma recursiva, incluidos espacios, Unicode y duplicados;
+- marca el PDF escaneado de `Appendicitis/` como `needs_ocr`;
+- es idempotente por hash y no altera archivos bajo `dataset/`.
 
-## Los datos: `dataset/`
+Comandos de verificación:
 
-Todos los datos del reto están en la carpeta [`dataset/`](dataset/) de este repositorio.
-No hay que conectarse a nada externo para obtenerlos.
-
-Son **datos sintéticos**. Ningún paciente, nombre, cédula, dirección o EPS corresponde a
-una persona real.
-
-| Archivo | Qué es |
-|---|---|
-| `dataset_final.xlsx` | **Las conversaciones.** 3.991 filas × 13 columnas: una fila es un turno, no una conversación. 40 pacientes, 160 casos (uno por paciente y día postoperatorio: 1, 3, 7 y 14), dos capas de dificultad. Incluye `label_ground_truth` con la criticidad de referencia del caso —`verde`, `amarillo` o `rojo`—, constante dentro de cada `caso_id`. |
-| `trayectorias_postop_silver.xlsx` | **El cuadro clínico real de cada llamada**: dolor, fiebre, movilidad, estado de la herida, apetito y sueño, más el arquetipo de recuperación. 160 filas, una por caso. Es lo que el paciente está viviendo y el agente solo puede averiguar conversando. |
-| `perfiles_clinicos_pacientes_silver_contest.xlsx` | **Perfil clínico** por paciente: procedimiento, fecha de cirugía, edad, género, comorbilidades. 40 filas. |
-| `perfiles_pacientes_co.xlsx` | **Demografía colombiana** sintética: nombre, dirección, ciudad, departamento, documento y EPS. 40 filas. Se derivó de una población simulada estadounidense y se adaptó a Colombia; `adaptation_fields` lista qué campos se sustituyeron. |
-| `textos/` | **El corpus clínico**: 107 documentos PDF en español e inglés —guías de práctica clínica, protocolos de recuperación, papers de complicaciones postoperatorias, planes de cuidado e instructivos para el paciente—, repartidos en cinco carpetas por escenario. Es el combustible de tu RAG. |
-
-### Las dos capas
-
-`capa1_limpia` son conversaciones ordenadas: el paciente responde lo que se le pregunta.
-`capa2_ruidosa` es la misma conversación degradada con ruido realista —respuestas
-evasivas o ambiguas, información faltante, síntomas irrelevantes, interrupciones de un
-familiar—.
-
-**Un mismo `caso_id` contiene ambas versiones de la llamada**, así que filtra por `capa`
-antes de reconstruir una conversación. Los turnos de la capa 2 derivados de un turno de la
-capa 1 llevan el mismo `dialogo_id` con sufijo `_c2`; los turnos insertados por un tercero
-llevan `_c2_tercero`.
-
-### Cómo se relacionan los archivos
-
-`paciente_id` une los cuatro archivos. El join entre conversaciones y trayectorias **no
-es directo**:
-
-```
-caso_id  =  "caso_" + trayectoria_id
+```text
+python -m scripts.validate_dataset
+python -m app.bootstrap --json
 ```
 
-Un paciente tiene un perfil clínico, un perfil demográfico y cuatro trayectorias (una por
-día postoperatorio); cada trayectoria corresponde a un caso, y cada caso a una
-conversación en sus dos capas.
+La última verificación local confirmó `3991` turnos, `40` perfiles clínicos, `40` perfiles
+demográficos y `160` trayectorias. El corpus produjo `104` documentos únicos: `103 available`
+y `1 needs_ocr`.
 
-### Antes de que empieces
+## Pruebas y calidad
 
-- Las clases están **desbalanceadas**, como en la realidad: de los 160 casos, 123 son
-  `verde`, 25 `amarillo` y 12 `rojo`.
-- `comorbilidades` y `adaptation_fields` son **listas JSON dentro de una celda de texto**.
-- Los cuatro `.xlsx` tienen **una sola hoja, llamada `result`**.
-- En `dataset/textos/`, dos nombres de carpeta contienen espacios, hay documentos
-  repetidos y un PDF de `Appendicitis/` está escaneado **sin capa de texto**.
-- El material entregado **no es todo el material de evaluación**. Habrá conocimiento
-  clínico que tu agente no habrá visto antes.
+```text
+python -m pytest -q
+ruff check .
+python -m pytest tests/test_api.py tests/test_live_knowledge.py -q
+python -m scripts.validate_dataset
+```
 
----
+La suite cubre SQLite/FTS5, extracción, PDF sin texto, validación XLSX, upload/delete,
+abstención, prompt injection, triaje, llamadas, resumen, API y métricas. El último resultado
+registrado en esta sesión fue `38 passed` y Ruff sin errores.
 
-## Qué debes entregar
+## Métricas obligatorias
 
-| # | Entregable |
+La API `GET /api/metrics` y `data/events.jsonl` son la fuente de medición. Cada turno registra
+`latency_ms`, `input_tokens`, `output_tokens`, `model_calls`, `rag_queries`, `call_id`,
+`turn_id`, `source_ids` y `model_version`.
+
+| Métrica | Definición |
 |---|---|
-| **01** | **Repositorio** público en GitHub, con tu implementación completa y documentación clara |
-| **02** | **Diagrama** de la arquitectura de tu solución y del flujo de decisión del agente |
-| **03** | **Informe final** con evidencia de tu proceso —prompts, configuraciones, capturas del demo— y la declaración explícita de qué modelo usaste y por qué lo elegiste |
-| **04** | **Video**: demo funcional con grabación de pantalla, más las [dos preguntas de cierre](docs/rubrica-evaluacion.md#las-dos-preguntas-de-cierre-del-video) respondidas frente a cámara |
+| P50/P95 | Desde fin de habla (`speech_ended_at`) hasta inicio de audio (`audio_started_at`); el navegador debe enviar ambos timestamps si se habilita esa medición. |
+| Tokens | Entrada/salida por turno y suma por llamada; Groq aporta uso real y el fallback conserva una estimación de palabras identificada como tal. |
+| Invocaciones | `model_calls` por turno y total de la llamada. |
+| Consultas RAG | `rag_queries` y fuentes devueltas por turno. |
+| Costo | Para Groq: `(tokens_in * precio_in + tokens_out * precio_out) + STT/TTS`; para fallback local: costo de API extrapolado con la misma fórmula y precios fechados en el informe. |
 
-## Cómo se evalúa
+No se inventan valores de una sesión de voz que todavía no se ha cronometrado en un navegador.
+Después de una demo real, copia la respuesta de `/api/metrics`, fecha, modelo y precios a
+[`readme/04_metricas_y_evidencia.md`](readme/04_metricas_y_evidencia.md) y
+[`docs/informe-final.md`](docs/informe-final.md).
 
-Dos fases: **cinco compuertas eliminatorias** y una **rúbrica de 100 puntos** repartida
-en seis criterios. Lo que no pasa las compuertas no se puntúa.
+## Estado de compuertas
 
-Entre las compuertas hay una que conviene tener presente desde el primer commit: **tu
-solución debe ser levantable en 15 minutos o menos siguiendo únicamente tu README.**
+| Gate | Estado en este checkout | Evidencia o pendiente |
+|---|---|---|
+| G1 | Pendiente de entrega final | Repositorio, diagrama e informe están presentes; falta video y sus respuestas de cierre. |
+| G2 | Pendiente | El setup es ejecutable; falta cronometraje desde entorno limpio siguiendo solo este README. |
+| G3 | Configurado | `llama-3.1-8b-instant` pertenece a Meta Llama permitida; confirmar disponibilidad y llamada efectiva antes de grabar. |
+| G4 | Implementado, smoke manual pendiente | Micrófono `SpeechRecognition` y audio `SpeechSynthesis` viven en `/call`; falta evidencia manual con navegador. |
+| G5 | Verificado localmente, demo pendiente | Test de aprender/olvidar y CRUD pasan; repetir con un documento externo al corpus durante la evaluación. |
 
-El detalle completo —las cinco compuertas, los seis criterios con sus pesos, las métricas
-que tu README debe reportar y las conductas que penalizan— está en
-[`docs/rubrica-evaluacion.md`](docs/rubrica-evaluacion.md). Léelo antes de empezar a
-construir.
+No se declara una compuerta aprobada solo por intención o por un mock.
 
-## Cronograma 2026
+## Organización del repositorio
 
-| Fecha | Hito |
-|---|---|
-| **22 jul** | Live + apertura de inscripciones |
-| **7 – 10 ago** | Construcción: recibes este repositorio y el material técnico, y entregas el 10 de agosto |
-| **10 – 18 ago** | Revisiones y anuncio de los 3 finalistas |
-| **5 sep** | Ganadores: panel de expertos y demo en vivo de los 3 finalistas, durante el evento de premiación de Tech Sphere |
+- [`app/`](app/): FastAPI, SQLite, ingesta, RAG, agente, triaje, llamadas y web estática.
+- [`scripts/`](scripts/): bootstrap e inspección reproducible del dataset.
+- [`tests/`](tests/): pruebas unitarias e integración HTTP.
+- [`specs/`](specs/): especificación, plan y tareas de spec-driven development.
+- [`mvp/`](mvp/): seis fases CRISP-DM en orden.
+- [`readme/`](readme/): setup, demo, métricas, sesiones y snapshot pre-fork.
+- [`docs/arquitectura.md`](docs/arquitectura.md): diagrama y flujo de decisión.
+- [`docs/informe-final.md`](docs/informe-final.md): informe vivo, riesgos y evidencia pendiente.
+- [`readme/01_repositorio_base_pre_fork/`](readme/01_repositorio_base_pre_fork/): README original y manifest del commit `595989d`; no duplica dataset/docs.
+- [`GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md`](GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md): iniciar planificación y specs.
+- [`GUIA_AGENTE_EJECUTOR_DE_TAREAS.md`](GUIA_AGENTE_EJECUTOR_DE_TAREAS.md): iniciar ejecución y verificación.
 
----
+Para registrar una nueva sesión, crea `readme/06_bitacora_de_sesiones/YYYY-MM-DD_nombre.md` con
+alcance, decisiones, comandos ejecutados, resultados y pendientes. Las decisiones sobre modelo exacto, OCR,
+streaming de voz, despliegue público o canales de alerta deben quedar explícitas antes de
+ampliar el MVP.
 
-## Licencia y avisos
+## Contrato original y licencia
 
-El código y los datos sintéticos de este repositorio se distribuyen bajo licencia MIT
-(ver [`LICENSE`](LICENSE)).
+El contrato completo del reto, sus entregables y la rúbrica original están preservados en
+[`readme/01_repositorio_base_pre_fork/README.md`](readme/01_repositorio_base_pre_fork/README.md),
+conservando `dataset/`, [`docs/rubrica-evaluacion.md`](docs/rubrica-evaluacion.md) y
+[`docs/stack-tecnico.md`](docs/stack-tecnico.md) como fuentes canónicas.
 
-Los documentos PDF de `dataset/textos/` son obra de sus respectivos autores y editores,
-conservan sus propios derechos y se incluyen únicamente como material de referencia para
-el reto.
-
-Los datos clínicos son **sintéticos y no han sido validados clínicamente**. No sirven para
-ninguna finalidad clínica, diagnóstica ni asistencial fuera de este reto.
-
-## Contacto
-
-communications@sourcemeridian.com
+El código y los datos sintéticos se distribuyen bajo [MIT](LICENSE). Los PDF conservan los
+derechos de sus autores y se incluyen solo como material del reto.
