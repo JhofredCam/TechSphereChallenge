@@ -27,4 +27,11 @@
 - Inspect `git status`, the relevant diff, and recent history before committing.
 - Stage only files changed for the current task; never include unrelated user or generated changes.
 - Do not commit secrets, local runtime data, credentials, or agent-specific configuration.
-- Push only when the user explicitly requests it; a commit is required even when push is not.
+- After the commit, always push the current branch to its configured remote before finishing.
+
+## Branch Policy
+
+- Every new specification must be developed on its own dedicated branch, created before editing.
+- Use the naming convention `spec/<short-slug>`; for example, `spec/testing-unit-integration`.
+- Do not combine two independent specs in one branch or implement a new spec directly on `main`.
+- The spec branch must be pushed after its commit, unless the user explicitly asks not to push.
