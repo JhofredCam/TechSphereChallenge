@@ -20,6 +20,28 @@ real, el cronometraje de setup y la evidencia de demo siguen siendo pendientes.
 | 05 | [Evaluation](05_evaluation/README.md) | Pruebas automatizadas verificadas; gates manuales pendientes | Tests, compuertas, metricas y evidencia |
 | 06 | [Deployment](06_deployment/README.md) | Ejecutable localmente; cronometraje y demo pendientes | Setup local y demo verificable |
 
+## Reestructuracion especificada, aun no aplicada
+
+La siguiente iteracion define `mvp/` como contenedor de los entregables formales y
+`mvp/crisp-dm/` como contenedor de las seis fases. El checkout actual conserva las fases en sus
+rutas directas para no romper enlaces antes de aprobar la migracion.
+
+```text
+mvp/
+  crisp-dm/       Fases 01 a 06
+  deliverables/   repositorio, arquitectura, informe y video
+```
+
+La spec de estructura tambien conserva `dataset/` y `docs/` en sus rutas canonicas, y mantiene
+`app/`, `scripts/`, `tests/`, `specs/` y `readme/` fuera de copias de entrega. Ver
+[`specs/03_mvp_structure_specification.md`](../specs/03_mvp_structure_specification.md).
+
+Las specs funcionales que deben alimentar el diagrama son:
+
+- [`specs/04_admin_document_lifecycle_specification.md`](../specs/04_admin_document_lifecycle_specification.md).
+- [`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md).
+- [`specs/06_system_flow_diagram_specification.md`](../specs/06_system_flow_diagram_specification.md).
+
 ## Evidencia automatizada del corte
 
 Todos los resultados siguientes corresponden a la sesion del 2026-08-08:
@@ -48,10 +70,18 @@ mueve `dataset/` o `docs/`. El snapshot pre-fork permanece conservado en
 
 ## Referencias canonicas
 
-- [README del reto](../README.md): problema, dataset y entregables originales.
+- [README operativo del reto](../README.md): problema, dataset y estado del checkout.
 - [Especificacion del MVP](../specs/00_mvp_specification.md): decisiones, stack y criterios.
 - [Plan de implementacion](../specs/01_implementation_plan.md): orden tecnico y checkpoints.
 - [Tareas ejecutables](../specs/02_implementation_tasks.md): archivos y verificaciones previstas.
+- [Estructura de entregables](../specs/03_mvp_structure_specification.md): objetivo de
+  `mvp/crisp-dm/` y `mvp/deliverables/`.
+- [Ciclo documental de admin](../specs/04_admin_document_lifecycle_specification.md): preview,
+  habilitar, deshabilitar y eliminar.
+- [Timeout de escucha](../specs/05_patient_listening_timeout_specification.md): variable y
+  comportamiento seguro.
+- [Diagrama normativo](../specs/06_system_flow_diagram_specification.md): ASCII, Mermaid y
+  trazabilidad del flujo completo.
 - [Rubrica de evaluacion](../docs/rubrica-evaluacion.md): compuertas y metricas obligatorias.
 - [Stack tecnico](../docs/stack-tecnico.md): familias de modelos permitidas.
 

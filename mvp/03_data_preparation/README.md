@@ -11,8 +11,10 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
 - Resultados de [Data Understanding](../02_data_understanding/README.md).
 - Corpus canonico [`dataset/textos/`](../../dataset/textos/).
 - XLSX canonicos bajo [`dataset/`](../../dataset/).
-- [Arquitectura del MVP](../../specs/00_mvp_specification.md#estructura-del-proyecto).
+- [Arquitectura publicada del MVP](../../docs/arquitectura.md).
 - Restriccion de [no mover `dataset/` ni `docs/`](../../specs/00_mvp_specification.md#supuestos-explicitos).
+- [Ciclo documental de `/admin`](../../specs/04_admin_document_lifecycle_specification.md),
+  que separa disponibilidad tecnica de publicacion activa.
 
 ## Salidas
 
@@ -46,6 +48,8 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
   aparecer despues del delete sin reiniciar.
 - [x] Las rutas con espacios, duplicados y capas de conversaciones pasan la validacion.
 - [x] Las consultas son parametrizadas y el estado parcial no se presenta como disponible.
+- [ ] La futura bandera `enabled` conserva chunks y excluye documentos deshabilitados del RAG;
+  esta ampliacion esta especificada pero no implementada en este corte.
 
 ## Verificacion y evidencia
 

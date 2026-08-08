@@ -13,6 +13,10 @@ que no intenta resolver y como se demostrara que las dos superficies funcionan.
 - [Rubrica y compuertas G1-G5](../../docs/rubrica-evaluacion.md).
 - [Familias de modelos permitidas](../../docs/stack-tecnico.md).
 - Restriccion operativa de levantar el sistema en 15 minutos o menos.
+- [Spec de estructura objetivo](../../specs/03_mvp_structure_specification.md), que separa
+  entregables, fuentes canonicas y runtime.
+- [Spec de diagrama normativo](../../specs/06_system_flow_diagram_specification.md), que
+  convierte actores, etapas y contratos en una vista verificable.
 
 ## Salidas
 

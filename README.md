@@ -122,6 +122,24 @@ El diagrama detallado y el flujo de decisión están en [`docs/arquitectura.md`]
 La API está documentada por OpenAPI en `http://127.0.0.1:8000/docs` cuando el servidor está
 levantado.
 
+La fuente normativa para la siguiente iteracion es
+[`specs/06_system_flow_diagram_specification.md`](specs/06_system_flow_diagram_specification.md).
+Depende de las specs de estructura, administracion documental y timeout; por eso cualquier cambio
+en esas tres debe reflejarse primero en el ASCII, los subdiagramas Mermaid y la matriz `TRZ-*`.
+Las capacidades nuevas de preview, habilitar/deshabilitar y timeout configurable estan
+especificadas, pero no se declaran implementadas en este checkout.
+
+## Especificaciones de la siguiente iteracion
+
+- [`03_mvp_structure_specification.md`](specs/03_mvp_structure_specification.md): entregables
+  bajo `mvp/` y fases bajo `mvp/crisp-dm/`.
+- [`04_admin_document_lifecycle_specification.md`](specs/04_admin_document_lifecycle_specification.md):
+  preview, publicacion independiente y delete.
+- [`05_patient_listening_timeout_specification.md`](specs/05_patient_listening_timeout_specification.md):
+  timeout configurable de escucha y fallback seguro.
+- [`06_system_flow_diagram_specification.md`](specs/06_system_flow_diagram_specification.md):
+  diagrama que integra y depende de las tres anteriores.
+
 ## Modelo permitido
 
 | Componente | Selección | Justificación |
@@ -196,8 +214,8 @@ Después de una demo real, copia la respuesta de `/api/metrics`, fecha, modelo y
 | G1 | Pendiente de entrega final | Repositorio, diagrama e informe están presentes; falta video y sus respuestas de cierre. |
 | G2 | Pendiente | El setup es ejecutable; falta cronometraje desde entorno limpio siguiendo solo este README. |
 | G3 | Configurado | `llama-3.1-8b-instant` pertenece a Meta Llama permitida; confirmar disponibilidad y llamada efectiva antes de grabar. |
-| G4 | Implementado, smoke manual pendiente | Micrófono `SpeechRecognition` y audio `SpeechSynthesis` viven en `/call`; falta evidencia manual con navegador. |
-| G5 | Verificado localmente, demo pendiente | Test de aprender/olvidar y CRUD pasan; repetir con un documento externo al corpus durante la evaluación. |
+| G4 | Implementacion presente; gate pendiente | Micrófono `SpeechRecognition` y audio `SpeechSynthesis` viven en `/call`; falta evidencia manual con navegador. |
+| G5 | Verificado localmente; gate pendiente | Test de aprender/olvidar y CRUD pasan; repetir con un documento externo al corpus durante la evaluación. |
 
 No se declara una compuerta aprobada solo por intención o por un mock.
 
@@ -206,14 +224,19 @@ No se declara una compuerta aprobada solo por intención o por un mock.
 - [`app/`](app/): FastAPI, SQLite, ingesta, RAG, agente, triaje, llamadas y web estática.
 - [`scripts/`](scripts/): bootstrap e inspección reproducible del dataset.
 - [`tests/`](tests/): pruebas unitarias e integración HTTP.
-- [`specs/`](specs/): especificación, plan y tareas de spec-driven development.
-- [`mvp/`](mvp/): seis fases CRISP-DM en orden.
+- [`specs/`](specs/): especificaciones, plan y tareas de spec-driven development; fuente
+  normativa durante la migracion.
+- [`mvp/`](mvp/): contenedor objetivo de entregables y fases CRISP-DM; las fases actuales aun
+  conservan su ruta directa hasta aprobar la reestructuracion.
 - [`readme/`](readme/): setup, demo, métricas, sesiones y snapshot pre-fork.
 - [`docs/arquitectura.md`](docs/arquitectura.md): diagrama y flujo de decisión.
 - [`docs/informe-final.md`](docs/informe-final.md): informe vivo, riesgos y evidencia pendiente.
 - [`readme/01_repositorio_base_pre_fork/`](readme/01_repositorio_base_pre_fork/): README original y manifest del commit `595989d`; no duplica dataset/docs.
 - [`GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md`](GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md): iniciar planificación y specs.
 - [`GUIA_AGENTE_EJECUTOR_DE_TAREAS.md`](GUIA_AGENTE_EJECUTOR_DE_TAREAS.md): iniciar ejecución y verificación.
+
+La estructura objetivo, preview administrativa y timeout de escucha estan en estado
+`Especificado`; no se ejecutaron ni se implementaron como parte de esta planificacion.
 
 Para registrar una nueva sesión, crea `readme/06_bitacora_de_sesiones/YYYY-MM-DD_nombre.md` con
 alcance, decisiones, comandos ejecutados, resultados y pendientes. Las decisiones sobre modelo exacto, OCR,

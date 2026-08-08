@@ -6,6 +6,11 @@ La instrumentacion y la agregacion local estan implementadas; los valores de una
 voz real siguen `PENDIENTES` al 2026-08-08. La [rubrica](../docs/rubrica-evaluacion.md#5-qué-debe-reportar-tu-readme)
 exige reportar estos numeros y contrastarlos con los logs.
 
+La [spec del diagrama](../specs/06_system_flow_diagram_specification.md) define la trazabilidad
+entre eventos, submodulos y evidencia. La [spec de timeout](../specs/05_patient_listening_timeout_specification.md)
+separa el tiempo de escucha del paciente de la latencia oficial de respuesta; el valor de
+`.env.example` aun no tiene efecto en el runtime.
+
 ## Metricas obligatorias
 
 | Metrica | Definicion | Fuente esperada | Resultado |
@@ -16,6 +21,7 @@ exige reportar estos numeros y contrastarlos con los logs.
 | Invocaciones al modelo | Conteo por turno | Log de llamada | Implementado; demo real PENDIENTE |
 | Consultas RAG | Conteo por llamada y resultados con fuente | Log de recuperacion | Implementado; demo real PENDIENTE |
 | Costo estimado | Precio documentado por millon de tokens aplicado a cada llamada | Informe + logs | PENDIENTE; falta precio vigente y muestra de proveedor |
+| Timeout de escucha | Duracion y resultado de `PATIENT_LISTEN_TIMEOUT_MS` | Eventos de voz y navegador | Especificado; no aplicado en este baseline |
 
 Usar los nombres de campo del contrato previsto: `call_id`, `turn_id`, `speech_ended_at`,
 `audio_started_at`, `latency_ms`, `input_tokens`, `output_tokens`, `model_calls`,
@@ -50,10 +56,14 @@ Conservar resultados de:
 
 - Validacion de hojas `result`, JSON embebido y joins del dataset.
 - Recuperacion con fuente antes y despues de borrar.
+- Preview y estado `enabled` de documentos cuando se implemente la ampliacion de `/admin`.
+- Exclusión de documentos deshabilitados de nuevas consultas RAG.
 - Abstencion cuando no hay evidencia.
 - Triaje rojo sin degradacion, amarillo con alerta y ambiguo con aclaracion.
 - Resumen de cierre y persistencia de alerta.
 - Voz en navegador, fallback textual y comportamiento ante permisos denegados.
+- Timeout de escucha, resultado parcial, no respuesta y reintento, sin inferir una decision
+  clinica desde el silencio.
 
 ## Formato de evidencia
 

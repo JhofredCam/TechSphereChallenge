@@ -12,6 +12,12 @@ ejecucion; nunca sustituir evidencia por una intencion de diseno.
 - [Rubrica de evaluacion](../../docs/rubrica-evaluacion.md), especialmente G1-G5 y metricas.
 - [Tareas ejecutables](../../specs/02_implementation_tasks.md).
 - [Guia de metricas y evidencia](../../readme/04_metricas_y_evidencia.md).
+- [Spec de admin](../../specs/04_admin_document_lifecycle_specification.md), para preview y
+  enable/disable sin confundirlos con delete.
+- [Spec de timeout](../../specs/05_patient_listening_timeout_specification.md), para separar
+  escucha, silencio y latencia de respuesta.
+- [Spec de diagrama](../../specs/06_system_flow_diagram_specification.md), como matriz de
+  trazabilidad del cambio.
 
 ## Salidas
 
@@ -50,6 +56,8 @@ ejecucion; nunca sustituir evidencia por una intencion de diseno.
   degradar una decision previa.
 - [x] G4 y G5 no se declaran aprobadas con mocks; se separan los tests locales de la
   evidencia manual requerida.
+- [ ] La preview, el toggle documental y el timeout configurable tienen pruebas y evidencia;
+  actualmente son ampliaciones especificadas pendientes.
 
 ## Verificacion y evidencia
 

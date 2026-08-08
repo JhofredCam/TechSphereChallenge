@@ -14,6 +14,9 @@ requiere aun cronometraje desde un entorno limpio.
 - `GROQ_API_KEY` solo para la ruta remota completa; los tests locales deben poder usar el
   modo extractivo sin secreto.
 - Los datos ya estan locales en [`dataset/`](../dataset/); no se descarga ningun dataset.
+- `.env.example` incluye `PATIENT_LISTEN_TIMEOUT_MS=30000` como valor planificado para una
+  futura escucha configurable. El checkout actual no carga automaticamente ese archivo ni
+  aplica ese timer.
 
 ## Instalacion
 
@@ -71,6 +74,11 @@ Abrir:
 
 Si se usa Groq, definir `GROQ_API_KEY` en el entorno antes de arrancar. No escribir claves en
 Git ni en capturas.
+
+El timeout de escucha del paciente se especifica por separado en
+[`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md).
+No modifica los timeouts actuales de Groq, Whisper ni SQLite y no debe reportarse como
+implementado hasta contar con pruebas y smoke de navegador.
 
 ## Preflight
 

@@ -12,6 +12,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [Contrato de llamadas, resumen y triaje](../../specs/00_mvp_specification.md#criterios-de-exito).
 - [Familias permitidas](../../docs/stack-tecnico.md#1-los-modelos-permitidos).
 - [Plan de componentes](../../specs/01_implementation_plan.md#componentes-y-dependencias).
+- [Timeout configurable de escucha](../../specs/05_patient_listening_timeout_specification.md).
+- [Diagrama normativo del flujo](../../specs/06_system_flow_diagram_specification.md).
 
 ## Salidas
 
@@ -37,6 +39,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 7. Conectar reconocimiento `es-CO`, entrada textual de fallback y `SpeechSynthesis` del
    navegador.
 8. Registrar cada invocacion, consulta RAG, tokens y latencia con el identificador de llamada.
+9. Implementar el timeout de escucha del paciente sin mezclarlo con los timeouts de Groq,
+   Whisper o SQLite y reflejarlo en el diagrama antes de cambiar el frontend.
 
 ## Criterios de aceptacion
 
@@ -48,6 +52,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [ ] La interfaz acepta microfono en Chrome/Edge, muestra transcripcion y reproduce audio en
   espanol, con fallback textual auditable.
 - [x] Los logs exponen los campos necesarios para las metricas obligatorias.
+- [ ] La escucha configurable del paciente valida `PATIENT_LISTEN_TIMEOUT_MS` y ofrece
+  reintento/fallback seguro; sigue especificada, no implementada.
 
 ## Verificacion y evidencia
 

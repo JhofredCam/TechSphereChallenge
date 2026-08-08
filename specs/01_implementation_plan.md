@@ -10,6 +10,21 @@
 6. Servir consola admin e interfaz de voz sin bundler.
 7. Agregar bootstrap, pruebas de compuertas, README, diagrama e informe inicial.
 
+## Extensiones planificadas por dependencia
+
+Antes de implementar cambios nuevos, se deben revisar las specs en este orden:
+
+1. `specs/03_mvp_structure_specification.md`: ownership y rutas objetivo bajo `mvp/`.
+2. `specs/04_admin_document_lifecycle_specification.md`: preview, `enabled`,
+   `rag_eligible`, enable, disable y delete.
+3. `specs/05_patient_listening_timeout_specification.md`: `PATIENT_LISTEN_TIMEOUT_MS` y
+   estados seguros de escucha.
+4. `specs/06_system_flow_diagram_specification.md`: diagrama ASCII/Mermaid, matriz de
+   trazabilidad y reflejo de las tres specs anteriores.
+
+La cuarta spec es un checkpoint de arquitectura: no se debe comenzar la implementacion de una
+extension si el diagrama no muestra su bloque, transiciones, estado y verificacion.
+
 ## Componentes y dependencias
 
 | Componente | Depende de | Riesgo | Mitigacion |
@@ -21,6 +36,8 @@
 | LLM | httpx, API key | Cuota/modelo retirado | Modelo en entorno, fallback extractivo auditable |
 | Voz | Chrome/Edge | API Web Speech variable | texto, MediaRecorder/STT como fallback |
 | Frontend | API | permiso de microfono | instrucciones visibles y estado de error |
+| Admin documental | documentos procesados | toggle y preview pueden divergir del RAG | bandera `enabled`, filtro activo y pruebas de revision |
+| Escucha paciente | navegador | no existe timer propio en el baseline | variable de entorno, estados y fallback textual |
 
 ## Paralelismo
 
@@ -37,3 +54,7 @@
 3. Upload/delete pasa con el servidor real y la busqueda cambia sin reinicio.
 4. `/call` funciona con texto y con `SpeechRecognition` en navegador compatible.
 5. `python -m pytest -q` y la prueba de preflight quedan documentados en README.
+6. La migracion documental no inicia hasta que los enlaces y el ownership de `mvp/` esten
+   verificados.
+7. El admin y el timeout se prueban de forma independiente antes de actualizar el diagrama
+   publicado.

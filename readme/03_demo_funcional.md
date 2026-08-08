@@ -19,6 +19,12 @@ pero no sustituyen la evidencia de G5 con un documento que no pertenezca al corp
 5. Documento de prueba externo al corpus entregado, con una frase unica y no clinicamente
    peligrosa, para la prueba de conocimiento vivo.
 
+Las acciones de preview, habilitar y deshabilitar estan definidas en la
+[spec de admin](../specs/04_admin_document_lifecycle_specification.md), pero no forman parte
+del recorrido implementado de este checkout. El timeout configurable de escucha esta definido
+en la [spec de timeout](../specs/05_patient_listening_timeout_specification.md); cualquier demo
+debe distinguirlo de un timeout de proveedor.
+
 ## Recorrido de consola
 
 1. Abrir `/admin` y mostrar el listado inicial, incluyendo `available` y, si aplica,

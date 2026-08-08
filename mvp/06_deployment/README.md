@@ -13,6 +13,8 @@ reproducible, no telefonia ni despliegue hospitalario.
 - Componentes de aplicacion definidos en la [especificacion](../../specs/00_mvp_specification.md#estructura-del-proyecto).
 - Evidencia y criterios de [Evaluation](../05_evaluation/README.md).
 - [Diagrama de arquitectura](../../docs/arquitectura.md).
+- [Diagrama normativo del siguiente corte](../../specs/06_system_flow_diagram_specification.md).
+- [Timeout configurable de escucha](../../specs/05_patient_listening_timeout_specification.md).
 
 ## Salidas
 
@@ -22,6 +24,8 @@ reproducible, no telefonia ni despliegue hospitalario.
 - `/admin` para upload, listado, estado `available`/`needs_ocr` y delete.
 - `/call` para llamada browser/API con microfono, transcripcion, respuesta y audio.
 - Instrucciones de permisos, fallback textual, variables de entorno y limpieza segura.
+- El valor planificado `PATIENT_LISTEN_TIMEOUT_MS=30000` aparece en `.env.example`, pero aun no
+  tiene efecto en el runtime actual.
 - Registro del tiempo real de setup y resultado de cada recorrido de demo.
 
 ## Tareas concretas

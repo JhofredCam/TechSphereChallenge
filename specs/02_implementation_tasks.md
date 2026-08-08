@@ -1,5 +1,10 @@
 # Tareas ejecutables del MVP
 
+Esta lista conserva el backlog original del MVP. Sus casillas no sustituyen el estado de
+implementacion ni la evidencia descritos en `mvp/`, `README.md` y `docs/informe-final.md`; una
+tarea puede permanecer sin marcar aunque exista una implementacion local verificada. Las nuevas
+tareas de abajo pertenecen al siguiente corte y tampoco se ejecutaron en esta sesion.
+
 - [ ] Crear configuracion y esquema SQLite
   - Aceptacion: `init_database()` crea tablas, FTS5 y directorios locales sin secretos.
   - Verificar: `python -m pytest tests/test_database.py -q`.
@@ -45,3 +50,34 @@
     informe y checklist G1-G5.
   - Verificar: ejecutar todos los comandos del README desde un entorno limpio.
   - Archivos: `README.md`, `readme/`, `mvp/`, `docs/arquitectura.md`, `docs/informe-final.md`.
+
+## Tareas del siguiente corte
+
+- [ ] Reorganizar el paquete de entregables bajo `mvp/`
+  - Aceptacion: las seis fases quedan previstas bajo `mvp/crisp-dm/`, los cuatro entregables
+    bajo `mvp/deliverables/` y no se copian `dataset/` ni `docs/`.
+  - Verificar: revisar ownership, enlaces relativos y ausencia de rutas prohibidas; no ejecutar
+    una migracion en esta sesion de planificacion.
+  - Archivos: `specs/03_mvp_structure_specification.md`, `mvp/README.md`, `README.md`, `readme/`.
+
+- [ ] Especificar e implementar posteriormente preview y publicacion de documentos
+  - Aceptacion: `/admin` distingue estado tecnico de `enabled`, permite preview segura, toggle
+    sin reprocesar y conserva delete; RAG usa solo `available AND enabled`.
+  - Verificar: `python -m pytest tests/test_api.py tests/test_live_knowledge.py -q` y recorrido
+    manual upload/preview/disable/enable/delete.
+  - Archivos: `specs/04_admin_document_lifecycle_specification.md`, `app/`, `tests/`, `README.md`.
+
+- [ ] Especificar e implementar posteriormente timeout de escucha configurable
+  - Aceptacion: `PATIENT_LISTEN_TIMEOUT_MS` se valida, se muestra sin secretos, no procesa
+    parciales como turnos y ofrece reintento/texto sin marcar verde al vencer.
+  - Verificar: pruebas de configuracion/voz y smoke manual en Chrome/Edge.
+  - Archivos: `specs/05_patient_listening_timeout_specification.md`, `.env.example`, `app/`,
+    `tests/`, `readme/02_setup_local.md`.
+
+- [ ] Mantener el diagrama como fuente de arquitectura
+  - Aceptacion: ASCII y subdiagramas Mermaid cubren actores, etapas, submodulos, admin, voz,
+    triaje, RAG, persistencia y metricas; cada nodo tiene trazabilidad y estado.
+  - Verificar: revision humana de `TRZ-*`, contraste con codigo y comandos de preflight; no
+    declarar propuestas como implementadas.
+  - Archivos: `specs/06_system_flow_diagram_specification.md`, `docs/arquitectura.md`,
+    `mvp/`, `README.md`, `docs/informe-final.md`.

@@ -9,6 +9,33 @@ scripts de validacion/bootstrap. La suite automatizada, Ruff, la validacion del 
 bootstrap local estan verificados; el smoke manual de voz y la demo G5 con documento externo
 siguen pendientes.
 
+## Fuente normativa del siguiente corte
+
+La especificacion completa del flujo, sus actores, etapas, submodulos, ASCII, Mermaid y matriz
+de trazabilidad esta en
+[`specs/06_system_flow_diagram_specification.md`](../specs/06_system_flow_diagram_specification.md).
+Esta pagina es la vista publicada del baseline actual. No se deben agregar bloques nuevos aqui
+sin actualizar primero la spec normativa y las specs upstream:
+
+- [`specs/03_mvp_structure_specification.md`](../specs/03_mvp_structure_specification.md):
+  entregables bajo `mvp/` y fases bajo `mvp/crisp-dm/`.
+- [`specs/04_admin_document_lifecycle_specification.md`](../specs/04_admin_document_lifecycle_specification.md):
+  preview, `enabled`, `rag_eligible`, enable, disable y delete.
+- [`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md):
+  `PATIENT_LISTEN_TIMEOUT_MS` y estados de escucha.
+
+En el baseline actual, preview, enable/disable y el timer configurable se marcan como
+`PROPOSED` en la spec del diagrama; los diagramas de esta pagina describen lo que hoy existe y
+no deben interpretarse como evidencia de esas extensiones.
+
+| Cambio dependiente | Reflejo requerido en el diagrama | Estado del baseline |
+|---|---|---|
+| Reestructura | `mvp/crisp-dm/` y `mvp/deliverables/` como ownership de entrega | PROPOSED |
+| Preview admin | flujo `GET .../preview` y texto no ejecutable | PROPOSED |
+| Enable/disable | `enabled`, `rag_eligible` y filtro FTS5 | PROPOSED |
+| Delete | invalidacion y olvido sin reinicio | IMPLEMENTED |
+| Timeout paciente | `PATIENT_LISTEN_TIMEOUT_MS` y reintento/texto | PROPOSED |
+
 ## Principios
 
 - Monolito local con FastAPI/Uvicorn y archivos estaticos; sin telefonia real.
@@ -153,7 +180,7 @@ sequenceDiagram
     I->>D: guardar documento, estado y fuentes
     D-->>R: available, needs_ocr o error
     R-->>U: estado visible en /admin
-    A->>D: consultar solo documentos activos
+    A->>D: consultar solo documentos available (enabled sera futuro)
     D-->>A: chunks y citas
     U->>R: DELETE /api/admin/documents/id
     R->>D: transaccion de borrado e invalidacion
@@ -176,7 +203,7 @@ La prueba G5 debe demostrar upload, uso, delete y olvido sin reiniciar el proces
 | Bootstrap | `app/bootstrap.py`, `scripts/bootstrap.py` | Validacion, hash, ingestion e idempotencia; implementado |
 | Ingestion | `app/services/ingestion.py` | PDF, TXT, MD, paginas, chunks y `needs_ocr`; implementado |
 | Documentos | `app/services/documents.py` | Ciclo upload/process/delete; implementado |
-| RAG | `app/services/rag.py` | FTS5, filtro `available` y citas; implementado |
+| RAG | `app/services/rag.py` | FTS5, filtro `available` y citas; `enabled` futuro |
 | Agente | `app/services/agent.py` | Groq opcional, fallback, abstencion y seguridad de salida; implementado |
 | Seguridad | `app/services/triage.py` | Nivel conservador, alertas y aclaraciones; implementado |
 | Llamadas | `app/services/calls.py` | Turnos, fuentes, alerta y resumen; implementado |

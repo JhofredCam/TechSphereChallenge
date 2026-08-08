@@ -32,6 +32,23 @@ asistencial.
 7. No se moveran `dataset/` ni `docs/`: siguen siendo las copias canonicas del reto; el
    README previo se conserva en `readme/01_repositorio_base_pre_fork/`.
 
+### Especificaciones derivadas de la siguiente iteracion
+
+Las siguientes specs amplian la organizacion y los contratos sin declarar que ya esten
+implementados:
+
+1. [Estructura de entregables bajo `mvp/`](03_mvp_structure_specification.md): define
+   `mvp/crisp-dm/` y `mvp/deliverables/`, preservando `dataset/` y `docs/`.
+2. [Ciclo documental de `/admin`](04_admin_document_lifecycle_specification.md): agrega
+   preview y publicacion independiente del delete.
+3. [Timeout configurable de escucha](05_patient_listening_timeout_specification.md): define
+   `PATIENT_LISTEN_TIMEOUT_MS` y sus limites de seguridad.
+4. [Diagrama normativo del flujo](06_system_flow_diagram_specification.md): depende de las
+   tres anteriores y es la fuente de los bloques y subflujos futuros.
+
+El orden obligatorio es estructura, admin, timeout y finalmente diagrama. Un cambio en cualquiera
+de las tres primeras obliga a revisar la spec del diagrama antes de escribir codigo.
+
 ## Stack y modelo
 
 - Python 3.11 o superior.
@@ -166,3 +183,6 @@ documento, pagina, chunk y puntuacion.
   fuera del corte de 24 horas salvo que la prueba manual revele que la evaluacion lo exige.
 - El canal de alerta es la consola/base local. Un canal externo solo se incorpora con
   credenciales y un flujo de prueba independiente.
+- La preview, el enable/disable de documentos y el timeout configurable estan especificados
+  para el siguiente corte; no se consideran criterios cumplidos en el baseline actual hasta
+  tener codigo y evidencia.

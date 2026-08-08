@@ -88,6 +88,23 @@ de `app/services/` y las pruebas de API, ingestion, agente, triaje, llamadas, me
 conocimiento vivo. El smoke de voz en navegador y la prueba G5 con documento externo siguen
 pendientes.
 
+### Especificaciones de la siguiente iteracion
+
+Este informe conserva el estado del baseline y no presenta como implementadas las ampliaciones
+planificadas:
+
+- [Estructura de entregables](../specs/03_mvp_structure_specification.md): fases bajo
+  `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/`.
+- [Ciclo documental de `/admin`](../specs/04_admin_document_lifecycle_specification.md):
+  preview, `enabled`, `rag_eligible`, habilitar, deshabilitar y delete.
+- [Timeout de escucha](../specs/05_patient_listening_timeout_specification.md):
+  `PATIENT_LISTEN_TIMEOUT_MS` y comportamiento seguro ante timeout.
+- [Diagrama normativo](../specs/06_system_flow_diagram_specification.md): ASCII, Mermaid,
+  etapas y matriz de trazabilidad dependiente de las tres specs anteriores.
+
+El estado de estas cuatro specs es `Especificado`; no hay evidencia de ejecucion o runtime nueva
+en este corte.
+
 ## 6. Configuracion y prompts
 
 Valores configurados en el codigo, sin incluir secretos:
@@ -101,6 +118,7 @@ Valores configurados en el codigo, sin incluir secretos:
 | Regla de abstencion | Sin evidencia actual, evidencia insegura o inyeccion: explicar limite y no inventar | Implementado y cubierto por tests |
 | Regla de triaje | `classify_triage` y `highest_level` en `app/services/triage.py` | Implementado; rojo/amarillo no degradan |
 | Timeout y reintentos | Groq chat 12 s; Whisper 30 s; fallback extractivo sin reintento inseguro | Implementado |
+| Escucha del paciente | `PATIENT_LISTEN_TIMEOUT_MS=30000` en `.env.example` | Especificado; no aplicado al runtime actual |
 
 ## 7. Metricas
 

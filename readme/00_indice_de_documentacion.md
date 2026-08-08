@@ -22,6 +22,12 @@ rutas canonicas; aqui se enlazan, no se duplican.
 - [Informe final, estado del MVP](../docs/informe-final.md).
 - [README actual del repositorio](../README.md).
 - [Especificacion del MVP](../specs/00_mvp_specification.md).
+- [Plan de implementacion](../specs/01_implementation_plan.md).
+- [Tareas ejecutables](../specs/02_implementation_tasks.md).
+- [Spec de estructura bajo `mvp/`](../specs/03_mvp_structure_specification.md).
+- [Spec de ciclo documental de `/admin`](../specs/04_admin_document_lifecycle_specification.md).
+- [Spec de timeout de escucha](../specs/05_patient_listening_timeout_specification.md).
+- [Spec de diagrama normativo](../specs/06_system_flow_diagram_specification.md).
 
 ## Estado de evidencia
 
@@ -39,6 +45,9 @@ externo al corpus. G1 conserva el pendiente del video de entrega.
 El snapshot pre-fork de `readme/01_repositorio_base_pre_fork/` se conserva sin incorporar
 cambios posteriores. `dataset/` y los documentos canonicos de `docs/` se referencian, no se
 copian.
+
+La reestructuracion de entregables, la ampliacion de `/admin`, el timeout de escucha y el
+diagrama integrado estan especificados, pero no se ejecutaron ni se implementaron en este corte.
 
 ## Fuentes canonicas
 
