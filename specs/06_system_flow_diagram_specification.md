@@ -1,17 +1,17 @@
 # Spec: Diagrama integrador del flujo completo del MVP
 
-**Estado:** integrada; sintaxis y contrato visual corregidos; runtime y pruebas locales verificadas; evidencia manual pendiente
-**Version:** 0.3.0
+**Estado:** integrada para el baseline; target Chroma/LangChain/LangSmith especificado, runtime de migracion pendiente
+**Version:** 0.4.0
 **Fecha:** 2026-08-08
 **Rol:** fuente normativa del diagrama y de la trazabilidad de las specs 03, 04 y 05
 
 ## Objetivo
 
-Definir la vista ASCII y los subdiagramas Mermaid del MVP que ya existe en el checkout. La vista
-integra estructura, administracion documental, llamada browser/API, escucha, triaje, RAG,
-respuesta, persistencia y metricas. No es una ilustracion libre: cada bloque y cada limite
-importante tiene una spec de origen, una ruta de codigo o contrato y una verificacion local o
-manual explicitamente clasificada.
+Definir la vista ASCII y los subdiagramas Mermaid del MVP y de su migracion RAG de produccion. La
+vista integra estructura, administracion documental, llamada browser/API, escucha, triaje, RAG,
+ChromaDB, embeddings, LangChain, LangSmith, respuesta, persistencia, rollout y metricas. No es una
+ilustracion libre: cada bloque y cada limite importante tiene una spec de origen, una ruta de
+codigo o contrato y una verificacion local o manual explicitamente clasificada.
 
 La fuente normativa de requisitos sigue siendo `specs/00_mvp_specification.md` y las specs 03,
 04 y 05 aportan respectivamente estructura, ciclo documental y timeout. Esta spec no modifica el
@@ -31,14 +31,20 @@ evidencia.
 | `SPEC-ADMIN-SOURCE-001` | [`specs/09_admin_source_preview_specification.md`](09_admin_source_preview_specification.md) | archivo original en modal y separacion de texto extraido; propuesta futura |
 | `SPEC-ARCH-EXPLORER-001` | [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md) | vista HTML navegable derivada; no agrega autoridad |
 | `SPEC-UX-COPY-001` | [`specs/11_conversational_ux_writing_specification.md`](11_conversational_ux_writing_specification.md) | mensajes de voz/UI, contencion y separacion de canales; propuesta futura |
-| `SPEC-RAG-DEEP-001` | [`specs/12_rag_deep_dive_specification.md`](12_rag_deep_dive_specification.md) | explicacion profunda y contrato pedagogico del RAG |
+| `SPEC-RAG-ENV-001` | [`specs/13_rag_environment_configuration_specification.md`](13_rag_environment_configuration_specification.md) | variables, perfiles, defaults y secretos redacted |
+| `SPEC-RAG-PROD-001` | [`specs/14_rag_vector_store_chromadb_specification.md`](14_rag_vector_store_chromadb_specification.md) | ChromaDB, metadata, lifecycle, reconciliacion y fallback |
+| `SPEC-RAG-BENCH-001` | [`specs/15_rag_chunking_embedding_benchmark_specification.md`](15_rag_chunking_embedding_benchmark_specification.md) | chunkers, embeddings, qrels y latencias |
+| `SPEC-RAG-ORCH-001` | [`specs/16_rag_langchain_orchestration_specification.md`](16_rag_langchain_orchestration_specification.md) | loaders, runnables, prompt y limites |
+| `SPEC-RAG-OBS-001` | [`specs/17_rag_observability_langsmith_specification.md`](17_rag_observability_langsmith_specification.md) | spans, redaccion y SLOs |
+| `SPEC-RAG-OPS-001` | [`specs/18_rag_production_operations_specification.md`](18_rag_production_operations_specification.md) | manifest, rollout, rollback y backup |
+| `SPEC-RAG-MIG-001` | [`specs/19_rag_production_migration_specification.md`](19_rag_production_migration_specification.md) | contrato integrador del upgrade |
 | `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
 | `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
 La precedencia operativa es:
 
 ```text
-fuentes canonicas -> specs 00/03/04/05 -> spec 06 -> vistas publicadas -> codigo -> evidencia
+fuentes canonicas -> specs 00/03/04/05/13-19 -> spec 06 -> vistas publicadas -> codigo -> evidencia
 ```
 
 Si una vista publicada o el codigo contradicen una spec, se registra la divergencia y su fuente
@@ -59,6 +65,23 @@ prueba que requiera navegador o proveedor, se conserva la dimension separada.
 
 `DIVERGENCE` es una anotacion de sincronizacion, no un estado adicional. Se documenta en la
 seccion [Divergencias conocidas](#divergencias-conocidas) con la fuente que debe resolverla.
+
+### Target de migracion RAG
+
+El diagrama conserva la ruta FTS5 probada como baseline y dibuja la ruta objetivo como un bloque
+derivado y versionado:
+
+```text
+MOD-INGEST-001 -> MOD-CHUNK-001 -> MOD-EMBED-001 -> DATA-CHROMA-001
+                                                   |
+MOD-TRIAGE-001 -> MOD-RAG-001 -> filtro SQLite + fusion -> MOD-LANGCHAIN-001
+                                                   |
+                                      MOD-OBS-001 -> LangSmith redacted
+```
+
+`DATA-SQLITE-001` sigue siendo autoridad. Chroma no decide elegibilidad, triage, citas ni delete.
+Los bloques nuevos son `PROPOSED` hasta que las pruebas de las Specs 13-19 y la evidencia manual
+correspondiente cambien su estado.
 
 ## Convenciones visuales
 
@@ -161,7 +184,7 @@ El color no decide triaje y no sustituye el texto del estado.
 | 2. Iniciar | `STG-CALL-001` | abrir `/call` y crear llamada | `call_id` activo | TESTED |
 | 3. Escuchar | `STG-VOICE-001` | capturar voz o aceptar texto | transcript final o fallback | IMPLEMENTED; browser MANUAL_PENDING |
 | 4. Analizar | `STG-TRIAGE-001` | normalizar y clasificar con nivel previo | `red`, `yellow`, `green` o `unknown` | TESTED |
-| 5. Recuperar | `STG-RAG-001` | buscar `status='available' AND enabled=1` | chunks, score, pagina y cita | TESTED |
+| 5. Recuperar | `STG-RAG-001` | buscar con Chroma/FTS5 y filtrar `status='available' AND enabled=1` | chunks, score, pagina, cita, backend y version | TESTED baseline; target PROPOSED |
 | 6. Responder | `STG-AGENT-001` | Llama permitido o fallback extractivo | respuesta grounded o abstencion | TESTED local; proveedor MANUAL_PENDING |
 | 7. Hablar | `STG-TTS-001` | reproducir en `es-CO` | audio y timestamps | IMPLEMENTED; MANUAL_PENDING |
 | 8. Persistir | `STG-OBS-001` | guardar turnos, fuentes, alertas y eventos | SQLite, JSONL y `/api/metrics` | TESTED |
@@ -311,9 +334,9 @@ introducir caminos alternativos que contradigan el flujo.
    timeout/no_response/error -> no turno clinico -> reintento o texto
    final posterior al timeout -> 409 late_transcript
 
- RAG (STG-RAG-001)
-   pregunta -> normalizar -> status=available AND enabled=1
-   -> FTS5 -> evidencia suficiente? -> cita trazable o abstencion segura
+  RAG (STG-RAG-001)
+    pregunta -> normalizar -> Chroma/FTS5 -> filtro SQLite status=available AND enabled=1
+    -> fusion/threshold -> evidencia suficiente? -> cita trazable o abstencion segura
 
  REGLAS NO NEGOCIABLES
    proveedor nunca decide triaje; rojo/amarillo no degradan;
@@ -353,14 +376,18 @@ flowchart LR
         BOOT["[RAG] MOD-BOOTSTRAP-001<br/>validacion y corpus inicial<br/>[TESTED]"]:::rag
         C["[BOT] MOD-CALL-001<br/>llamadas, turnos, resumen<br/>[TESTED]"]:::bot
         TRI["[SEGURIDAD] MOD-TRIAGE-001<br/>reglas deterministas<br/>[TESTED]"]:::security
-        RAG["[RAG] MOD-RAG-001<br/>FTS5, available AND enabled=1<br/>[TESTED]"]:::rag
+        RAG["[RAG] MOD-RAG-001<br/>Chroma/FTS5 + SQLite eligibility<br/>[TESTED baseline, PROPOSED target]"]:::rag
+        EMB["[RAG] MOD-EMBED-001<br/>provider/model configurable<br/>[PROPOSED]"]:::future
+        VDB[("[DATOS] DATA-CHROMA-001<br/>coleccion versionada<br/>[PROPOSED]")]:::future
+        CHAIN["[BOT] MOD-LANGCHAIN-001<br/>loader, retriever, prompt<br/>[PROPOSED]"]:::future
+        OBS["[METRICAS] MOD-OBS-001<br/>spans + LangSmith redacted<br/>[PROPOSED]"]:::future
         AG["[BOT] MOD-AGENT-001<br/>grounding y abstencion<br/>[TESTED]"]:::bot
         VOICE["[EXTERNO] MOD-VOICE-SERVER-001<br/>Whisper opcional<br/>IMPLEMENTED, MANUAL_PENDING real"]:::external
         MET["[METRICAS] MOD-METRICS-001<br/>JSONL y agregacion<br/>[TESTED]"]:::metrics
     end
 
     subgraph DATA["DATA-001 | Estado local"]
-        DB[("[DATOS] DATA-SQLITE-001<br/>SQLite + FTS5")]:::data
+        DB[("[DATOS] DATA-SQLITE-001<br/>SQLite + FTS5 authority")]:::data
         FILES[("[DATOS] DATA-FILES-001<br/>data/uploads")]:::data
         EVENTS[("[METRICAS] DATA-EVENTS-001<br/>data/events.jsonl")]:::metrics
     end
@@ -390,6 +417,8 @@ flowchart LR
     DOC --> FILES
     CORPUS --> ING
     ING --> DB
+    ING -.-> EMB
+    EMB -.-> VDB
     XLSX --> BOOT
     BOOT --> ING
     C --> TRI
@@ -397,6 +426,10 @@ flowchart LR
     TRI --> AG
     AG --> RAG
     RAG --> DB
+    RAG -.-> VDB
+    RAG -.-> CHAIN
+    CHAIN -.-> OBS
+    RAG -.-> OBS
     AG --> C
     C --> DB
     C --> MET
@@ -413,6 +446,7 @@ flowchart LR
     classDef external fill:#FFEDD5,stroke:#C2410C,color:#7C2D12,stroke-width:2px,stroke-dasharray:5 5;
     classDef security fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D,stroke-width:2px;
     classDef metrics fill:#DCFCE7,stroke:#15803D,color:#14532D,stroke-width:2px;
+    classDef future fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95,stroke-width:2px,stroke-dasharray:5 5;
 ```
 
 La existencia de la UI, la ruta HTTP o el proveedor no aprueba por si sola G4. El estado de
@@ -431,6 +465,9 @@ sequenceDiagram
     participant CALL as BOT - MOD-CALL-001
     participant TRI as SEGURIDAD - MOD-TRIAGE-001
     participant RAG as RAG - MOD-RAG-001
+    participant VDB as DATOS - DATA-CHROMA-001
+    participant CHAIN as BOT - MOD-LANGCHAIN-001
+    participant OBS as METRICAS - MOD-OBS-001
     participant AG as BOT - MOD-AGENT-001
     participant LLM as EXTERNO - EXT-GROQ-LLM-001
     participant STT as EXTERNO - EXT-GROQ-STT-001
@@ -478,8 +515,12 @@ sequenceDiagram
         CALL->>DB: guardar turno paciente
         CALL->>AG: respond(text, triage, history)
         AG->>RAG: search(text)
-        RAG->>DB: FTS5 WHERE status=available AND enabled=1
+        RAG-.>>VDB: Chroma query, target versioned collection
+        VDB-->>RAG: vector candidates and distances
+        RAG->>DB: SQLite eligibility status=available AND enabled=1
         DB-->>RAG: chunks, score, page, corpus_revision
+        RAG-.>>CHAIN: bounded context and prompt version
+        CHAIN-.>>OBS: node spans redacted
         RAG-->>AG: fuentes y citas
 
         alt evidencia y proveedor disponible
@@ -528,6 +569,7 @@ sequenceDiagram
     participant DB as DATOS - DATA-SQLITE-001
     participant FS as DATOS - DATA-FILES-001
     participant RAG as RAG - MOD-RAG-001
+    participant VDB as DATOS - DATA-CHROMA-001
 
     ADM->>BR: Abrir /admin
     BR->>API: GET /api/admin/documents
@@ -571,6 +613,7 @@ sequenceDiagram
     BR->>API: DELETE /api/admin/documents/{id}
     API->>DOC: delete(id)
     DOC->>DB: snapshot de sources, borrar pages/chunks/FTS5/document
+    DOC-.>>VDB: delete vectors by document_id, target
     DOC->>DB: revision y audit delete
     DOC->>FS: eliminar original despues del commit
     API-->>BR: deleted=true
@@ -906,7 +949,7 @@ real.
 | `FUT-ADMIN-UX-001` | inventario responsive sin SHA visible | PROPOSED | definido en Spec 08; requiere smoke visual |
 | `FUT-ADMIN-SOURCE-001` | archivo original en modal | PROPOSED | definido en Spec 09; requiere endpoint binario y pruebas MIME |
 | `FUT-UX-COPY-001` | catalogo de copy, validacion VUI y separacion voz/UI | PROPOSED | definido en Spec 11; requiere reescritura y smoke de voz |
-| `FUT-RAG-EMBEDDING-001` | recuperacion semantica o hibrida compatible con FTS5 | PROPOSED | contrato y fases en Spec 12; no hay modelo elegido |
+| `FUT-RAG-EMBEDDING-001` | ChromaDB + embeddings, retrieval hibrido y fallback FTS5 | PROPOSED | Specs 13-19, benchmark pendiente y no hay ganador elegido |
 | `FUT-COST-001` | precios vivos y costo real | PROPOSED | no hay precios fechados ni log Groq real |
 | `FUT-VIDEO-001` | video de entrega | PROPOSED | solo existe manifiesto en `mvp/deliverables/04_video/` |
 | `FUT-AUTH-001` | autenticacion/CSRF/multiusuario | OUT_OF_SCOPE | admin local sin autenticacion en este MVP |
@@ -929,8 +972,10 @@ real.
 3. Actualizar `docs/arquitectura.md`, `mvp/deliverables/02_architecture/architecture.md`,
    README, fases y evidencia publicada.
 4. Implementar codigo solo despues de que el contrato y el diagrama coincidan.
-5. Ejecutar pruebas enfocadas, suite completa y preflight documental.
-6. Registrar fecha, commit o `working tree/no commit`, entorno, comando y resultado.
+5. Para la migracion, actualizar tambien `.env.example`, `requirements*.txt`, metricas, estado de
+   indice, LangChain/LangSmith y la matriz de pruebas antes de cambiar `MOD-RAG-001` a active.
+6. Ejecutar pruebas enfocadas, suite completa y preflight documental.
+7. Registrar fecha, commit o `working tree/no commit`, entorno, comando y resultado.
 
 Un cambio de estructura obliga a revisar D1 y `TRZ-STRUCTURE-001`; un cambio admin obliga a
 revisar D1/D3/D4 y `TRZ-ADMIN-*`; un cambio de timeout obliga a revisar D2/D5, eventos y
@@ -990,13 +1035,67 @@ fue `@mermaid-js/mermaid-cli@11.12.0`, compatible con el contrato visual de esta
   el diagrama sigue siendo legible en escala de grises y con zoom.
 - **DGM-AC-16:** rojo y amarillo atraviesan evidencia y abstencion cuando no existe fuente actual;
   el corpus apunta a ingestion y no se reutilizan snapshots eliminados.
+- **DGM-AC-17:** Chroma es un indice derivado versionado; SQLite conserva autoridad de elegibilidad,
+  revision y cita, y FTS5 permanece como fallback/rollback.
+- **DGM-AC-18:** el diagrama muestra embedding, fusion, hydration, LangChain, LangSmith redacted,
+  lag y rollback sin presentarlos como implementados antes de evidencia.
+
+## Tech Stack
+
+- Baseline: FastAPI/Uvicorn, SQLite/FTS5, PyMuPDF, HTML/CSS/JavaScript sin bundler.
+- Target: ChromaDB, providers de embeddings configurables, `langchain-core` y callbacks
+  LangSmith redacted.
+- Modelo de razonamiento: familia Meta Llama permitida, con `llama-3.1-8b-instant` como seleccion
+  declarada del baseline.
+- Persistencia autoritativa: SQLite; estado vectorial y trazas externas son derivados.
+
+## Project Structure
+
+```text
+specs/06_system_flow_diagram_specification.md -> ASCII, Mermaid, IDs y TRZ.
+docs/arquitectura.md                         -> vista publicada derivada.
+mvp/deliverables/02_architecture/             -> vista formal y procedencia.
+app/services/rag.py                           -> retrieval baseline/target.
+app/services/vector_store.py                  -> Chroma target.
+app/services/observability.py                 -> spans y redaction target.
+```
+
+## Code Style
+
+Los IDs `ACT-*`, `MOD-*`, `DATA-*`, `TRZ-*` y `GATE-*` son estables. Una flecha debe indicar
+ownership y, cuando corresponda, `HTTP`, `DB`, `RAG`, `T=` o telemetria. El diagrama no usa color
+como sustituto del estado clinico ni de evidencia.
+
+## Testing Strategy
+
+- validar aliases y sintaxis Mermaid con la version fijada;
+- contrastar cada nodo contra ruta de codigo, contrato y estado;
+- ejecutar suite baseline, tests de Chroma/reconciliacion y benchmark cuando existan;
+- verificar que la vista publicada y la formal no agregan autoridad distinta;
+- dejar G2, G3 real, G4 y G5 externo como evidencia manual cuando corresponda.
+
+## Boundaries
+
+- **Always:** actualizar primero specs de origen, mantener estados honestos, dibujar fallback y
+  autoridad SQLite, y conservar una descripcion textual accesible.
+- **Ask first:** cambiar actores, API, persistencia, modelo, metrica, despliegue publico o reglas
+  de triage.
+- **Never:** dibujar una capacidad como `TESTED` sin prueba, esconder vectores stale, usar snapshots
+  como fuente, aprobar gates por un diagrama o copiar `dataset/`/`docs/`.
+
+## Open Questions
+
+1. Confirmar version de Mermaid y parser que se usara en el preflight final.
+2. Confirmar si el target multi-worker requiere un subdiagrama de Chroma server y autenticacion.
+3. Confirmar los nombres definitivos de endpoints de promotion/reconcile antes de actualizar la
+   matriz `API-*`.
 
 ## Vistas derivadas
 
 - Vista publicada: [`docs/arquitectura.md`](../docs/arquitectura.md).
 - Vista formal derivada: [`mvp/deliverables/02_architecture/architecture.md`](../mvp/deliverables/02_architecture/architecture.md).
 - Explorador HTML futuro: [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md).
-- Documento profundo del RAG: [`specs/12_rag_deep_dive_specification.md`](12_rag_deep_dive_specification.md).
+- Migracion RAG integrada: [`specs/19_rag_production_migration_specification.md`](19_rag_production_migration_specification.md).
 - Informe y evidencia: [`docs/informe-final.md`](../docs/informe-final.md) y
   [`readme/04_metricas_y_evidencia.md`](../readme/04_metricas_y_evidencia.md).
 

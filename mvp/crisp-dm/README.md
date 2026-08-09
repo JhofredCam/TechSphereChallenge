@@ -21,3 +21,10 @@ proceso; no contienen copias de `dataset/`, `docs/`, runtime, pruebas ni estado 
 
 Los comandos se ejecutan desde la raiz. Las fuentes canonicas `dataset/` y `docs/` permanecen
 en sus rutas originales y las fases solo las enlazan.
+
+## Upgrade RAG
+
+El upgrade de produccion se desglosa en las Specs 13-19: configuracion externa, ChromaDB,
+chunking/embeddings, benchmark, LangChain, LangSmith y operaciones de rollout/rollback. El
+baseline FTS5 sigue siendo el camino ejecutable hasta que el benchmark, la reconciliacion y el
+rollback tengan evidencia fechada.

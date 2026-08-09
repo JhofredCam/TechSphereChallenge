@@ -16,6 +16,8 @@ La [spec del diagrama](../specs/06_system_flow_diagram_specification.md) define 
 entre eventos, submodulos y evidencia. La [spec de timeout](../specs/05_patient_listening_timeout_specification.md)
 separa el tiempo de escucha del paciente de la latencia oficial de respuesta; el valor de
 `.env.example` se valida y llega al navegador por `/health`.
+La migracion RAG añade configuracion, Chroma, benchmark y LangSmith en las Specs 13-19, pero sus
+valores siguen `PENDIENTES` hasta ejecutar el runtime y conservar artefactos fechados.
 
 ## Metricas obligatorias
 
@@ -29,6 +31,14 @@ separa el tiempo de escucha del paciente de la latencia oficial de respuesta; el
 | Costo estimado | Precio documentado por millon de tokens aplicado a cada llamada | Informe + logs | PENDIENTE; falta precio vigente y muestra de proveedor |
 | Ciclo admin | Preview textual, disable/enable, filtro RAG, delete y snapshot | `tests/test_admin_lifecycle.py`, API y UI | Tests locales ejecutados; smoke manual/G5 externo PENDIENTE |
 | Timeout de escucha | Duracion y resultado de `PATIENT_LISTEN_TIMEOUT_MS` | `tests/test_timeout.py`, `voice-events`, navegador | 24 tests enfocados; smoke manual Chrome/Edge PENDIENTE |
+| Recall/precision/hit rate | qrels por consulta y top-k | runner de benchmark | PENDIENTE; FTS5 baseline debe ejecutarse primero |
+| Context precision | relevancia de chunks enviados al prompt | qrels + trace redacted | PENDIENTE |
+| MRR/nDCG | orden y relevancia graduada | runner de benchmark | PENDIENTE |
+| Retrieval latency | embedding, Chroma/FTS5, fusion, hydration y total | JSONL/LangSmith redacted | PENDIENTE |
+| Index lag | disponible SQLite versus vector listo | index manager/health | PENDIENTE |
+| Citation validity | cita coincide con fuente elegible y revision | tests + eventos | PENDIENTE; objetivo 99.5% |
+| Leakage | documento disabled/deleted recuperable | lifecycle/reconcile tests | objetivo 0 |
+| LangSmith privacy | spans sin PII, secrets, audio o chunks | redaction tests + traza staging | PENDIENTE |
 
 Usar los nombres de campo del contrato previsto: `call_id`, `turn_id`, `speech_ended_at`,
 `audio_started_at`, `latency_ms`, `input_tokens`, `output_tokens`, `model_calls`,
@@ -69,6 +79,9 @@ Conservar resultados de:
 - Triaje rojo sin degradacion, amarillo con alerta y ambiguo con aclaracion.
 - Resumen de cierre y persistencia de alerta.
 - Voz en navegador, fallback textual y comportamiento ante permisos denegados.
+- Recuperacion Chroma/FTS5, restart, stale vectors, reconciliacion y rollback.
+- Comparacion reproducible de al menos tres chunkers y varias combinaciones de provider/modelo.
+- Redaction y retencion de trazas LangSmith, sin usar su disponibilidad como gate clinico.
 - Timeout de escucha, resultado parcial, no respuesta y reintento, sin inferir una decision
   clinica desde el silencio; tests locales pasaron y smoke manual sigue PENDIENTE.
 

@@ -1,15 +1,16 @@
 # Spec: Pruebas unitarias e integracion del MVP
 
-**Estado:** implementada como estrategia ejecutable local; browser, microfono, TTS, Groq/Whisper real, G2 y G5 externo `MANUAL_PENDING`
-**Version:** 0.2.0
+**Estado:** baseline ejecutable; suites Chroma/benchmark/LangChain/LangSmith/ops especificadas, aun pendientes
+**Version:** 0.3.0
 **Fecha:** 2026-08-08
 
 ## Objetivo
 
-Definir una estrategia reproducible de pruebas unitarias y de integracion para el runtime del
-MVP en `app/`, `scripts/` y `tests/`. La suite debe validar contratos, persistencia, RAG,
-triaje, seguridad, metricas, ingestion y API sin depender de credenciales, red, modelos
-descargados ni modificaciones de las fuentes canonicas.
+Definir una estrategia reproducible de pruebas unitarias, integracion, benchmark y operacion para
+el runtime del MVP y el upgrade RAG en `app/`, `scripts/` y `tests/`. La suite debe validar
+contratos, persistencia, FTS5, ChromaDB, retrieval, triaje, seguridad, metricas, ingestion,
+LangChain y API sin depender de credenciales, red, modelos descargados ni modificaciones de las
+fuentes canonicas.
 
 La estrategia debe demostrar:
 
@@ -18,6 +19,9 @@ La estrategia debe demostrar:
 - ingestion de PDF, TXT y MD, incluyendo `needs_ocr`, duplicados, hashes y rutas problematicas;
 - contratos HTTP de `/admin`, `/call`, `/health` y `/api/metrics`;
 - aprendizaje y olvido de conocimiento mediante upload/delete sin reiniciar el proceso;
+- persistencia Chroma, manifest, reinicio, reconciliacion, stale vectors y rollback FTS5;
+- benchmark reproducible de chunking/providers/modelos con recall, context precision y latencias;
+- redaction y comportamiento fail-open de LangSmith;
 - persistencia de turnos, fuentes, alertas y resumen de llamada;
 - separacion entre automatizacion, smoke manual y compuertas G1-G5.
 
@@ -35,6 +39,13 @@ Esta spec depende de:
 - `specs/04_admin_document_lifecycle_specification.md`: preview, `enabled` y RAG activo;
 - `specs/05_patient_listening_timeout_specification.md`: timeout, eventos e idempotencia;
 - `specs/06_system_flow_diagram_specification.md`: IDs `TRZ-*`, flujo y estados;
+- `specs/13_rag_environment_configuration_specification.md`: variables y perfiles;
+- `specs/14_rag_vector_store_chromadb_specification.md`: Chroma y consistencia;
+- `specs/15_rag_chunking_embedding_benchmark_specification.md`: qrels y gates;
+- `specs/16_rag_langchain_orchestration_specification.md`: loaders, prompt y runnables;
+- `specs/17_rag_observability_langsmith_specification.md`: spans y redaction;
+- `specs/18_rag_production_operations_specification.md`: rollout, backup y rollback;
+- `specs/19_rag_production_migration_specification.md`: contrato integrador;
 - `docs/rubrica-evaluacion.md`: gates G1-G5 y metricas obligatorias;
 - `docs/stack-tecnico.md`: familias de modelos permitidas.
 
@@ -51,7 +62,7 @@ matriz `TRZ-*` del diagrama antes de agregar o modificar pruebas.
 | Cobertura | pytest-cov 6.1.1 |
 | Lint | Ruff 0.11.2 |
 | Cliente HTTP | `fastapi.testclient.TestClient` sobre HTTPX 0.28.1 |
-| Persistencia | SQLite de la biblioteca estandar con FTS5 |
+| Persistencia | SQLite de la biblioteca estandar con FTS5 + ChromaDB versionado |
 | PDF | PyMuPDF 1.25.5 |
 | XLSX | openpyxl 3.1.5 |
 | Frontend | HTML, CSS y JavaScript sin bundler |
@@ -88,6 +99,21 @@ puede afectar el setup de 15 minutos.
 No existe `tests/conftest.py` ni una bateria automatizada para `app/web/app.js`. Un `conftest.py`
 puede agregarse para fixtures compartidas, pero no debe ocultar el contexto de cada prueba ni
 mover la logica especifica de los modulos actuales.
+
+### Extensiones propuestas por la migracion
+
+Estos archivos no existen aun y no se deben contar como cobertura actual:
+
+| Archivo propuesto | Cobertura prevista |
+|---|---|
+| `tests/test_vector_store.py` | Chroma adapter, metadata, score, persistencia y fallos |
+| `tests/test_rag_consistency.py` | hydration SQLite, revision, stale vectors, disable/delete y fallback |
+| `tests/test_benchmark_contracts.py` | qrels, schemas, metricas, no-fuga y manifest |
+| `tests/test_loader_contracts.py` | DocumentLoader y metadata LangChain |
+| `tests/test_rag_chain.py` | runnables, budgets, conteo y contexto |
+| `tests/test_prompt_contracts.py` | prompt versionado, injection, citas y salida segura |
+| `tests/test_observability_contracts.py` | spans, redaction, fail-open y health |
+| `tests/test_rag_operations.py` | manifest, promotion, rollback, reconciliacion y backup |
 
 ### Extensiones implementadas y frontera manual
 
@@ -324,6 +350,56 @@ reales.
 Las pruebas de integracion usan SQLite y servicios reales, pero proveedores remotos falsos.
 Solo una prueba manual con credencial demuestra disponibilidad real de Groq/Whisper.
 
+## Catalogo de pruebas de la migracion RAG
+
+### Unitarias nuevas
+
+| ID | Area | Caso | Oraculo |
+|---|---|---|---|
+| `UT-CONFIG-RAG-01` | Config | defaults, rangos y cross-fields | perfil efectivo valido o error accionable |
+| `UT-VECTOR-01` | Chroma | metadata, dimension, metrica y manifest | incompatibles se rechazan antes de query |
+| `UT-VECTOR-02` | Score | distancia cosine y threshold | score determinista y no clinico |
+| `UT-VECTOR-03` | Hydration | hit sin SQLite, disabled o deleted | se descarta y registra stale, no se cita |
+| `UT-RAG-HYBRID-01` | Fusion | FTS5 + Chroma, deduplicacion y orden | resultado estable y `rag_queries` coherente |
+| `UT-BENCH-01` | Qrels | recall, precision, hit, MRR/nDCG | formulas y casos vacios correctos |
+| `UT-BENCH-02` | Latencia | p50/p95 por nodo y cold/warm | no mezcla voz ni inventa valores |
+| `UT-LOADER-01` | LangChain | PDF/TXT/MD a `Document` | pagina, offsets, hash y OCR se conservan |
+| `UT-CHAIN-01` | LangChain | nodos, timeouts y contexto | no hay llamadas ocultas ni contexto ilimitado |
+| `UT-PROMPT-01` | Prompt | delimitadores e injection | paciente/fuente no cambian instrucciones |
+| `UT-OBS-01` | LangSmith | redaction y exporter caido | sin PII/secrets y fail-open |
+| `UT-OPS-01` | Ops | transiciones, promotion y rollback | puntero atomico y razon auditada |
+
+### Integracion nueva
+
+| ID | Flujo | Caso | Oraculo |
+|---|---|---|---|
+| `IT-CHROMA-01` | Persistencia | build, reinicio y query | vectores disponibles con manifest identico |
+| `IT-CHROMA-02` | Idempotencia | backfill dos veces | mismo conteo e IDs, sin duplicados |
+| `IT-RAG-03` | Lifecycle | upload, disable, enable y delete | cero fuga, abstencion o recuperacion esperada |
+| `IT-RAG-04` | Revision | mutacion durante retrieval | `corpus_changed`, sources vacias o reintento seguro |
+| `IT-RAG-05` | Fallo parcial | SQLite commit y Chroma error en ambos ordenes | no citable, evento y reconciliacion |
+| `IT-BENCH-01` | Benchmark | matriz completa y repetible | resultado con hardware/versiones/latencias |
+| `IT-CHAIN-01` | Orquestacion | loader -> retriever -> prompt -> DTO | grounding/cita y aliases existentes |
+| `IT-CHAIN-02` | Seguridad | LLM contradice triage o inventa cita | validator fallback/abstencion |
+| `IT-OBS-01` | Trazas | LangSmith off/on/fake | local siempre funciona, externo redacted |
+| `IT-OPS-01` | Rollout | shadow/canary/promote/rollback | puntero y health coherentes |
+| `IT-OPS-02` | Restore | backup SQLite + Chroma + manifest | consulta valida y snapshots fuera del RAG |
+
+### Gates de benchmark
+
+Una corrida se marca `PASS` solo si tiene snapshot, qrels, manifest, commit, hardware, warmups,
+repeticiones y resultados por consulta. Los gates P0 son:
+
+- `disabled_document_leak_count == 0`;
+- `deleted_document_leak_count == 0`;
+- `citation_revision_mismatch_count == 0`;
+- `prompt_injection_mission_change_count == 0`;
+- paridad de triage `100%`;
+- no se promueve una variante sin fallback FTS5.
+
+Los resultados de recall, precision, context precision y latencia no se escriben como cifras
+historicas hasta ejecutar el runner. Un provider faltante queda `SKIPPED`, no `0`.
+
 El archivo de borrado fisico esta cubierto localmente. La validacion MIME independiente no existe
 en el runtime actual y queda como brecha documentada; la lectura del dataset canonico se verifica
 con `python -m scripts.validate_dataset`, no como fixture pytest.
@@ -489,11 +565,13 @@ externo.
   voz. Las pruebas deben comprobar maximo dos oraciones, una pregunta, contencion, copy si/no,
   ausencia de metadatos tecnicos y conservacion de alertas. El smoke real de `SpeechSynthesis`
   sigue siendo manual.
-- **Spec 12:** la documentacion profunda del RAG debe reflejar ingestion, chunking, FTS5,
-  `available + enabled`, filtro de relevancia, revision, citas, snapshots y abstencion. Sus
-  pruebas focalizadas son `test_ingestion.py`, `test_agent.py`, `test_triage.py`,
-  `test_database.py`, `test_admin_lifecycle.py` y `test_live_knowledge.py`; ninguna suite local
-  aprueba el recorrido G5 con documento externo.
+- **Specs 13-19:** la documentacion RAG debe reflejar configuracion, ingestion, chunking versionado,
+  embeddings, ChromaDB, FTS5 fallback, `available + enabled`, filtro de relevancia, revision,
+  citas, snapshots, LangChain, LangSmith redacted, benchmark y rollback. Sus pruebas focalizadas
+  agregan `test_vector_store.py`, `test_rag_consistency.py`, `test_benchmark_contracts.py`,
+  `test_loader_contracts.py`, `test_rag_chain.py`, `test_prompt_contracts.py`,
+  `test_observability_contracts.py` y `test_rag_operations.py`; ninguna suite local aprueba el
+  recorrido G5 con documento externo.
 
 La UI de `/admin` y el explorador de arquitectura tienen fronteras distintas. No se reutiliza el
 estado de una llamada, el catalogo del explorador no consulta el API y los datos de preview nunca
@@ -528,9 +606,15 @@ se convierten en evidencia RAG.
   original/MIME y explorador offline; una prueba estatica no se presenta como un gate real.
 - **TST-AC-16:** la reescritura de Spec 11 tiene inventario completo de literales, pruebas de copy
   y una frontera explicita entre texto hablado, UI, fuentes y diagnostico interno.
-- **TST-AC-17:** las pruebas RAG de la Spec 12 cubren normalizacion, chunking, hashes, PDF sin
+- **TST-AC-17:** las pruebas RAG de la Spec 19 cubren normalizacion, chunking, hashes, PDF sin
   texto, FTS5 parametrizado, relevancia, `available + enabled`, revision concurrente, citas
   validas, fallback, abstencion y conocimiento vivo; el recorrido G5 externo permanece manual.
+- **TST-AC-18:** las suites nuevas cubren Chroma persistente, metadata, dimension/metrica,
+  hydration SQLite, stale vectors, reconciliacion, rollback y paridad FTS5.
+- **TST-AC-19:** el benchmark separa qrels de ajuste/prueba, reporta recall, context precision,
+  citas, abstencion, memoria y latencia por nodo sin fabricar valores.
+- **TST-AC-20:** LangChain conserva el DTO y la seguridad, LangSmith es redacted/fail-open y
+  `health` no expone secretos.
 
 ## Limites
 

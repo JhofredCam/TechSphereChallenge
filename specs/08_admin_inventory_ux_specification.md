@@ -47,7 +47,9 @@ para API, persistencia, deduplicacion, auditoria y acciones seguras.
 - HTML semantico, CSS sin bundler y JavaScript existente en `app/web/`.
 - API actual de documentos en `app/main.py` y contratos de `app/schemas.py`.
 - No se agrega una biblioteca de tablas, un framework visual ni una dependencia de navegador.
-- No se cambia SQLite, FTS5, ingestion, SHA-256, RAG, OCR ni el contrato de upload.
+- No se cambia el contrato visual de SQLite/FTS5, ingestion, SHA-256, RAG, OCR ni upload. La
+  migracion RAG puede agregar un badge tecnico `index_status`/`index_lag` siempre que no se confunda
+  con `available`, `enabled` o aprobacion clinica.
 - No se usa `overflow-x: hidden` sobre `body` como sustituto de un layout correcto.
 - No se elimina informacion funcional para ocultar un desbordamiento; se reorganiza su presentacion.
 

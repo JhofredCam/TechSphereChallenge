@@ -10,6 +10,10 @@ La suite automatizada, Ruff, la validacion del dataset y el bootstrap local esta
 G2, el smoke manual de voz, Groq/Whisper real y la demo G5 con documento externo siguen
 pendientes.
 
+La migracion RAG de produccion esta planificada en las Specs 13-19. En este checkout ChromaDB,
+embeddings, LangChain, LangSmith y el benchmark semantico siguen `PROPOSED`; el flujo FTS5 que se
+describe abajo es el baseline ejecutable y el fallback obligatorio del upgrade.
+
 ## Fuente normativa y vista derivada
 
 La especificacion completa del flujo, sus actores, etapas, submodulos, ASCII, Mermaid y matriz
@@ -37,6 +41,20 @@ con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06
   propuesta de archivo original en modal, separada de `pages.text`.
 - [`specs/10_architecture_explorer_specification.md`](../specs/10_architecture_explorer_specification.md):
   propuesta de vista navegable derivada, sin autoridad adicional.
+- [`specs/13_rag_environment_configuration_specification.md`](../specs/13_rag_environment_configuration_specification.md):
+  configuracion externa y perfiles.
+- [`specs/14_rag_vector_store_chromadb_specification.md`](../specs/14_rag_vector_store_chromadb_specification.md):
+  ChromaDB como indice derivado y lifecycle.
+- [`specs/15_rag_chunking_embedding_benchmark_specification.md`](../specs/15_rag_chunking_embedding_benchmark_specification.md):
+  benchmark de calidad y latencia.
+- [`specs/16_rag_langchain_orchestration_specification.md`](../specs/16_rag_langchain_orchestration_specification.md):
+  loader, runnables y prompt.
+- [`specs/17_rag_observability_langsmith_specification.md`](../specs/17_rag_observability_langsmith_specification.md):
+  spans y redaction.
+- [`specs/18_rag_production_operations_specification.md`](../specs/18_rag_production_operations_specification.md):
+  rollout, rollback y backup.
+- [`specs/19_rag_production_migration_specification.md`](../specs/19_rag_production_migration_specification.md):
+  contrato integrador y sucesor de la spec 12.
 
 Preview, enable/disable, snapshots, el filtro de corpus activo y el timer configurable ya tienen
 runtime y pruebas locales. La vista no convierte esas pruebas en evidencia manual de navegador,
@@ -64,6 +82,26 @@ G2 o G5 externo.
   permitida. Con `GROQ_API_KEY` se habilita el adaptador remoto; sin ella se usa el fallback
   extractivo determinista.
 
+## Target de migracion RAG
+
+```text
+Ingestion por pagina -> splitter configurable -> embeddings locales
+          |                                      |
+          +-> SQLite + FTS5 baseline       ChromaDB versionado
+                                                   |
+Paciente -> triaje -> Chroma/FTS5 -> hydration SQLite -> fusion/threshold
+                                              |
+                              LangChain prompt -> Llama permitido/fallback
+                                              |
+                             validacion cita -> respuesta/audio
+                                              |
+                          JSONL + metricas + LangSmith redacted opcional
+```
+
+SQLite conserva documentos, `enabled`, `corpus_revision`, chunks, fuentes y snapshots. Chroma solo
+propone candidatos; un vector sin fila elegible se descarta. El target no se considera implementado
+hasta que el benchmark, el rollback y las pruebas de conocimiento vivo pasen.
+
 ## Componentes y flujo de datos
 
 ```mermaid
@@ -81,7 +119,10 @@ flowchart LR
         Config["[BOT] config.py<br/>timeout publico"]:::bot
         Documents["[ADMIN] documents.py<br/>upload / list / preview / toggle / delete"]:::admin
         Ingestion["[RAG] ingestion.py<br/>PDF, TXT, MD y chunks"]:::rag
-        RAG["[RAG] rag.py<br/>FTS5, available + enabled"]:::rag
+        RAG["[RAG] rag.py<br/>FTS5 baseline; Chroma target<br/>available + enabled"]:::rag
+        Chroma["[RAG] ChromaDB<br/>indice versionado<br/>PROPOSED"]:::rag
+        Chain["[BOT] LangChain<br/>prompt y retriever<br/>PROPOSED"]:::bot
+        Trace["[METRICAS] LangSmith<br/>redacted y opcional<br/>PROPOSED"]:::metrics
         Agent["[BOT] agent.py<br/>respuesta grounded"]:::bot
         Triage["[SEGURIDAD] triage.py<br/>reglas conservadoras"]:::security
         Calls["[BOT] calls.py<br/>turnos y resumen"]:::bot
@@ -90,7 +131,7 @@ flowchart LR
     end
 
     subgraph Local["Estado local configurado"]
-        DB[("[DATOS] SQLite + FTS5")]:::data
+        DB[("[DATOS] SQLite authority + FTS5")]:::data
         JSONL[("[METRICAS] events.jsonl")]:::metrics
         Data["[DATOS] data/<br/>app.sqlite3, uploads, events.jsonl"]:::data
     end
@@ -129,6 +170,9 @@ flowchart LR
     Triage --> Agent
     RAG --> Agent
     RAG --> DB
+    RAG -.-> Chroma
+    RAG -.-> Chain
+    Chain -.-> Trace
     Agent --> Groq
     Agent --> Calls
     Calls --> DB
@@ -261,14 +305,18 @@ ademas material externo.
 
 | Area | Ruta | Responsabilidad y estado |
 |---|---|---|
-| Configuracion | `app/config.py` | Entorno, rutas, limites y `PATIENT_LISTEN_TIMEOUT_MS`; TESTED |
+| Configuracion | `app/config.py`, `.env.example` | Entorno, perfiles, RAG, rutas, limites y `PATIENT_LISTEN_TIMEOUT_MS`; baseline TESTED, target PROPOSED |
 | Persistencia | `app/database.py` | SQLite, FTS5, transacciones, `enabled`, snapshots y revision; TESTED |
 | Contratos | `app/schemas.py`, `app/main.py` | Entrada/salida, preview, toggle, voice-events y serializacion API; TESTED |
 | Dataset | `app/dataset.py`, `scripts/validate_dataset.py` | XLSX, JSON y joins de solo lectura; TESTED |
 | Bootstrap | `app/bootstrap.py`, `scripts/bootstrap.py` | Validacion, hash, ingestion e idempotencia; TESTED |
 | Ingestion | `app/services/ingestion.py` | PDF, TXT, MD, paginas, chunks y `needs_ocr`; TESTED |
 | Documentos | `app/services/documents.py` | Upload/process/preview/toggle/delete y snapshots; TESTED |
-| RAG | `app/services/rag.py` | FTS5, filtro `available AND enabled` y citas; TESTED |
+| RAG | `app/services/rag.py`, `vector_store.py` | FTS5 baseline, Chroma target, filtro `available AND enabled` y citas; baseline TESTED, target PROPOSED |
+| Embeddings | `app/services/embeddings.py` | Provider/modelo, dimension, cache y latencia; PROPOSED |
+| LangChain | `app/services/rag_chain.py`, `prompts.py` | loader, retriever, contexto y prompt; PROPOSED |
+| Index ops | `app/services/index_manager.py`, `scripts/` | manifest, reconciliacion, promotion y rollback; PROPOSED |
+| Observabilidad | `app/services/observability.py` | spans, redaction y LangSmith; JSONL baseline TESTED, target PROPOSED |
 | Agente | `app/services/agent.py` | Groq opcional, fallback, abstencion y seguridad de salida; TESTED local |
 | Seguridad | `app/services/triage.py` | Nivel conservador, alertas y aclaraciones; TESTED |
 | Llamadas | `app/services/calls.py` | Turnos, fuentes, alertas, resumen, IDs y `late_transcript`; TESTED |

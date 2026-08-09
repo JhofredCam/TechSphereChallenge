@@ -6,8 +6,8 @@ tarea puede permanecer sin marcar aunque exista una implementacion local verific
 03-07 del siguiente corte estan marcadas por su estado aplicado.
 
 - [ ] Crear configuracion y esquema SQLite
-  - Aceptacion: `init_database()` crea tablas, FTS5 y directorios locales sin secretos.
-  - Verificar: `python -m pytest tests/test_database.py -q`.
+  - Aceptacion: `init_database()` crea tablas, FTS5, metadata de indice y directorios locales sin secretos.
+  - Verificar: `python -m pytest tests/test_database.py tests/test_config_contracts.py -q`.
   - Archivos: `app/config.py`, `app/database.py`, `app/schemas.py`.
 
 - [ ] Implementar ingestion y ciclo de vida documental
@@ -18,9 +18,9 @@ tarea puede permanecer sin marcar aunque exista una implementacion local verific
 
 - [ ] Implementar recuperacion y trazabilidad
   - Aceptacion: cada resultado contiene documento, pagina, chunk, cita y revision del corpus;
-    borrar elimina los resultados futuros.
-  - Verificar: `python -m pytest tests/test_live_knowledge.py -q`.
-  - Archivos: `app/services/rag.py`, `app/database.py`.
+    borrar elimina los resultados futuros en FTS5 y Chroma.
+  - Verificar: `python -m pytest tests/test_live_knowledge.py tests/test_rag_consistency.py -q`.
+  - Archivos: `app/services/rag.py`, `app/services/vector_store.py`, `app/database.py`.
 
 - [ ] Implementar dataset foundation
   - Aceptacion: valida hojas, encabezados, filas, JSON embebido y joins sin mezclar capas.
@@ -50,6 +50,47 @@ tarea puede permanecer sin marcar aunque exista una implementacion local verific
     informe y checklist G1-G5.
   - Verificar: ejecutar todos los comandos del README desde un entorno limpio.
   - Archivos: `README.md`, `readme/`, `mvp/`, `docs/arquitectura.md`, `docs/informe-final.md`.
+
+## Tareas de migracion RAG de produccion
+
+La lista detallada, con tareas de una sola sesion, esta en [`tasks/todo.md`](../tasks/todo.md). Este
+resumen conserva el backlog historico y fija la secuencia normativa del upgrade:
+
+- [ ] Configuracion externa y `.env.example` completo
+  - Aceptacion: chunking, embeddings, Chroma, retrieval y LangSmith se validan por entorno.
+  - Verificar: `python -m pytest tests/test_config_contracts.py -q --basetemp <temp>/rag-config`.
+  - Archivos: `app/config.py`, `.env.example`, `tests/test_config_contracts.py`.
+
+- [ ] Contratos de loader, embeddings, vector store y manifest
+  - Aceptacion: FTS5 mantiene `SearchResult`; Chroma y providers se inyectan sin objetos externos en API.
+  - Verificar: `python -m pytest tests/test_schema_contracts.py tests/test_vector_store.py -q`.
+  - Archivos: `app/schemas.py`, `app/services/loaders.py`, `app/services/embeddings.py`, `app/services/vector_store.py`.
+
+- [ ] ChromaDB dual-write, hydration, reconciliacion y delete seguro
+  - Aceptacion: upload/disable/enable/delete sin reinicio, cero fugas y rollback FTS5.
+  - Verificar: `python -m pytest tests/test_rag_consistency.py tests/test_live_knowledge.py tests/test_rag_operations.py -q`.
+  - Archivos: `app/services/rag.py`, `app/services/documents.py`, `app/services/index_manager.py`, `tests/`.
+
+- [ ] Benchmark experimental de chunkers y embeddings
+  - Aceptacion: qrels, recall, precision, hit rate, MRR/nDCG, context precision, citas,
+    abstencion, latencias y memoria con decision contra FTS5.
+  - Verificar: `python -m scripts.benchmark_rag --matrix configs/rag_benchmark.yaml --gate --output <temp>/rag-results.json`.
+  - Archivos: `scripts/prepare_rag_eval.py`, `scripts/benchmark_rag.py`, `scripts/compare_rag_runs.py`, `benchmarks/`.
+
+- [ ] LangChain, prompt y validacion de respuesta
+  - Aceptacion: loader/runnable/prompt son visibles; triaje, citas, abstencion y seguridad siguen fuera del framework.
+  - Verificar: `python -m pytest tests/test_loader_contracts.py tests/test_rag_chain.py tests/test_prompt_contracts.py -q`.
+  - Archivos: `app/services/rag_chain.py`, `app/services/prompts.py`, `app/services/agent.py`, `tests/`.
+
+- [ ] LangSmith redacted y observabilidad por nodo
+  - Aceptacion: tracing opcional, fail-open, sin PII/contenido por defecto y metricas conciliables con JSONL.
+  - Verificar: `python -m pytest tests/test_observability_contracts.py tests/test_metrics.py -q`.
+  - Archivos: `app/services/observability.py`, `app/services/metrics.py`, `tests/test_observability_contracts.py`.
+
+- [ ] Rollout, rollback, backup y propagacion documental
+  - Aceptacion: shadow/canary/promotion/rollback, README, diagrama, CRISP-DM, informe y specs 06/07 sincronizados.
+  - Verificar: `python -m pytest -q --basetemp <temp>/rag-final`, `git diff --check` y smoke manual G2-G5.
+  - Archivos: `scripts/`, `specs/`, `README.md`, `docs/`, `mvp/`, `readme/`.
 
 ## Tareas del siguiente corte
 

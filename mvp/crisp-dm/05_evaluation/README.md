@@ -20,6 +20,12 @@ ejecucion; nunca sustituir evidencia por una intencion de diseno.
   trazabilidad del cambio.
 - [Spec de pruebas](../../../specs/07_testing_unit_integration_specification.md), para separar
   pruebas automatizadas, cobertura y evidencia manual.
+- [Benchmark RAG](../../../specs/15_rag_chunking_embedding_benchmark_specification.md), para
+  qrels, recall, context precision y latencias.
+- [Observabilidad LangSmith](../../../specs/17_rag_observability_langsmith_specification.md),
+  para spans redacted y SLOs.
+- [Operacion RAG](../../../specs/18_rag_production_operations_specification.md), para rollback,
+  backup y reconciliacion.
 
 ## Salidas
 
@@ -35,6 +41,8 @@ ejecucion; nunca sustituir evidencia por una intencion de diseno.
   `listen_id` y `late_transcript`; el smoke de Chrome/Edge sigue pendiente.
 - P50/P95 de latencia, tokens por turno/llamada, invocaciones, consultas RAG y costo
   estimado, todos vinculados a logs.
+- Recall/precision/hit rate/MRR/nDCG, context precision, citation validity, abstencion, fugas,
+  latencia de embedding/Chroma/fusion/RAG e index lag.
 - Matriz de triaje y resumen de limitaciones, falsos positivos y falsos negativos.
 
 ## Tareas concretas
@@ -48,6 +56,8 @@ ejecucion; nunca sustituir evidencia por una intencion de diseno.
 6. Calcular las metricas con timestamps del sistema, no con estimaciones visuales.
 7. Conservar salidas, capturas y logs con fecha, commit, entorno y configuracion no secreta.
 8. Registrar cualquier prueba no ejecutada y su razon en el informe final.
+9. Ejecutar benchmark con FTS5 baseline y conservar manifest/qrels antes de promover Chroma.
+10. Ejecutar rollback a FTS5 o indice anterior y verificar que no se pierden fuentes historicas.
 
 ## Criterios de aceptacion
 
@@ -64,6 +74,8 @@ ejecucion; nunca sustituir evidencia por una intencion de diseno.
   evidencia manual requerida.
 - [x] La preview, el toggle documental y el timeout configurable tienen runtime y pruebas
   automatizadas locales; la evidencia manual de UI/voz y G5 externo sigue pendiente.
+- [ ] La variante Chroma/embedding cumple recall, context precision, citation validity, latencia,
+  cero fugas y rollback; pendiente de benchmark e implementacion.
 
 ## Verificacion y evidencia
 
@@ -76,6 +88,12 @@ ruff check .
 node --check app/web/app.js
 python -m scripts.validate_dataset
 python -m app.bootstrap --data-dir <temp>
+```
+
+Comando futuro del upgrade, aun `PROPOSED` porque el runner no existe en este checkout:
+
+```text
+python -m scripts.benchmark_rag --matrix configs/rag_benchmark.yaml --gate --output <temp>/rag-results.json
 ```
 
 Resultado del 2026-08-08:

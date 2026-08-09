@@ -25,7 +25,7 @@ Abrir:
 
 - `http://127.0.0.1:8000/admin` para subir, listar y eliminar documentos.
 - `http://127.0.0.1:8000/call` para iniciar una llamada, hablar y escuchar al agente.
-- `http://127.0.0.1:8000/health` para comprobar FTS5, corpus, voz y modelo declarado.
+- `http://127.0.0.1:8000/health` para comprobar backend RAG, indice, corpus, voz y modelo declarado.
 
 Para detener el servidor, presiona `Ctrl+C`. El estado generado queda en `data/`, ignorado por
 Git. Si la máquina no permite crear el directorio temporal por defecto de pytest, usa un
@@ -63,8 +63,8 @@ de la misma familia Meta Llama y actualiza el informe.
 4. Usa `Previsualizar` para inspeccionar el texto extraido como texto plano no ejecutable.
 5. Usa `Deshabilitar` para conservar el documento y excluirlo del RAG; `Habilitar` lo publica de
    nuevo sin reprocesarlo.
-6. Usa `Eliminar` para borrar paginas, chunks y filas FTS5, conservar el snapshot historico y
-   retirar el archivo sin reiniciar el servidor.
+6. Usa `Eliminar` para borrar paginas, chunks, filas FTS5 y vectores Chroma cuando el upgrade este
+   activo, conservar el snapshot historico y retirar el archivo sin reiniciar el servidor.
 
 Los documentos se identifican por SHA-256, se procesan de forma síncrona y conservan página,
 chunk, cita y revisión del corpus. Un PDF sin texto no se presenta como disponible.
@@ -118,11 +118,11 @@ Navegador
       │                │                  │
   DocumentService   CallService       VoiceService
       │                │                  │
-      └────────── SQLite + FTS5 ──────────┘
-                         │
-                   RagService + triaje
-                         │
-              Groq Llama opcional / fallback
+       └──── SQLite authority + FTS5 fallback ────┘
+                          │
+          RagService + Chroma + fusion + triaje
+                          │
+              LangChain + Llama / fallback
 ```
 
 El diagrama detallado y el flujo de decisión están en [`docs/arquitectura.md`](docs/arquitectura.md).
@@ -161,6 +161,20 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
   catalogo propuesto para reescribir todos los mensajes del bot con UX Writing y VUI.
 - [`12_rag_deep_dive_specification.md`](specs/12_rag_deep_dive_specification.md):
   explicacion profunda del RAG, sus diagramas, seguridad, citas y evolucion.
+- [`13_rag_environment_configuration_specification.md`](specs/13_rag_environment_configuration_specification.md):
+   variables, defaults, perfiles y secretos redacted del pipeline.
+- [`14_rag_vector_store_chromadb_specification.md`](specs/14_rag_vector_store_chromadb_specification.md):
+   ChromaDB, metadata, lifecycle, reconciliacion y fallback FTS5.
+- [`15_rag_chunking_embedding_benchmark_specification.md`](specs/15_rag_chunking_embedding_benchmark_specification.md):
+   benchmark de chunkers, providers, embeddings, calidad y latencia.
+- [`16_rag_langchain_orchestration_specification.md`](specs/16_rag_langchain_orchestration_specification.md):
+   loaders, runnables, prompt grounded y limites de LangChain.
+- [`17_rag_observability_langsmith_specification.md`](specs/17_rag_observability_langsmith_specification.md):
+   spans, redaccion, metricas y LangSmith fail-open.
+- [`18_rag_production_operations_specification.md`](specs/18_rag_production_operations_specification.md):
+   manifest, rollout, rollback, backup y seguridad operacional.
+- [`19_rag_production_migration_specification.md`](specs/19_rag_production_migration_specification.md):
+   contrato integrador de la migracion RAG y su operacion de produccion.
 
 ## Modelo permitido
 
@@ -170,9 +184,14 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
 | STT opcional | `whisper-large-v3` vía Groq | La voz está abierta por la rúbrica; centraliza el camino de audio remoto. |
 | TTS principal | `SpeechSynthesis` del navegador, idioma `es-CO` | Cero descarga y audio real en la superficie browser. |
 | Fallback local | Extractivo FTS5 y reglas deterministas | Permite probar grounding, abstención y triaje sin credenciales ni modelo no autorizado. |
+| Vector store target | ChromaDB persistente y versionado | Especificado; implementacion/benchmark PENDIENTE. |
+| Embeddings | provider/modelo local configurable | Candidatos BGE-M3/E5; ganador PENDIENTE. |
+| Orquestacion | LangChain core/adaptadores controlados | Especificado; implementacion PENDIENTE. |
+| Observabilidad RAG | JSONL + LangSmith redacted opcional | JSONL existente; LangSmith PENDIENTE. |
 
 La familia del modelo de razonamiento es la restricción cerrada del reto. No se usa ningún
-modelo alternativo fuera de `docs/stack-tecnico.md`.
+modelo alternativo fuera de `docs/stack-tecnico.md`. Los embeddings son una capa separada y se
+seleccionan por el benchmark de la Spec 15.
 
 ## Datos y bootstrap
 
@@ -210,8 +229,10 @@ node --check app/web/app.js
 python -m scripts.validate_dataset
 ```
 
-La suite cubre SQLite/FTS5, extracción, PDF sin texto, validación XLSX, upload/preview/toggle/delete,
-abstención, prompt injection, triaje, llamadas, resumen, API, timeout, eventos e idempotencia.
+La suite baseline cubre SQLite/FTS5, extracción, PDF sin texto, validación XLSX,
+upload/preview/toggle/delete, abstención, prompt injection, triaje, llamadas, resumen, API,
+timeout, eventos e idempotencia. Las suites Chroma, benchmark, LangChain, LangSmith y rollback
+son entregables `PROPOSED` del upgrade y no se presentan como ejecutadas.
 La evidencia de la sincronización previa registró `24` pruebas enfocadas y `93` en la suite
 completa; Ruff no reportó hallazgos y `node --check app/web/app.js` fue válido.
 
@@ -259,6 +280,7 @@ No se declara una compuerta aprobada solo por intención o por un mock.
 - [`tests/`](tests/): pruebas unitarias e integración HTTP.
 - [`specs/`](specs/): especificaciones, plan y tareas de spec-driven development; fuente
   normativa durante la migracion.
+- [`tasks/`](tasks/): plan de dependencia y backlog ejecutable del upgrade RAG.
 - [`mvp/`](mvp/): contenedor aplicado de entregables y fases CRISP-DM bajo `mvp/crisp-dm/`.
 - [`readme/`](readme/): setup, demo, métricas, sesiones y snapshot pre-fork.
 - [`docs/arquitectura.md`](docs/arquitectura.md): diagrama y flujo de decisión.
@@ -268,8 +290,9 @@ No se declara una compuerta aprobada solo por intención o por un mock.
 - [`GUIA_AGENTE_EJECUTOR_DE_TAREAS.md`](GUIA_AGENTE_EJECUTOR_DE_TAREAS.md): iniciar ejecución y verificación.
 
 La estructura bajo `mvp/`, preview administrativa, publicación `enabled` y timeout de escucha
-están implementados y probados localmente. La evidencia manual de voz, G2 y G5 externo sigue
-pendiente; las métricas de voz y costo no se inventan.
+están implementados y probados localmente. La migracion Chroma/LangChain/LangSmith esta
+especificada pero pendiente de implementacion y benchmark. La evidencia manual de voz, G2 y G5
+externo sigue pendiente; las métricas de voz y costo no se inventan.
 
 Para registrar una nueva sesión, crea `readme/06_bitacora_de_sesiones/YYYY-MM-DD_nombre.md` con
 alcance, decisiones, comandos ejecutados, resultados y pendientes. Las decisiones sobre modelo exacto, OCR,

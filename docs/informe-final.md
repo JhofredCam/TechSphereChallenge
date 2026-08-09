@@ -10,10 +10,14 @@
 **Problema:** el seguimiento postoperatorio necesita recoger sintomas en lenguaje cotidiano,
 responder con conocimiento trazable y escalar senales de alarma sin depender de telefonia real.
 
-**Solucion:** una aplicacion local FastAPI/Uvicorn con `/admin` para gestionar documentos y
-`/call` para una llamada browser/API. SQLite/FTS5 recupera fuentes, el triaje determinista
+**Solucion baseline:** una aplicacion local FastAPI/Uvicorn con `/admin` para gestionar documentos
+y `/call` para una llamada browser/API. SQLite/FTS5 recupera fuentes, el triaje determinista
 conserva alertas, el agente responde en espanol con cita o abstencion y el cierre guarda un
 resumen estructurado.
+
+**Upgrade especificado:** ChromaDB versionado como indice derivado, embeddings configurables,
+retrieval hibrido, LangChain para loader/retriever/prompt, y LangSmith redacted para trazas. Estas
+capacidades estan planificadas en Specs 13-19 y no se declaran implementadas en este corte.
 
 **Resultado:** runtime local implementado. Pasaron 96 tests, Ruff no reporto hallazgos, el
 dataset fue validado y el bootstrap proceso el corpus local. Preview/toggle/timeout tienen
@@ -51,16 +55,22 @@ permitida por el reto.
 | STT opcional | `whisper-large-v3` via Groq | No es el modelo de razonamiento; camino implementado, prueba remota PENDIENTE |
 | TTS | `SpeechSynthesis` del navegador | Integrado en `/call`; prueba manual PENDIENTE |
 | Recuperacion | SQLite FTS5 lexical | Implementada y cubierta por tests locales |
+| Vector store target | ChromaDB persistente/versionado | Especificado; implementacion y benchmark PENDIENTE |
+| Embeddings | Provider/modelo local configurable | BGE-M3 y E5 son candidatos; ganador PENDIENTE |
+| Orquestacion | LangChain core/adaptadores controlados | Especificado; implementacion PENDIENTE |
+| Observabilidad RAG | JSONL + LangSmith redacted opcional | JSONL baseline; LangSmith PENDIENTE |
 | Extraccion PDF | PyMuPDF | Implementada; bootstrap clasifica `needs_ocr` |
 
-**Razon de eleccion:** `llama-3.1-8b-instant` pertenece a la familia Meta Llama permitida,
+**Razon de eleccion baseline:** `llama-3.1-8b-instant` pertenece a la familia Meta Llama permitida,
 esta expuesto por el adaptador OpenAI-compatible de Groq y es apropiado para una respuesta
 breve de baja latencia. SQLite FTS5 reduce dependencias, permite citas por documento/pagina/
 chunk y hace atomicos el borrado y la invalidacion local. El proveedor remoto no se ejercito
 en esta sesion; por eso el camino efectivo de demo y sus costos siguen pendientes.
 
 Si `llama-3.1-8b-instant` fue retirado, registrar el sucesor vigente dentro de Meta Llama/Groq
-y actualizar configuracion, setup y video juntos. No declarar un modelo de otra familia.
+y actualizar configuracion, setup y video juntos. No declarar un modelo de otra familia. El
+embedding ganador se debe declarar aparte con provider, modelo, revision, dimension, device y
+resultados del benchmark; no se confunde con la compuerta G3 del LLM.
 
 ## 4. Datos y preparacion
 
@@ -110,6 +120,8 @@ pendientes.
   contratos y matriz `TRZ-*` sincronizados con las tres specs anteriores.
 - [Pruebas unitarias e integracion](../specs/07_testing_unit_integration_specification.md):
   estrategia ejecutable, cobertura branch `80.07%` y frontera manual conservada.
+- [Upgrade RAG](../specs/19_rag_production_migration_specification.md): contrato integrador de
+  Chroma, embeddings, benchmark, LangChain, LangSmith y rollback; estado `PROPOSED`.
 
 G2, G4, G5 externo, Groq/Whisper real y las metricas de voz/costo siguen pendientes de evidencia
 manual; las pruebas locales no cambian esos estados.
@@ -130,6 +142,10 @@ Valores configurados en el codigo, sin incluir secretos:
 | Ciclo admin | `enabled`, `rag_eligible`, preview <=8000, snapshots y filtro RAG | Implementado y cubierto por `tests/test_admin_lifecycle.py` |
 | Escucha del paciente | `PATIENT_LISTEN_TIMEOUT_MS=30000`, default/rango y `/health` publico | Implementado y cubierto por `tests/test_timeout.py`; smoke browser PENDIENTE |
 | Idempotencia de escucha | `listen_id`, `client_turn_id`, duplicate y `409 late_transcript` | Implementado y cubierto por `tests/test_timeout.py` |
+| Configuracion RAG | `CHUNK_SIZE`, `CHUNK_OVERLAP`, `SPLITTER_TYPE`, embeddings, Chroma, `TOP_K`, threshold, LangSmith | Especificado en Spec 13; parser/runtime PENDIENTE |
+| Prompt/orquestacion | LangChain, loader por pagina, contexto delimitado y prompt versionado | Especificado en Spec 16; runtime PENDIENTE |
+| Observabilidad RAG | spans de embedding/Chroma/fusion/LLM y redaction LangSmith | Especificado en Spec 17; runtime PENDIENTE |
+| Rollout | shadow, dual-write, canary, promotion, rollback y reconciliacion | Especificado en Spec 18; evidencia PENDIENTE |
 
 ## 7. Metricas
 
@@ -146,6 +162,9 @@ formulas. Completar solo con valores respaldados por logs.
 | Invocaciones al modelo por turno | PENDIENTE | Fallback local en pruebas | Campo `model_calls` y tests |
 | Consultas RAG por llamada | PENDIENTE | Pruebas locales, sin demo final | Campo `rag_queries` y tests |
 | Costo estimado por llamada | PENDIENTE | Falta precio vigente y muestra real | Formula documentada |
+| Recall/precision/context precision | PENDIENTE | No hay qrels ni corrida del benchmark | Spec 15 |
+| Latencia embedding/Chroma/fusion | PENDIENTE | No hay runtime vectorial | Specs 14/15/17 |
+| Index lag/fugas/revision | PENDIENTE | FTS5 baseline, Chroma no integrado | Specs 14/18 |
 
 Formula a completar con precios y fecha:
 
@@ -196,7 +215,16 @@ Enlazar aqui capturas, logs y video reales. El estado actual es:
 - Los datos son sinteticos y no clinicamente validados.
 - Un PDF escaneado sin OCR no es conocimiento disponible.
 - FTS5 lexical puede perder sinonimos o regionalismos; embeddings BGE-M3 quedan como
-  evolucion, no como requisito de este corte.
+  candidato de calidad y E5-small como candidato de latencia, pero la eleccion requiere el
+  benchmark de Spec 15.
+- Chroma y SQLite no comparten una transaccion ACID; la autoridad SQLite, la invalidacion previa,
+  el reconciliador y el rollback FTS5 son controles obligatorios.
+- Un modelo de embeddings puede introducir cold start, RAM y descarga incompatibles con G2; el
+  perfil local no descarga modelos.
+- LangSmith puede filtrar contenido sensible si se configura mal; capture content esta apagado y
+  la integracion futura debe pasar redaction tests.
+- LangChain puede agregar overhead u ocultar llamadas; el grafo target exige nodos visibles,
+  budgets y metricas por etapa.
 - SpeechRecognition y SpeechSynthesis dependen del navegador y de permisos.
 - Groq, cuotas y disponibilidad del identificador del modelo requieren verificacion en una
   demo con credencial; el fallback local no demuestra el uso remoto.

@@ -19,8 +19,9 @@ El runtime usa `SpeechRecognition` en `es-CO` con `continuous=false`,
 
 Se conserva la Web Speech API del navegador, `SpeechRecognition`/`webkitSpeechRecognition` en
 `es-CO`, `SpeechSynthesis`, FastAPI para exponer configuracion publica y la instrumentacion
-JSONL existente. No se agrega un modelo nuevo ni se cambia la familia Llama permitida. Whisper,
-Groq y SQLite mantienen sus timeouts independientes.
+JSONL existente. No se agrega un modelo de razonamiento nuevo ni se cambia la familia Llama
+permitida. Whisper, Groq, SQLite, embeddings, Chroma y retrieval mantienen timeouts independientes
+definidos por `RAG-ENV-001`.
 
 ## Project Structure
 
@@ -283,7 +284,9 @@ reintento, fallback textual, permiso denegado y audio del agente.
 - El agente propietario debe actualizar `specs/06_system_flow_diagram_specification.md` al final
   para reflejar el contrato implementado. README, setup, informe y evidencia publicada quedan
   fuera del alcance de este agente.
-- No cambia el modelo permitido ni la estrategia RAG.
+- No cambia el modelo permitido ni la politica de seguridad RAG. La migracion puede agregar
+  `EMBEDDING_TIMEOUT_MS`, `VECTOR_QUERY_TIMEOUT_MS` y `RAG_QUERY_TIMEOUT_MS`, pero ninguno inicia
+  un turno clinico despues de un timeout de escucha ni modifica `PATIENT_LISTEN_TIMEOUT_MS`.
 
 Preguntas abiertas:
 

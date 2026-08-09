@@ -119,6 +119,14 @@ mueve `dataset/` o `docs/`. El snapshot pre-fork permanece conservado en
   trazabilidad del flujo completo.
 - [Pruebas unitarias e integracion](../specs/07_testing_unit_integration_specification.md):
   fixtures, contratos, cobertura y frontera con evidencia manual.
+- [Configuracion RAG](../specs/13_rag_environment_configuration_specification.md): variables,
+  perfiles y defaults.
+- [ChromaDB](../specs/14_rag_vector_store_chromadb_specification.md): indice derivado y lifecycle.
+- [Benchmark](../specs/15_rag_chunking_embedding_benchmark_specification.md): calidad y latencia.
+- [LangChain](../specs/16_rag_langchain_orchestration_specification.md): loader, prompt y runnables.
+- [LangSmith](../specs/17_rag_observability_langsmith_specification.md): trazas redacted.
+- [Operacion](../specs/18_rag_production_operations_specification.md): rollout y rollback.
+- [Migracion integradora](../specs/19_rag_production_migration_specification.md): contrato final.
 - [Rubrica de evaluacion](../docs/rubrica-evaluacion.md): compuertas y metricas obligatorias.
 - [Stack tecnico](../docs/stack-tecnico.md): familias de modelos permitidas.
 

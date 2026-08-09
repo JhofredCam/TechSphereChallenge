@@ -34,6 +34,13 @@ rutas canonicas; aqui se enlazan, no se duplican.
 - [Spec de explorador HTML de arquitectura](../specs/10_architecture_explorer_specification.md).
 - [Spec de UX Writing y mensajes del bot](../specs/11_conversational_ux_writing_specification.md).
 - [Spec profunda de RAG](../specs/12_rag_deep_dive_specification.md).
+- [Spec de configuracion RAG](../specs/13_rag_environment_configuration_specification.md).
+- [Spec de ChromaDB y vector store](../specs/14_rag_vector_store_chromadb_specification.md).
+- [Spec de benchmark de chunking y embeddings](../specs/15_rag_chunking_embedding_benchmark_specification.md).
+- [Spec de orquestacion LangChain](../specs/16_rag_langchain_orchestration_specification.md).
+- [Spec de observabilidad LangSmith](../specs/17_rag_observability_langsmith_specification.md).
+- [Spec de operacion RAG](../specs/18_rag_production_operations_specification.md).
+- [Spec integradora de migracion RAG](../specs/19_rag_production_migration_specification.md).
 
 ## Estado de evidencia
 
@@ -54,7 +61,9 @@ copian.
 
 La reestructuracion de entregables, la ampliacion de `/admin`, el timeout de escucha y el
 diagrama integrado estan aplicados y sincronizados. El contrato estatico del inventario admin
-esta documentado; la evidencia manual de navegador, G2 y G5 externo permanece pendiente.
+esta documentado. El upgrade Chroma/embeddings/LangChain/LangSmith queda especificado en 13-19,
+pero su runtime y benchmark permanecen pendientes; la evidencia manual de navegador, G2 y G5
+externo tambien permanece pendiente.
 
 ## Fuentes canonicas
 

@@ -23,8 +23,9 @@ asistencial.
    una familia permitida por el reto. Si el proveedor no esta disponible, el MVP conserva un
    modo extractivo determinista sustentado en FTS5 para no bloquear pruebas locales; ese modo
    no reemplaza la verificacion de G3 con el modelo declarado.
-4. La recuperacion lexical con SQLite FTS5 es suficiente para el camino critico de 24 horas;
-   embeddings BGE-M3 quedan como evolucion posterior, no como requisito de arranque.
+4. El checkout actual usa SQLite FTS5 como baseline determinista. La migracion de produccion
+   especificada en 13-19 agrega ChromaDB, embeddings y retrieval hibrido sin retirar FTS5 hasta
+   completar benchmark, canary y rollback.
 5. Una alerta persistente en la base local y visible en el resumen satisface el canal de
    escalamiento del MVP; no se envia SMS, correo ni notificacion hospitalaria.
 6. El OCR del PDF escaneado se marca explicitamente como pendiente (`needs_ocr`) y no se
@@ -49,19 +50,35 @@ implementados:
    piramide, fixtures, contratos, cobertura y frontera entre automatizacion y evidencia manual.
 6. [UX Writing y VUI](11_conversational_ux_writing_specification.md): define el catalogo de
    mensajes, contencion, preguntas si/no, separacion de voz/UI y validacion de copy.
-7. [RAG profundo](12_rag_deep_dive_specification.md): documenta ingestion, chunking, FTS5,
-   relevancia, citas, revision, abstencion, conocimiento vivo y evolucion semantica.
+7. [Configuracion RAG](13_rag_environment_configuration_specification.md): define variables,
+   perfiles, defaults, validacion y secretos redacted.
+8. [ChromaDB y vector store](14_rag_vector_store_chromadb_specification.md): define el indice
+   derivado, metadata, lifecycle, reconciliacion y fallback FTS5.
+9. [Benchmark RAG](15_rag_chunking_embedding_benchmark_specification.md): define chunkers,
+   providers, modelos, qrels, metricas y gates de latencia/calidad.
+10. [Orquestacion LangChain](16_rag_langchain_orchestration_specification.md): define loaders,
+    runnables, prompt, grounding y limites del framework.
+11. [Observabilidad LangSmith](17_rag_observability_langsmith_specification.md): define spans,
+    redaccion, SLOs y fail-open.
+12. [Operacion RAG](18_rag_production_operations_specification.md): define manifest, rollout,
+    rollback, backup y seguridad de despliegue.
+13. [Migracion integradora](19_rag_production_migration_specification.md): contrato final del
+    upgrade y sucesor de la antigua Spec 12.
 
-El orden obligatorio es estructura, admin, timeout y finalmente diagrama. Las mejoras de UX,
-exploracion documental y RAG deben actualizar sus specs antes de tocar runtime. Un cambio en
-cualquiera de las tres primeras obliga a revisar la spec del diagrama y la estrategia de pruebas
-antes de escribir codigo.
+El orden obligatorio del baseline es estructura, admin, timeout y finalmente diagrama. Para la
+migracion, el orden es configuracion, vector store, benchmark, orquestacion, observabilidad,
+operacion y luego actualizacion del diagrama/pruebas. Un cambio en estado, contrato, indice o
+metrica obliga a revisar `specs/06` y `specs/07` antes de escribir codigo.
 
 ## Stack y modelo
 
 - Python 3.11 o superior.
 - FastAPI y Uvicorn para API y archivos estaticos.
 - SQLite con FTS5 para persistencia, busqueda y eliminacion atomica de conocimiento.
+- ChromaDB como vector store objetivo de produccion; SQLite sigue siendo autoridad y FTS5 fallback.
+- Embeddings locales configurables; el proveedor/modelo ganador se selecciona por benchmark,
+  no por default teorico.
+- `langchain-core` y adaptadores controlados para loaders, retriever, prompt y trazas.
 - PyMuPDF para extraccion por pagina de PDFs.
 - openpyxl para validacion reproducible de los cuatro XLSX.
 - HTML, CSS y JavaScript sin bundler para minimizar el tiempo de arranque.
@@ -100,7 +117,14 @@ app/
   services/
     documents.py            Ciclo de vida upload/process/delete.
     ingestion.py            PDFs, TXT/MD y chunks trazables por pagina.
-    rag.py                  Recuperacion FTS5 y citas.
+    rag.py                  Recuperacion, fusion, elegibilidad y citas.
+    vector_store.py         Adaptadores ChromaDB/FTS5 y manifest de indice.
+    embeddings.py           Providers/modelos, cache y dimension.
+    loaders.py              DocumentLoader modular por formato.
+    rag_chain.py            Runnables LangChain visibles y acotados.
+    prompts.py              Prompt versionado y contrato de salida.
+    observability.py        Spans, redaccion y LangSmith opcional.
+    index_manager.py        Build, reconciliacion, promotion y rollback.
     agent.py                Respuesta fundamentada y adaptador LLM.
     triage.py               Reglas conservadoras y no degradacion de nivel.
     calls.py                Turnos, resumen y persistencia de llamadas.
@@ -135,10 +159,12 @@ documento, pagina, chunk y puntuacion.
 
 ## Estrategia de pruebas
 
-- Unitarias: normalizacion, FTS5, chunking, extraccion de PDF, reglas de triaje y contratos
-  XLSX.
-- Integracion: upload/list/delete, recuperacion antes y despues de borrar, llamadas,
-  resumen y metricas.
+- Unitarias: normalizacion, FTS5, chunkers, embeddings, Chroma adapter, loader, prompt,
+  extraccion de PDF, reglas de triaje y contratos XLSX.
+- Integracion: upload/list/delete, recuperacion antes y despues de borrar, reinicio de Chroma,
+  reconciliacion, llamadas, resumen y metricas.
+- Benchmark: qrels separados, recall/precision/hit rate/MRR/nDCG, context precision, citas,
+  abstencion, memoria y latencia por nodo.
 - Smoke manual: `/admin` muestra `available`; `/call` solicita microfono y reproduce una
   respuesta en espanol.
 - Datos: validar hoja `result`, encabezados, filas esperadas, JSON embebido, joins por
@@ -179,7 +205,13 @@ documento, pagina, chunk y puntuacion.
    decision, fuentes, alerta y proximos pasos.
 8. Los logs y `/api/metrics` exponen P50/P95 de latencia, tokens de entrada/salida, llamadas
    al modelo, consultas RAG y formula de costo documentada.
-9. El README principal permite levantar el sistema en un entorno limpio en 15 minutos o menos.
+9. El README principal permite levantar el perfil local en un entorno limpio en 15 minutos o menos.
+10. El perfil de produccion tiene ChromaDB versionado, rollback a FTS5 y un manifest que declara
+    splitter, embedding, dimension, metrica, collection, revision y paquetes.
+11. La seleccion de chunking/embedding tiene resultados reproducibles y no se declara por
+    intuicion; los targets de voz se miden desde timestamps reales.
+12. LangChain y LangSmith quedan observables, redactados y fuera de la autoridad de triaje,
+    elegibilidad, citas y seguridad.
 
 ## Preguntas abiertas y decisiones notificadas
 
@@ -189,6 +221,9 @@ documento, pagina, chunk y puntuacion.
   requiere criterio porque agrega instalacion y un nuevo riesgo de reproducibilidad.
 - La voz es turn-taking del navegador, no streaming full-duplex. Barge-in y WebRTC quedan
   fuera del corte de 24 horas salvo que la prueba manual revele que la evaluacion lo exige.
+- ChromaDB, embeddings, LangChain y LangSmith son parte del upgrade especificado, pero no se
+  consideran implementados hasta que existan dependencias, runtime, pruebas y evidencia de las
+  Specs 13-19.
 - El canal de alerta es la consola/base local. Un canal externo solo se incorpora con
   credenciales y un flujo de prueba independiente.
 - La preview, el enable/disable de documentos y el timeout configurable estan especificados

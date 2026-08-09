@@ -17,6 +17,10 @@ requiere aun cronometraje desde un entorno limpio.
 - `.env.example` incluye `PATIENT_LISTEN_TIMEOUT_MS=30000`. `Settings` valida el valor y el
   runtime lo publica por `/health`; el checkout no carga automaticamente el archivo de ejemplo.
   El timer del navegador usa el valor efectivo, no una lectura directa de `.env`.
+- `.env.example` tambien documenta el target de migracion (`CHUNK_SIZE`, `CHUNK_OVERLAP`,
+  `SPLITTER_TYPE`, embeddings, Chroma, `TOP_K`, `SIMILARITY_THRESHOLD` y LangSmith). En este
+  checkout esas variables nuevas son contrato de plan y no implican que Chroma o LangSmith ya
+  esten instalados.
 
 ## Instalacion
 
@@ -71,7 +75,7 @@ Abrir:
 
 - `http://127.0.0.1:8000/admin` para gestionar documentos.
 - `http://127.0.0.1:8000/call` para la llamada browser/API.
-- `http://127.0.0.1:8000/health` para comprobar FTS5, modelo, voz, revision y timeout publico.
+- `http://127.0.0.1:8000/health` para comprobar backend RAG, modelo, voz, revision y timeout publico.
 - `http://127.0.0.1:8000/docs` para OpenAPI.
 
 Si se usa Groq, definir `GROQ_API_KEY` en el entorno antes de arrancar. No escribir claves en
@@ -87,6 +91,14 @@ locales cubren el contrato; el smoke manual de Chrome/Edge, microfono y audio si
 En `/admin`, el flujo local es: upload -> preview textual -> disable (conserva e indexa pero
 excluye de RAG) -> enable (recupera sin reingesta) -> delete (limpia FTS5, conserva snapshot y
 retira el archivo). G5 externo sigue pendiente aunque el recorrido local este probado.
+
+El upgrade target agrega perfiles:
+
+- `challenge-local`: FTS5, sin red ni descarga de embeddings; es el perfil que conserva G2 del
+  baseline.
+- `staging`: Chroma y modelo de embeddings precargados, benchmark, dual-read y LangSmith redacted.
+- `production`: indice versionado, reconciliacion, canary, rollback y secret manager; no se
+  declara disponible hasta ejecutar el runbook de Specs 14, 17 y 18.
 
 ## Preflight
 
