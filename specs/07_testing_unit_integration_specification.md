@@ -271,13 +271,15 @@ Reglas de aislamiento:
 | `UT-ADMIN-02` | Preview | pagina, offset, limite 8000 y HTML malicioso | texto seguro, sin `stored_path` ni ejecucion |
 | `UT-ADMIN-03` | Toggle | habilitar, deshabilitar y no-op | revision aumenta solo en cambios efectivos |
 | `UT-ADMIN-04` | Migracion | backfill e idempotencia de enabled | solo disponibles quedan habilitados |
+| `UT-ADMIN-UI-01` | Inventario admin | HTML, CSS y JS sin SHA/IDs visibles, overflow horizontal ni `innerHTML` | contrato estatico de layout, copy humano y render seguro |
 | `UT-MET-01` | Metricas | P50/P95 y timestamps invalidos | sin timestamps no reporta latencia |
 | `UT-MET-02` | Metricas | tokens, llamadas, RAG y fuentes | agregacion por turno y llamada coherente |
 | `UT-MET-03` | Costo | formula y precios fechados | contrato documentado; precios vivos siguen `MANUAL_PENDING` |
 | `UT-MET-04` | Observabilidad | eventos de voz/timeout | IDs presentes; sin audio, texto completo ni secretos |
 
-Las filas `UT-ADMIN-*` y `UT-TIME-*` tienen cobertura local en `test_admin_lifecycle.py` y
-`test_timeout.py`; la evidencia de UI y navegador sigue siendo manual.
+Las filas `UT-ADMIN-*` y `UT-TIME-*` tienen cobertura local en `test_admin_lifecycle.py`,
+`test_admin_ui_contracts.py` y `test_timeout.py`; la evidencia de layout calculado, lector de
+pantalla y navegador sigue siendo manual.
 
 | `UT-CONFIG-01` | Configuracion | rutas, limites y overrides locales | no crea rutas durante el parseo y rechaza limites inseguros |
 | `UT-STRUCT-01` | Entregables | fases, entregables y ausencia de copias | estructura aplicada y sin fuentes canonicas duplicadas |
@@ -312,6 +314,7 @@ reales.
 | `IT-G3-01` | Modelo | config, health y allowlist | familia permitida y fallback no contado como llamada remota |
 | `IT-ADMIN-P-01` | Admin lifecycle | preview, disable, enable y delete | contratos 200/404/409/422, filtro y revision correctos |
 | `IT-ADMIN-P-02` | Admin lifecycle | deshabilitar, rehabilitar y eliminar | abstencion, recuperacion sin reingesta y olvido |
+| `IT-ADMIN-UI-01` | Admin UI | carga, vacio, estados, identidad interna y reflow | contrato estatico; smoke manual en 320/375/540/768/1024/1280 px |
 | `IT-TIME-P-01` | Timeout | `/health` y timeout publico | `patient_listen_timeout_ms` sin secretos |
 | `IT-TIME-P-02` | Timeout | transcript duplicado/tardio y carrera | un intercambio por `(call_id, client_turn_id)` |
 | `IT-STRUCT-01` | Entregables | comprobacion estructural de `mvp/` | 13 rutas presentes y no hay copias prohibidas |
@@ -443,6 +446,15 @@ pruebas locales viven en `tests/test_admin_lifecycle.py` y `tests/test_live_know
 - habilitar, deshabilitar, no-op, revision y filtro `available + enabled`;
 - delete, snapshot historico y ausencia de reutilizacion de fuentes borradas;
 - contratos `404`, `409`, `413`, `415` y `422`.
+
+La presentacion del inventario definida por Spec 08 agrega `tests/test_admin_ui_contracts.py` para
+los invariantes estaticos (sin SHA, IDs, rutas ni `innerHTML`; grid de una/dos columnas; fichas
+sin overflow). Ese contrato no sustituye la inspeccion manual del DOM, zoom, teclado, lector de
+pantalla ni el calculo de `scrollWidth` en los viewports soportados.
+
+El 2026-08-08 se intento ejecutar el smoke con el navegador integrado, pero el runtime no expuso
+ningun backend de navegador (`agent.browsers.list()` devolvio una lista vacia). Por eso la
+verificacion visual, de zoom, lector de pantalla y `scrollWidth` conserva estado `MANUAL_PENDING`.
 
 ### Spec 05: timeout configurable
 

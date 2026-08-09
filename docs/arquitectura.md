@@ -47,6 +47,7 @@ G2 o G5 externo.
 | Reestructura | `mvp/crisp-dm/` y `mvp/deliverables/` como ownership de entrega | TESTED |
 | Preview admin | flujo `GET .../preview` y texto no ejecutable | TESTED |
 | Enable/disable | `enabled`, `rag_eligible` y filtro FTS5 | TESTED |
+| Inventario admin | grid cerrado de una columna, preview abierto de dos, fichas responsive y copy sin identidad tecnica | contrato estatico TESTED; smoke navegador MANUAL_PENDING |
 | Delete | invalidacion, snapshots y olvido sin reinicio | TESTED local; G5 externo pendiente |
 | Timeout paciente | `PATIENT_LISTEN_TIMEOUT_MS`, estados, eventos y reintento/texto | TESTED API; browser pendiente |
 
@@ -157,7 +158,9 @@ sustituye el smoke manual de microfono y audio.
 ## Superficies y rutas implementadas
 
 - `/admin`: consola estatica para subir, listar, previsualizar texto, habilitar/deshabilitar y
-  eliminar documentos.
+  eliminar documentos. El inventario usa todo el ancho cuando el preview esta cerrado, se divide
+  en dos zonas solo al abrirlo y se convierte en fichas sin scroll horizontal en pantallas
+  estrechas; el SHA, IDs, rutas y codigos internos permanecen fuera de la UI visible.
 - `/call`: interfaz estatica para abrir una llamada, hablar o escribir, ver triaje y fuentes,
   y guardar el resumen.
 - `GET /health`: estado del modelo configurado, FTS5, documentos, revision del corpus y modo

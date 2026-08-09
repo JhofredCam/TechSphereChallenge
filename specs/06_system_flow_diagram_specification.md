@@ -157,7 +157,7 @@ El color no decide triaje y no sustituye el texto del estado.
 | Etapa | ID | Accion | Salida observable | Estado |
 |---|---|---|---|---|
 | 0. Preparar | `STG-BOOT-001` | validar XLSX y recorrer el corpus local | base, hash y revision de corpus | TESTED |
-| 1. Administrar | `STG-ADMIN-001` | subir, preview, habilitar, deshabilitar o borrar | inventario, badges y revision | TESTED |
+| 1. Administrar | `STG-ADMIN-001` | subir, preview, habilitar, deshabilitar o borrar | inventario, badges y revision | API TESTED; UI MANUAL_PENDING |
 | 2. Iniciar | `STG-CALL-001` | abrir `/call` y crear llamada | `call_id` activo | TESTED |
 | 3. Escuchar | `STG-VOICE-001` | capturar voz o aceptar texto | transcript final o fallback | IMPLEMENTED; browser MANUAL_PENDING |
 | 4. Analizar | `STG-TRIAGE-001` | normalizar y clasificar con nivel previo | `red`, `yellow`, `green` o `unknown` | TESTED |
@@ -867,7 +867,7 @@ real.
 | `TRZ-SURFACES-001` | `/admin` y `/call` accesibles | D1, D2 | 00 | `GET /admin`, `GET /call` | rutas en `app/main.py`; smoke de browser pendiente | IMPLEMENTED |
 | `TRZ-STRUCTURE-001` | fases bajo `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/` | D1 | 03 | indices y manifiestos | comprobacion Python de rutas y copias prohibidas | TESTED |
 | `TRZ-ADMIN-PREVIEW-001` | texto extraido visible, acotado y literal | D3, D4 | 04 | `DocumentService.preview`, `GET .../preview`, `textContent` | `tests/test_admin_lifecycle.py` | TESTED |
-| `TRZ-ADMIN-UX-001` | inventario full-width, responsive, sin scroll horizontal ni SHA visible | D1, D3 | 08 | `app/web/admin.html`, `app/web/styles.css`, `app/web/app.js` | `node --check`; smoke responsive DOM | IMPLEMENTED; MANUAL_PENDING |
+| `TRZ-ADMIN-UX-001` | inventario full-width, responsive, sin scroll horizontal ni identidad tecnica visible | D1, D3 | 08 | `app/web/admin.html`, `app/web/styles.css`, `app/web/app.js` | `tests/test_admin_ui_contracts.py`, `node --check`; smoke responsive DOM | TESTED estatico; MANUAL_PENDING navegador |
 | `TRZ-ADMIN-SOURCE-001` | archivo original se distingue del texto extraido en modal segura | D3 | 09 | `API-ADMIN-SOURCE-001`, `app/web/admin.html` | pruebas binarias y smoke modal; futuro | PROPOSED |
 | `TRZ-ADMIN-TOGGLE-001` | disable excluye RAG y enable recupera sin reingesta | D3, D4 | 04 | `enabled`, `rag_eligible`, `PATCH`, revision | `tests/test_admin_lifecycle.py` | TESTED |
 | `TRZ-ADMIN-DELETE-001` | delete limpia conocimiento futuro y conserva snapshot | D3, D4, D6 | 00, 04, G5 | `DocumentService.delete`, `sources` | `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED local; G5 externo MANUAL_PENDING |
