@@ -4,6 +4,7 @@
 
 - This checkout is the implementation fork of the Tech Sphere Challenge 2026 starter/data repository. Add the application, toolchain, tests, and executable documentation here; at this baseline there is no package manifest, lockfile, build/lint/typecheck/test configuration, CI workflow, or app entrypoint, so do not assume a package-manager command exists.
 - Read `README.md` for the product contract, `docs/rubrica-evaluacion.md` for elimination gates and required metrics, and `docs/stack-tecnico.md` for the closed list of allowed language-model families.
+- Read `readme/06_bitacora_de_sesiones/README.md` for the session log and its project guidance.
 - Document and verify the fork's real setup, run, and focused-test commands in the README; prefer the implementation's scripts/config files over stale prose.
 
 ## Dataset Traps
