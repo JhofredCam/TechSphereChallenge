@@ -6,8 +6,9 @@ Guion preparado; el servidor y las dos superficies ya existen. La ejecucion manu
 capturas y el video siguen `PENDIENTES` al 2026-08-08. La demo debe usar el [setup local](02_setup_local.md) y el
 [contrato de la rubrica](../docs/rubrica-evaluacion.md).
 
-La prueba automatizada de conocimiento vivo y la integracion local upload/delete ya pasan,
-pero no sustituyen la evidencia de G5 con un documento que no pertenezca al corpus entregado.
+La prueba automatizada de conocimiento vivo, preview, toggle y la integracion local
+upload/delete ya pasan, pero no sustituyen la evidencia de G5 con un documento que no pertenezca
+al corpus entregado.
 
 ## Precondiciones
 
@@ -19,44 +20,52 @@ pero no sustituyen la evidencia de G5 con un documento que no pertenezca al corp
 5. Documento de prueba externo al corpus entregado, con una frase unica y no clinicamente
    peligrosa, para la prueba de conocimiento vivo.
 
-Las acciones de preview, habilitar y deshabilitar estan definidas en la
-[spec de admin](../specs/04_admin_document_lifecycle_specification.md), pero no forman parte
-del recorrido implementado de este checkout. El timeout configurable de escucha esta definido
-en la [spec de timeout](../specs/05_patient_listening_timeout_specification.md); cualquier demo
-debe distinguirlo de un timeout de proveedor.
+El timeout configurable de escucha esta implementado y documentado en la
+[spec de timeout](../specs/05_patient_listening_timeout_specification.md); la demo debe
+distinguirlo de un timeout de proveedor. Las acciones de preview, habilitar, deshabilitar y
+delete estan implementadas en la [spec de admin](../specs/04_admin_document_lifecycle_specification.md).
 
 ## Recorrido de consola
 
 1. Abrir `/admin` y mostrar el listado inicial, incluyendo `available` y, si aplica,
    `needs_ocr`.
-2. Subir el documento de prueba y esperar el estado `available` antes de consultarlo.
-3. Usar en la llamada una pregunta que solo pueda responderse con la frase del documento.
+2. Subir el documento de prueba y esperar el estado `available` y publicacion `Habilitado`.
+3. Abrir `Previsualizar` y mostrar el texto extraido literal, sin ejecutar Markdown/HTML.
+4. Usar en la llamada una pregunta que solo pueda responderse con la frase del documento.
    Mostrar la cita de documento, pagina o chunk.
-4. Eliminar el documento desde la consola.
-5. Repetir la pregunta sin reiniciar el servidor y mostrar abstencion o ausencia de la
-   fuente eliminada. Esto prueba que el agente olvida en caliente.
+5. Deshabilitar el documento sin borrarlo y repetir la pregunta; debe excluirse del RAG y
+   abstenerse.
+6. Habilitarlo de nuevo, repetir la pregunta y mostrar recuperacion sin reingesta.
+7. Eliminar el documento desde la consola y repetir la pregunta sin reiniciar; debe abstenerse
+   y no mostrar esa fuente. Esto prueba que el agente olvida en caliente.
 
 ## Recorrido de llamada
 
 1. Abrir `/call`, iniciar una llamada y comprobar el permiso de microfono.
-2. Decir un saludo y una pregunta trivial para cubrir G4.
-3. Hacer una pregunta clinica cubierta por el corpus y verificar respuesta breve en espanol,
+2. Consultar `/health` y anotar `patient_listen_timeout_ms`; el limite es total por turno y no
+   cambia Groq, Whisper ni SQLite.
+3. Decir un saludo y una pregunta trivial para cubrir G4.
+4. Hacer una pregunta clinica cubierta por el corpus y verificar respuesta breve en espanol,
    fuente trazable y audio.
-4. Hacer una pregunta sin evidencia y verificar abstencion explicita, no una recomendacion
+5. Dejar vencer un turno o producir un parcial; verificar `LISTEN_TIMEOUT`/`RETRY_REQUIRED`,
+   ausencia de turno clinico y opcion de reintentar o escribir. Un transcript tardio no abre otro
+   turno.
+6. Hacer una pregunta sin evidencia y verificar abstencion explicita, no una recomendacion
    inventada.
-5. Simular una entrada ambigua y verificar que el agente pide aclaracion.
-6. Simular una senal de alarma y verificar alerta persistente, nivel no degradable y siguiente
+7. Simular una entrada ambigua y verificar que el agente pide aclaracion.
+8. Simular una senal de alarma y verificar alerta persistente, nivel no degradable y siguiente
    paso comunicado sin inventar dosis ni diagnosticos.
-7. Cerrar la llamada y mostrar el resumen con paciente, procedimiento, sintomas, decision,
+9. Cerrar la llamada y mostrar el resumen con paciente, procedimiento, sintomas, decision,
    fuentes, alerta y proximos pasos.
 
 ## Evidencia a capturar
 
 - Hora y commit de la demo.
-- Captura de `/admin` antes y despues del upload/delete.
+- Captura de `/admin` antes y despues del upload, preview, disable/enable y delete.
 - Registro de la consulta grounded y su cita.
-- Registro de que la fuente desaparece despues del delete.
+- Registro de abstencion durante disable y de que la fuente desaparece despues del delete.
 - Video o captura del microfono, transcripcion y audio de `/call`.
+- Eventos de escucha y respuesta de `/health`, sin transcript clinico en los eventos.
 - Resumen final y alerta persistida.
 - Logs y respuesta de `/api/metrics`, sin secretos.
 
@@ -65,7 +74,7 @@ esta en [metricas y evidencia](04_metricas_y_evidencia.md).
 
 ## Estado de las compuertas
 
-- G2: `PENDIENTE` de cronometraje desde entorno limpio.
-- G4: `PENDIENTE` de smoke manual con microfono, transcripcion y audio.
-- G5: prueba automatizada e integracion local verificadas; `PENDIENTE` de evidencia con el
+- G2: `MANUAL_PENDING` de cronometraje desde entorno limpio.
+- G4: `MANUAL_PENDING` de smoke manual con microfono, transcripcion y audio.
+- G5: prueba automatizada e integracion local verificadas; `MANUAL_PENDING` de evidencia con el
   documento externo en una demo.

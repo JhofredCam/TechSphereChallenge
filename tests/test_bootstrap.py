@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
 from openpyxl import Workbook
 
 from app.config import Settings
@@ -15,7 +16,8 @@ from app.dataset import (
     TRAJECTORIES_FILE,
 )
 from app.services.documents import DocumentService
-from scripts.bootstrap import bootstrap
+from scripts.bootstrap import bootstrap, format_bootstrap_report
+from scripts.bootstrap import main as bootstrap_main
 
 
 def _write_workbook(path: Path, headers: tuple[str, ...], row: dict[str, object]) -> None:
@@ -107,6 +109,34 @@ def test_bootstrap_validates_without_rewriting_and_is_hash_idempotent(tmp_path):
     assert second.skipped_count == 3
     assert second.document_count == first.document_count
     assert second.corpus_revision == first.corpus_revision
+    assert first.to_dict()["counts"]["unique_documents"] == 2
+    assert "Bootstrap:" in format_bootstrap_report(first)
+
+
+def test_bootstrap_rejects_roots_outside_dataset_and_reports_invalid_cli_input(tmp_path):
+    dataset_root = tmp_path / "dataset"
+    (dataset_root / "textos").mkdir(parents=True)
+    settings = Settings(data_dir=tmp_path / "local")
+
+    with pytest.raises(ValueError, match="must remain inside dataset_dir"):
+        bootstrap(
+            dataset_root,
+            textos_dir=tmp_path / "outside-textos",
+            settings=settings,
+            expected_counts=None,
+        )
+    expected_counts = _write_fixture_dataset(dataset_root)
+    with pytest.raises(ValueError, match="pass settings or data_dir"):
+        bootstrap(
+            dataset_root,
+            settings=settings,
+            data_dir=tmp_path / "other",
+            expected_counts=expected_counts,
+        )
+
+    assert bootstrap_main(
+        ["--dataset-dir", str(dataset_root), "--data-dir", str(tmp_path / "cli-data"), "--json"]
+    ) == 1
 
 
 def test_bootstrap_audits_failed_storage_cleanup_after_forgetting_document(tmp_path, monkeypatch):

@@ -26,6 +26,9 @@ class DocumentRecord:
     error: str | None = None
     created_at: str | None = None
     processed_at: str | None = None
+    enabled: bool = False
+    page_count: int = 0
+    chunk_count: int = 0
 
     @property
     def document_id(self) -> str:
@@ -38,6 +41,22 @@ class DocumentRecord:
             status: DocumentStatus | str = DocumentStatus(raw_status)
         except ValueError:
             status = str(raw_status)
+        try:
+            raw_enabled = row["enabled"]
+        except (KeyError, IndexError):
+            raw_enabled = 0
+        try:
+            enabled = bool(int(raw_enabled or 0))
+        except (TypeError, ValueError):
+            enabled = bool(raw_enabled)
+        try:
+            raw_page_count = row["page_count"]
+        except (KeyError, IndexError):
+            raw_page_count = 0
+        try:
+            raw_chunk_count = row["chunk_count"]
+        except (KeyError, IndexError):
+            raw_chunk_count = 0
         return cls(
             id=str(row["id"]),
             filename=str(row["filename"]),
@@ -49,7 +68,30 @@ class DocumentRecord:
             error=row["error"],
             created_at=row["created_at"],
             processed_at=row["processed_at"],
+            enabled=enabled,
+            page_count=int(raw_page_count or 0),
+            chunk_count=int(raw_chunk_count or 0),
         )
+
+    @property
+    def status_value(self) -> str:
+        return self.status.value if isinstance(self.status, DocumentStatus) else str(self.status)
+
+    @property
+    def rag_eligible(self) -> bool:
+        return self.status_value == DocumentStatus.AVAILABLE.value and self.enabled
+
+    @property
+    def available(self) -> bool:
+        return self.status_value == DocumentStatus.AVAILABLE.value
+
+    @property
+    def needs_ocr(self) -> bool:
+        return self.status_value == DocumentStatus.NEEDS_OCR.value
+
+    @property
+    def preview_available(self) -> bool:
+        return self.available
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +129,7 @@ class SearchResult:
     score: float
     citation: str
     corpus_revision: int
+    chunk_index: int | None = None
 
     @property
     def source(self) -> str:

@@ -8,10 +8,10 @@ una fila es una llamada ni que todo PDF tiene capa de texto.
 
 ## Entradas
 
-- [`dataset/`](../../dataset/), que es la copia canonica y no debe moverse.
-- [Descripcion de los datos y bootstrap](../../README.md#datos-y-bootstrap).
-- [Trampas de datos del repositorio](../../AGENTS.md#dataset-traps).
-- [Tareas de validacion del dataset](../../specs/02_implementation_tasks.md).
+- [`dataset/`](../../../dataset/), que es la copia canonica y no debe moverse.
+- [Descripcion de los datos y bootstrap](../../../README.md#datos-y-bootstrap).
+- [Trampas de datos del repositorio](../../../AGENTS.md#dataset-traps).
+- [Tareas de validacion del dataset](../../../specs/02_implementation_tasks.md).
 
 ## Salidas
 

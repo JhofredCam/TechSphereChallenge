@@ -9,11 +9,11 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 ## Entradas
 
 - Chunks y fuentes de [Data Preparation](../03_data_preparation/README.md).
-- [Contrato de llamadas, resumen y triaje](../../specs/00_mvp_specification.md#criterios-de-exito).
-- [Familias permitidas](../../docs/stack-tecnico.md#1-los-modelos-permitidos).
-- [Plan de componentes](../../specs/01_implementation_plan.md#componentes-y-dependencias).
-- [Timeout configurable de escucha](../../specs/05_patient_listening_timeout_specification.md).
-- [Diagrama normativo del flujo](../../specs/06_system_flow_diagram_specification.md).
+- [Contrato de llamadas, resumen y triaje](../../../specs/00_mvp_specification.md#criterios-de-exito).
+- [Familias permitidas](../../../docs/stack-tecnico.md#1-los-modelos-permitidos).
+- [Plan de componentes](../../../specs/01_implementation_plan.md#componentes-y-dependencias).
+- [Timeout configurable de escucha](../../../specs/05_patient_listening_timeout_specification.md).
+- [Diagrama normativo del flujo](../../../specs/06_system_flow_diagram_specification.md).
 
 ## Salidas
 
@@ -25,6 +25,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - Triaje determinista: `rojo` no baja, `amarillo` persiste alerta y `unknown` pide aclaracion.
 - Turnos, resumen de llamada, logs de latencia/tokens y respuesta hablada en el navegador.
 - STT remoto opcional `whisper-large-v3`; no es el modelo de razonamiento.
+- Escucha por turno con `PATIENT_LISTEN_TIMEOUT_MS`, estados parciales/timeout/error y fallback
+  textual; `client_turn_id` y `listen_id` evitan duplicados y transcript tardio.
 
 ## Tareas concretas
 
@@ -39,8 +41,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 7. Conectar reconocimiento `es-CO`, entrada textual de fallback y `SpeechSynthesis` del
    navegador.
 8. Registrar cada invocacion, consulta RAG, tokens y latencia con el identificador de llamada.
-9. Implementar el timeout de escucha del paciente sin mezclarlo con los timeouts de Groq,
-   Whisper o SQLite y reflejarlo en el diagrama antes de cambiar el frontend.
+9. Mantener el timeout de escucha del paciente separado de Groq, Whisper y SQLite, registrar
+   `POST /api/calls/{id}/voice-events` y reflejar el contrato en el diagrama.
 
 ## Criterios de aceptacion
 
@@ -52,8 +54,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [ ] La interfaz acepta microfono en Chrome/Edge, muestra transcripcion y reproduce audio en
   espanol, con fallback textual auditable.
 - [x] Los logs exponen los campos necesarios para las metricas obligatorias.
-- [ ] La escucha configurable del paciente valida `PATIENT_LISTEN_TIMEOUT_MS` y ofrece
-  reintento/fallback seguro; sigue especificada, no implementada.
+- [x] La escucha configurable valida `PATIENT_LISTEN_TIMEOUT_MS`, publica el valor en `/health`,
+  ofrece reintento/fallback seguro y rechaza transcript tardio; el smoke browser sigue pendiente.
 
 ## Verificacion y evidencia
 
@@ -62,12 +64,14 @@ Comandos automatizados ejecutados desde la raiz:
 ```text
 python -m pytest -q --basetemp <temp>
 ruff check .
+node --check app/web/app.js
 ```
 
-Resultado del 2026-08-08: 38 tests pasaron y Ruff no reporto hallazgos. Los tests cubren
-fallback extractivo, abstencion, adapter Groq mediante contrato, filtrado de salida insegura,
-triaje, resumen, fuentes y metricas. El uso remoto del proveedor no se ejercito en esta
-sesion porque es opcional y requiere `GROQ_API_KEY`.
+Resultado del 2026-08-08: 96 tests pasaron, Ruff no reporto hallazgos y la sintaxis de
+`app/web/app.js` fue valida. Los tests cubren fallback extractivo, abstencion, adapter Groq
+mediante contrato, filtrado de salida insegura, triaje, resumen, fuentes, metricas, timeout,
+eventos e idempotencia. El uso remoto del proveedor no se ejercito porque es opcional y requiere
+`GROQ_API_KEY`.
 
 Evidencia manual pendiente: intercambio en `/call`, pregunta con fuente, pregunta sin
 evidencia, entrada ambigua y senal roja usando microfono y audio reales. Los tests no
@@ -82,5 +86,5 @@ aprueban G4 por si solos.
 
 ## Estado
 
-**Modelo y servicios implementados; pruebas automatizadas verificadas y smoke de voz pendiente
-(2026-08-08).**
+**Modelo y servicios implementados; pruebas automatizadas verificadas y smoke de voz, Groq y
+Whisper reales pendientes (2026-08-08).**

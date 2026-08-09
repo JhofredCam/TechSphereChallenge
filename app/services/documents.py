@@ -37,6 +37,15 @@ _WINDOWS_RESERVED_BASENAMES = frozenset(
 )
 _MAX_STORAGE_PATH_LENGTH = 240
 _MAX_FILENAME_COMPONENT_LENGTH = 255
+MAX_PREVIEW_CHARS = 8000
+
+
+class DocumentNotSearchableError(ValueError):
+    """Raised when a technical document state cannot be published or previewed."""
+
+
+class DocumentProcessingError(RuntimeError):
+    """Raised when a document is still being processed."""
 
 
 def _is_windows_reserved_name(filename: str) -> bool:
@@ -220,6 +229,8 @@ class DocumentService:
         }:
             return record
 
+        had_content = record.page_count > 0 or record.chunk_count > 0
+
         try:
             extraction = extract_document(record.stored_path)
             chunks = chunk_pages(
@@ -253,10 +264,15 @@ class DocumentService:
                         connection=connection,
                     )
                 revision = self.database.increment_corpus_revision(connection)
+                if record.status == DocumentStatus.AVAILABLE:
+                    enabled = record.enabled
+                else:
+                    enabled = extraction.status is DocumentStatus.AVAILABLE
                 self.database.update_document_status(
                     document_id,
                     extraction.status,
                     processed_at=utc_now(),
+                    enabled=enabled,
                     connection=connection,
                 )
                 self.database.record_audit(
@@ -274,18 +290,28 @@ class DocumentService:
         except Exception as exc:
             error = str(exc)[:1000] or exc.__class__.__name__
             with self.database.transaction() as connection:
+                # A failed replacement cannot leave an older index searchable or
+                # visible through preview.
+                self.database.clear_document_content(document_id, connection=connection)
+                revision = (
+                    self.database.increment_corpus_revision(connection) if had_content else None
+                )
                 self.database.update_document_status(
                     document_id,
                     DocumentStatus.ERROR,
                     error=error,
                     processed_at=None,
+                    enabled=False,
                     connection=connection,
                 )
                 self.database.record_audit(
                     entity_type="document",
                     entity_id=document_id,
                     action="process_error",
-                    details={"error": error},
+                    details={
+                        "error": error,
+                        "corpus_revision": revision,
+                    },
                     connection=connection,
                 )
             updated = self.database.get_document(document_id)
@@ -303,6 +329,95 @@ class DocumentService:
 
     def list(self, status: DocumentStatus | str | None = None) -> list[DocumentRecord]:
         return self.database.list_documents(status)
+
+    def set_enabled(
+        self,
+        document_id: str,
+        enabled: bool,
+    ) -> tuple[DocumentRecord, bool, int]:
+        try:
+            return self.database.set_document_enabled(document_id, enabled)
+        except ValueError as exc:
+            if str(exc) == "document_not_searchable":
+                raise DocumentNotSearchableError(str(exc)) from exc
+            raise
+
+    def preview(
+        self,
+        document_id: str,
+        *,
+        page: int = 1,
+        offset: int = 0,
+        limit: int = MAX_PREVIEW_CHARS,
+    ) -> dict[str, object]:
+        """Return bounded extracted text without opening or reprocessing the file."""
+
+        if isinstance(page, bool) or not isinstance(page, int) or page < 1:
+            raise ValueError("invalid_preview_range")
+        if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
+            raise ValueError("invalid_preview_range")
+        if (
+            isinstance(limit, bool)
+            or not isinstance(limit, int)
+            or limit <= 0
+            or limit > MAX_PREVIEW_CHARS
+        ):
+            raise ValueError("invalid_preview_range")
+
+        record = self.database.get_document(document_id)
+        if record is None:
+            raise KeyError(document_id)
+        if record.status_value == DocumentStatus.PROCESSING.value:
+            raise DocumentProcessingError("document_processing")
+        if record.status_value == DocumentStatus.ERROR.value:
+            raise DocumentNotSearchableError("document_not_searchable")
+
+        base_payload: dict[str, object] = {
+            "document_id": record.id,
+            "filename": record.filename,
+            "status": record.status_value,
+            "enabled": record.enabled,
+            "rag_eligible": record.rag_eligible,
+            "corpus_revision": self.corpus_revision,
+        }
+
+        if record.status_value == DocumentStatus.NEEDS_OCR.value:
+            if record.page_count and page > record.page_count:
+                raise LookupError("page_not_found")
+            if offset > 0:
+                raise ValueError("offset_out_of_range")
+            base_payload["preview"] = {
+                "available": False,
+                "reason": "needs_ocr",
+                "page": page,
+                "page_count": record.page_count,
+                "offset": offset,
+                "limit": limit,
+                "total_chars": 0,
+                "truncated": False,
+                "text": "",
+            }
+            return base_payload
+
+        page_row = self.database.get_document_page(document_id, page)
+        if page_row is None:
+            raise LookupError("page_not_found")
+        text = str(page_row["text"])
+        total_chars = len(text)
+        if offset > total_chars:
+            raise ValueError("offset_out_of_range")
+        end = min(offset + limit, total_chars)
+        base_payload["preview"] = {
+            "available": True,
+            "page": page,
+            "page_count": record.page_count,
+            "offset": offset,
+            "limit": limit,
+            "total_chars": total_chars,
+            "truncated": end < total_chars,
+            "text": text[offset:end],
+        }
+        return base_payload
 
     def delete(self, document_id: str) -> bool:
         record = self.database.get_document(document_id)
@@ -393,11 +508,43 @@ def list_documents(
     return DocumentService(database, settings).list(status)
 
 
+def preview_document(
+    database: Database,
+    document_id: str,
+    *,
+    settings: Settings | str | Path | None = None,
+    page: int = 1,
+    offset: int = 0,
+    limit: int = MAX_PREVIEW_CHARS,
+) -> dict[str, object]:
+    return DocumentService(database, settings).preview(
+        document_id,
+        page=page,
+        offset=offset,
+        limit=limit,
+    )
+
+
+def set_document_enabled(
+    database: Database,
+    document_id: str,
+    enabled: bool,
+    *,
+    settings: Settings | str | Path | None = None,
+) -> tuple[DocumentRecord, bool, int]:
+    return DocumentService(database, settings).set_enabled(document_id, enabled)
+
+
 __all__ = [
+    "MAX_PREVIEW_CHARS",
     "DocumentService",
+    "DocumentNotSearchableError",
+    "DocumentProcessingError",
     "delete_document",
     "list_documents",
     "process_document",
+    "preview_document",
     "safe_storage_filename",
+    "set_document_enabled",
     "upload_document",
 ]

@@ -5,19 +5,24 @@ from __future__ import annotations
 from dataclasses import asdict, is_dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping
 
-from fastapi import Body, FastAPI, File, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, model_validator
+from starlette.concurrency import run_in_threadpool
 
 from .config import Settings
 from .database import Database, init_database
 from .schemas import DocumentStatus
 from .services.agent import AgentService
-from .services.calls import CallService
-from .services.documents import DocumentService
+from .services.calls import CallService, LateTranscriptError, ListenEventError
+from .services.documents import (
+    DocumentNotSearchableError,
+    DocumentProcessingError,
+    DocumentService,
+)
 from .services.ingestion import SUPPORTED_SUFFIXES
 from .services.metrics import DEFAULT_MODEL_VERSION, MetricsService
 from .services.rag import RagService
@@ -36,7 +41,74 @@ class StartCallRequest(BaseModel):
 
 
 class TurnRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     text: str = Field(min_length=1, max_length=5000)
+    client_turn_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}",
+    )
+    listen_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}",
+    )
+    elapsed_ms: StrictInt | StrictFloat | None = Field(default=None, ge=0, le=300000)
+
+    @model_validator(mode="after")
+    def validate_turn_identifiers(self) -> "TurnRequest":
+        if (self.client_turn_id is None) != (self.listen_id is None):
+            raise ValueError("client_turn_id y listen_id deben enviarse juntos")
+        return self
+
+
+VOICE_EVENT_TYPES = Literal[
+    "patient_listen_started",
+    "partial",
+    "final",
+    "ended",
+    "no_response",
+    "timeout",
+    "error",
+    "retry",
+]
+
+
+class VoiceEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event_type: VOICE_EVENT_TYPES
+    listen_id: str = Field(
+        min_length=1,
+        max_length=128,
+        pattern=r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}",
+    )
+    client_turn_id: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}",
+    )
+    elapsed_ms: StrictInt | StrictFloat | None = Field(default=None, ge=0, le=300000)
+    locale: Literal["es-CO"] = "es-CO"
+    implementation: Literal["SpeechRecognition", "webkitSpeechRecognition"] = (
+        "SpeechRecognition"
+    )
+    configured_timeout_ms: StrictInt | None = Field(default=None, ge=1000, le=300000)
+    error_code: str | None = Field(
+        default=None,
+        max_length=64,
+        pattern=r"[A-Za-z0-9_.-]{1,64}",
+    )
+
+    @model_validator(mode="after")
+    def require_client_id_for_final(self) -> "VoiceEventRequest":
+        if self.event_type == "final" and self.client_turn_id is None:
+            raise ValueError("final requiere client_turn_id")
+        return self
 
 
 class VoiceTimingRequest(BaseModel):
@@ -85,7 +157,7 @@ def _clean(value: str | None) -> str | None:
     return cleaned or None
 
 
-def _document_payload(record: Any) -> dict[str, Any]:
+def _document_payload(record: Any, corpus_revision: int = 0) -> dict[str, Any]:
     status = (
         record.status.value
         if isinstance(record.status, DocumentStatus)
@@ -104,16 +176,41 @@ def _document_payload(record: Any) -> dict[str, Any]:
         "processed_at": record.processed_at,
         "available": status == DocumentStatus.AVAILABLE.value,
         "needs_ocr": status == DocumentStatus.NEEDS_OCR.value,
+        "enabled": bool(record.enabled),
+        "rag_eligible": bool(record.rag_eligible),
+        "page_count": int(record.page_count),
+        "chunk_count": int(record.chunk_count),
+        "preview_available": bool(record.preview_available),
+        "corpus_revision": corpus_revision,
     }
     return _json_safe(payload)
 
 
 def _fts5_available(database: Database) -> bool:
     try:
-        database.execute("SELECT 1 FROM chunks_fts LIMIT 1").fetchone()
+        row = database.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            ("chunks_fts",),
+        ).fetchone()
     except Exception:
         return False
-    return True
+    return row is not None
+
+
+def _admin_error(status_code: int, error_code: str, message: str) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={"error_code": error_code, "message": message},
+    )
+
+
+def _parse_preview_query(value: str, name: str, *, minimum: int) -> int:
+    if not isinstance(value, str) or not value or not value.isascii() or not value.isdigit():
+        raise _admin_error(422, "invalid_preview_range", f"{name} debe ser un entero valido")
+    parsed = int(value)
+    if parsed < minimum:
+        raise _admin_error(422, "invalid_preview_range", f"{name} esta fuera de rango")
+    return parsed
 
 
 def create_app(
@@ -133,7 +230,12 @@ def create_app(
     documents = DocumentService(effective_database, effective_settings)
     rag = RagService(effective_database)
     agent = AgentService(rag)
-    calls = CallService(effective_database, agent=agent, metrics=metrics)
+    calls = CallService(
+        effective_database,
+        agent=agent,
+        metrics=metrics,
+        configured_timeout_ms=effective_settings.patient_listen_timeout_ms,
+    )
     voice = VoiceService(max_bytes=effective_settings.max_upload_bytes)
 
     application = FastAPI(
@@ -212,11 +314,15 @@ def create_app(
             "docs_count": document_count,
             "corpus_revision": documents.corpus_revision,
             "voice_mode": voice.mode,
+            "patient_listen_timeout_ms": effective_settings.patient_listen_timeout_ms,
         }
 
     @application.get("/api/admin/documents")
     def list_documents() -> dict[str, Any]:
-        records = [_document_payload(record) for record in documents.list()]
+        records = [
+            _document_payload(record, documents.corpus_revision)
+            for record in documents.list()
+        ]
         return {"documents": records, "count": len(records)}
 
     @application.post("/api/admin/documents")
@@ -239,7 +345,8 @@ def create_app(
                 ),
             )
         try:
-            record = documents.upload(
+            record = await run_in_threadpool(
+                documents.upload,
                 content,
                 filename,
                 mime_type=file.content_type,
@@ -247,16 +354,85 @@ def create_app(
             )
         except (TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return _document_payload(record)
+        return _document_payload(record, documents.corpus_revision)
+
+    @application.get("/api/admin/documents/{document_id}/preview")
+    def preview_document(
+        document_id: str,
+        page: str = "1",
+        offset: str = "0",
+        limit: str = "8000",
+    ) -> dict[str, Any]:
+        page_number = _parse_preview_query(page, "page", minimum=1)
+        page_offset = _parse_preview_query(offset, "offset", minimum=0)
+        page_limit = _parse_preview_query(limit, "limit", minimum=1)
+        if page_limit > 8000:
+            raise _admin_error(422, "invalid_preview_range", "limit no puede superar 8000")
+        try:
+            return _json_safe(
+                documents.preview(
+                    document_id,
+                    page=page_number,
+                    offset=page_offset,
+                    limit=page_limit,
+                )
+            )
+        except KeyError as exc:
+            raise _admin_error(404, "document_not_found", str(exc)) from exc
+        except LookupError as exc:
+            raise _admin_error(404, "page_not_found", str(exc)) from exc
+        except DocumentProcessingError as exc:
+            raise _admin_error(409, "document_processing", str(exc)) from exc
+        except DocumentNotSearchableError as exc:
+            raise _admin_error(409, "document_not_searchable", str(exc)) from exc
+        except ValueError as exc:
+            error_code = str(exc)
+            if error_code not in {"invalid_preview_range", "offset_out_of_range"}:
+                error_code = "invalid_preview_range"
+            raise _admin_error(422, error_code, str(exc)) from exc
+
+    @application.patch("/api/admin/documents/{document_id}")
+    def update_document(document_id: str, payload: Any = Body(default=None)) -> dict[str, Any]:
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"enabled"}
+            or type(payload.get("enabled")) is not bool
+        ):
+            raise _admin_error(
+                422,
+                "invalid_publication_state",
+                "el cuerpo debe contener unicamente enabled como booleano",
+            )
+        try:
+            record, changed, revision = documents.set_enabled(
+                document_id,
+                payload["enabled"],
+            )
+        except KeyError as exc:
+            raise _admin_error(404, "document_not_found", str(exc)) from exc
+        except DocumentNotSearchableError as exc:
+            raise _admin_error(409, "document_not_searchable", str(exc)) from exc
+        except ValueError as exc:
+            if str(exc) == "document_not_searchable":
+                raise _admin_error(409, "document_not_searchable", str(exc)) from exc
+            raise _admin_error(422, "invalid_publication_state", str(exc)) from exc
+        response = _document_payload(record, revision)
+        response["changed"] = changed
+        return response
 
     @application.delete("/api/admin/documents/{document_id}")
     def delete_document(document_id: str) -> dict[str, Any]:
         if not documents.delete(document_id):
-            raise HTTPException(status_code=404, detail=f"documento no encontrado: {document_id}")
+            raise _admin_error(
+                404,
+                "document_not_found",
+                f"documento no encontrado: {document_id}",
+            )
         return {
             "deleted": True,
             "document_id": document_id,
             "status": "deleted",
+            "corpus_revision": documents.corpus_revision,
         }
 
     @application.post("/api/calls")
@@ -295,9 +471,28 @@ def create_app(
         if not text:
             raise HTTPException(status_code=422, detail="text no puede estar vacio")
         try:
-            response = calls.handle_turn(call_id, text)
+            response = calls.handle_turn(
+                call_id,
+                text,
+                client_turn_id=request.client_turn_id,
+                listen_id=request.listen_id,
+                elapsed_ms=request.elapsed_ms,
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except LateTranscriptError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error_code": exc.code,
+                    "message": "el transcript llego despues del timeout",
+                },
+            ) from exc
+        except ListenEventError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"error_code": exc.code, "message": str(exc)},
+            ) from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except Exception as exc:
@@ -306,6 +501,42 @@ def create_app(
                 detail=f"no se pudo procesar el turno: {exc}",
             ) from exc
         return _json_safe(response)
+
+    @application.post("/api/calls/{call_id}/voice-events")
+    def add_voice_event(call_id: str, request: VoiceEventRequest) -> dict[str, Any]:
+        """Persist bounded listening telemetry without accepting transcript payloads."""
+
+        require_call(call_id)
+        try:
+            event = calls.record_voice_event(
+                call_id,
+                event_type=request.event_type,
+                listen_id=request.listen_id,
+                client_turn_id=request.client_turn_id,
+                elapsed_ms=request.elapsed_ms,
+                locale=request.locale,
+                implementation=request.implementation,
+                error_code=request.error_code,
+                configured_timeout_ms=request.configured_timeout_ms,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except LateTranscriptError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error_code": exc.code,
+                    "message": "el transcript llego despues del timeout",
+                },
+            ) from exc
+        except ListenEventError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"error_code": exc.code, "message": str(exc)},
+            ) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return _json_safe(event)
 
     @application.post("/api/calls/{call_id}/turns/{turn_id}/voice-timing")
     def record_voice_timing(
@@ -332,11 +563,28 @@ def create_app(
         return payload
 
     @application.post("/api/calls/{call_id}/audio")
-    async def add_audio(call_id: str, audio: UploadFile = File(...)) -> dict[str, Any]:
+    async def add_audio(
+        call_id: str,
+        audio: UploadFile = File(...),
+        client_turn_id: str | None = Query(default=None, min_length=1, max_length=128),
+        listen_id: str | None = Query(default=None, min_length=1, max_length=128),
+        elapsed_ms: float | None = Query(default=None, ge=0, le=300000),
+    ) -> dict[str, Any]:
         require_call(call_id)
+        if (client_turn_id is None) != (listen_id is None):
+            raise HTTPException(
+                status_code=422,
+                detail="client_turn_id y listen_id deben enviarse juntos",
+            )
         content = await audio.read(effective_settings.max_upload_bytes + 1)
+        if len(content) > effective_settings.max_upload_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail="el audio supera el limite configurado",
+            )
         try:
-            transcript = voice.transcribe(
+            transcript = await run_in_threadpool(
+                voice.transcribe,
                 content,
                 filename=audio.filename or "audio.webm",
                 content_type=audio.content_type,
@@ -346,9 +594,29 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         try:
-            response = calls.handle_turn(call_id, transcript)
+            response = await run_in_threadpool(
+                calls.handle_turn,
+                call_id,
+                transcript,
+                client_turn_id=client_turn_id,
+                listen_id=listen_id,
+                elapsed_ms=elapsed_ms,
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except LateTranscriptError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error_code": exc.code,
+                    "message": "el transcript llego despues del timeout",
+                },
+            ) from exc
+        except ListenEventError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail={"error_code": exc.code, "message": str(exc)},
+            ) from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         response_data = dict(_json_safe(response))

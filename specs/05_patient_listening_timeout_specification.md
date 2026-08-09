@@ -1,19 +1,19 @@
 # Spec: Timeout configurable de escucha del paciente
 
-**Estado:** propuesta de runtime; no implementada en este checkout
-**Version:** 0.1.0
+**Estado:** implementada en runtime; evidencia manual de Chrome/Edge pendiente
+**Version:** 0.2.0
 **Fecha:** 2026-08-08
 
 ## Objetivo
 
-Definir un limite configurable para el turno en el que el navegador escucha al paciente y
+Implementar un limite configurable para el turno en el que el navegador escucha al paciente y
 publicar ese valor en `.env.example`. El objetivo es evitar que el tiempo de escucha percibido
 sea demasiado corto, sin confundirlo con los timeouts del LLM, STT o SQLite y sin convertir un
 silencio en una decision clinica.
 
-El checkout actual usa `SpeechRecognition` en `es-CO` con `continuous=false`,
-`interimResults=false` y sin un timer propio del paciente. Por tanto, esta spec define un
-comportamiento futuro; agregar la variable al ejemplo de entorno no activa aun el runtime.
+El runtime usa `SpeechRecognition` en `es-CO` con `continuous=false`,
+`interimResults=true` y un timer propio por intento. El valor efectivo llega al navegador desde
+`GET /health`; el navegador no lee `.env`.
 
 ## Tech Stack
 
@@ -26,12 +26,36 @@ Groq y SQLite mantienen sus timeouts independientes.
 
 - `.env.example`: valor documentado `PATIENT_LISTEN_TIMEOUT_MS=30000`.
 - `app/config.py`: parseo, default, rango y valor efectivo.
-- `app/main.py`: `/health`, configuracion publica y eventos de escucha si se aprueban.
+- `app/main.py`: `/health`, configuracion publica y eventos de escucha.
 - `app/web/app.js`: maquina de estados, timer, resultados parciales y fallback textual.
 - `app/services/metrics.py` y `data/events.jsonl`: eventos de observabilidad del servidor.
 - `tests/`: configuracion, carreras de eventos, API e integracion de llamada.
 
-Estas rutas son objetivo de implementacion; no se modificaron en esta sesion.
+Estas rutas contienen la implementacion de este corte. `specs/06_system_flow_diagram_specification.md`,
+`README.md` raiz y `docs/` quedan para la actualizacion final de sus agentes propietarios.
+
+## Estado de implementacion
+
+- `Settings` aplica default `30000`, rango estricto inclusivo `1000..300000` y rechaza valores
+  ausentes solo como default; vacios, no numericos y fuera de rango fallan al arrancar, tambien
+  cuando se construye directamente.
+- `GET /health` publica `patient_listen_timeout_ms` sin credenciales. Los timeouts de Groq,
+  Whisper y SQLite conservan sus valores independientes.
+- `listening_attempts` conserva por llamada el `listen_id`, `client_turn_id`, estado, timeout,
+  duracion, resultado persistido e IDs de turnos; la migracion es idempotente y conserva
+  `enabled` y snapshots de la spec 04.
+- `POST /api/calls/{call_id}/voice-events` solo acepta los eventos acotados de esta spec y
+  nunca recibe audio ni texto clinico. Los eventos se escriben en JSONL sin entrar en P50/P95
+  de respuesta.
+- La reclamacion de un transcript ocurre antes del agente y la restriccion unica es por
+  `(call_id, client_turn_id)`. Reintentos devuelven la respuesta persistida con `duplicate=true`;
+  un timeout registrado hace que un transcript posterior responda `409 late_transcript`.
+- Timeout, no respuesta, parcial y error no crean turnos clinicos, alertas ni decisiones de
+  triaje. La UI conserva el fallback textual y descarta callbacks tardios.
+
+Las pruebas automatizadas de esta entrega cubren configuracion, `/health`, eventos, carreras,
+idempotencia, transcript tardio, no respuesta, separacion de timeouts y ausencia de texto o
+secretos en los eventos. No sustituyen el smoke manual con microfono y audio reales.
 
 ## Code Style
 
@@ -40,18 +64,18 @@ expresan por estados explicitos (`LISTENING`, `PROCESSING`, `LISTEN_TIMEOUT`, `R
 y el servidor usa `client_turn_id` como clave de idempotencia por llamada. No se usa un booleano
 global que pueda mezclar dos llamadas o dos turnos.
 
-## Semantica provisional
+## Semantica implementada
 
-La propuesta base interpreta "timeout de escucha" como **duracion maxima total de un turno de
-escucha**, no como tiempo de silencio. Se agrega:
+La implementacion interpreta "timeout de escucha" como **duracion maxima total de un turno de
+escucha**, no como tiempo de silencio. Se configura con:
 
 ```dotenv
 PATIENT_LISTEN_TIMEOUT_MS=30000
 ```
 
-`30000` ms es un valor inicial deliberadamente mas amplio que una pausa breve del navegador y
-debe ajustarse con la experiencia y metricas reales. La diferencia entre limite total y limite
-de silencio queda como decision abierta al final de esta spec.
+`30000` ms es el default vigente y puede ajustarse con la experiencia y metricas reales. La
+diferencia entre limite total y limite de silencio queda como evolucion abierta al final de esta
+spec.
 
 ### Lo que controla
 
@@ -72,7 +96,7 @@ de silencio queda como decision abierta al final de esta spec.
 | Groq chat | 12 s | timeout del adaptador de agente |
 | Whisper STT | 30 s | timeout del servicio de voz |
 | SQLite | 5 s | `busy_timeout` de base |
-| Escucha paciente | no configurable hoy | `PATIENT_LISTEN_TIMEOUT_MS` |
+| Escucha paciente | 30 s por defecto | `PATIENT_LISTEN_TIMEOUT_MS` |
 
 Cambiar la variable del paciente no puede alterar los tres valores anteriores.
 
@@ -154,7 +178,7 @@ contrato; no se crea una segunda ruta de configuracion para esta variable.
 
 ## Observabilidad
 
-Registrar eventos de estado mediante el endpoint futuro
+Registrar eventos de estado mediante el endpoint implementado
 `POST /api/calls/{call_id}/voice-events`, persistidos por el servidor en
 `data/events.jsonl`. Un intento de escucha tiene un `listen_id`; un transcript final tambien
 lleva `client_turn_id`. El servidor debe hacer idempotente `client_turn_id` por llamada para que
@@ -165,13 +189,13 @@ Cada evento incluye `call_id`, `listen_id`, `client_turn_id` cuando exista,
 
 ```text
 patient_listen_started
-patient_listen_partial
-patient_listen_final
-patient_listen_ended
-patient_listen_no_response
-patient_listen_timeout
-patient_listen_error
-patient_listen_retry
+partial
+final
+ended
+no_response
+timeout
+error
+retry
 ```
 
 No registrar audio ni texto clinico completo en estos eventos. `data/events.jsonl` es la fuente
@@ -184,26 +208,32 @@ tardios descartados. La latencia conversacional sigue usando los campos existent
 
 - Detectar `window.SpeechRecognition` y `window.webkitSpeechRecognition`.
 - Conservar `lang='es-CO'` y `continuous=false` en el primer corte.
-- Activar `interimResults=true` cuando se implemente el estado `PARTIAL`; si un navegador no
-  entrega parciales, el flujo sigue funcionando sin ese estado.
+- Usar `interimResults=true`; si un navegador no entrega parciales, el flujo sigue funcionando
+  sin ese estado.
 - Tolerar `onend`, `onerror` y `onresult` tardios o duplicados.
 - Requerir `localhost` o contexto seguro para el microfono.
 - Mantener entrada textual cuando el navegador no soporte reconocimiento o niegue permiso.
 - No tratar Firefox u otro navegador incompatible como un timeout del paciente.
 - El timer debe usar reloj monotono del navegador y cancelarse en toda salida normal.
 
-## Comandos de verificacion previstos
+## Comandos de verificacion ejecutados
 
-No se ejecutan en esta sesion. Durante la implementacion se deben ejecutar desde la raiz:
+Durante esta implementacion se ejecutaron desde la raiz:
 
 ```text
+python -m pytest tests/test_timeout.py -q
 python -m pytest tests/test_api.py tests/test_calls.py tests/test_metrics.py -q
-python -m pytest -q --basetemp <temp>
-ruff check .
+python -m pytest tests/test_admin_lifecycle.py tests/test_live_knowledge.py -q
+python -m pytest -q
+ruff check app tests
+node --check app/web/app.js
+git diff --check
 ```
 
-La evidencia manual requiere Chrome o Edge, microfono real, un turno con respuesta antes del
-limite, un turno sin respuesta y un turno con transcript parcial o permiso denegado.
+Resultado de esta entrega: `17` pruebas enfocadas, `13` de regresion de API/llamadas/metricas,
+`8` de admin/conocimiento vivo y `62` en la suite completa pasaron. La evidencia manual sigue
+pendiente: Chrome o Edge, microfono real, respuesta antes del limite, silencio, parcial,
+reintento, fallback textual, permiso denegado y audio del agente.
 
 ## Estrategia de pruebas
 
@@ -250,14 +280,15 @@ limite, un turno sin respuesta y un turno con transcript parcial o permiso deneg
 
 - Depende de `specs/03_mvp_structure_specification.md` para la ubicacion de `.env.example` y
   entregables.
-- Debe actualizar `specs/06_system_flow_diagram_specification.md`, README, setup, informe y
-  evidencia antes de implementarse.
+- El agente propietario debe actualizar `specs/06_system_flow_diagram_specification.md` al final
+  para reflejar el contrato implementado. README, setup, informe y evidencia publicada quedan
+  fuera del alcance de este agente.
 - No cambia el modelo permitido ni la estrategia RAG.
 
 Preguntas abiertas:
 
-1. Confirmar si se desea un limite total del turno, un limite de silencio o ambos. Si se desea
-   silencio, se recomienda separar `PATIENT_SILENCE_TIMEOUT_MS` de este limite maximo.
-2. Confirmar si el default provisional de 30 s y el rango `1..300` s son adecuados para la
-   experiencia deseada.
+1. El limite total del turno queda implementado; sigue abierta si una futura iteracion necesita
+   ademas un limite de silencio separado (`PATIENT_SILENCE_TIMEOUT_MS`).
+2. El default vigente es 30 s y el rango `1..300` s; queda abierta su calibracion con evidencia
+   manual y metricas reales.
 3. Confirmar si el mismo timeout aplicara a una futura captura de audio para Whisper.

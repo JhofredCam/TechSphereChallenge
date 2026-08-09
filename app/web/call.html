@@ -80,8 +80,13 @@
               <span class="mic-icon" aria-hidden="true">◉</span>
               <span id="mic-label">Hablar</span>
             </button>
-            <span id="voice-support" class="control-hint">Chrome o Edge · idioma es-CO</span>
+            <div class="voice-feedback">
+              <span id="voice-support" class="control-hint">Chrome o Edge · idioma es-CO</span>
+              <span id="voice-state" class="voice-state">Estado: LISTENING no iniciado</span>
+              <span id="listen-timer" class="listen-timer" aria-live="off"></span>
+            </div>
           </div>
+          <p id="partial-transcript" class="partial-transcript" role="status" aria-live="polite" hidden></p>
           <form id="text-form" class="text-fallback">
             <label class="visually-hidden" for="turn-text">Escribir un mensaje</label>
             <input id="turn-text" name="text" type="text" maxlength="5000" placeholder="Escribe aqui si no puedes usar el microfono" disabled>

@@ -41,11 +41,11 @@ ASCII, contexto, llamada, ciclo documental, triaje/RAG, voz/timeout, metricas y 
 - `specs/01_implementation_plan.md`
 - `specs/02_implementation_tasks.md`
 - `mvp/README.md`
-- `mvp/01_business_understanding/README.md`
-- `mvp/03_data_preparation/README.md`
-- `mvp/04_modeling/README.md`
-- `mvp/05_evaluation/README.md`
-- `mvp/06_deployment/README.md`
+- `mvp/crisp-dm/01_business_understanding/README.md`
+- `mvp/crisp-dm/03_data_preparation/README.md`
+- `mvp/crisp-dm/04_modeling/README.md`
+- `mvp/crisp-dm/05_evaluation/README.md`
+- `mvp/crisp-dm/06_deployment/README.md`
 - `docs/arquitectura.md`
 - `docs/informe-final.md`
 - `readme/00_indice_de_documentacion.md`

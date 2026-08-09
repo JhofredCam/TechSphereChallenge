@@ -21,9 +21,12 @@ Antes de implementar cambios nuevos, se deben revisar las specs en este orden:
    estados seguros de escucha.
 4. `specs/06_system_flow_diagram_specification.md`: diagrama ASCII/Mermaid, matriz de
    trazabilidad y reflejo de las tres specs anteriores.
+5. `specs/07_testing_unit_integration_specification.md`: pruebas unitarias/integracion,
+   fixtures, cobertura y evidencia manual asociada a los contratos.
 
 La cuarta spec es un checkpoint de arquitectura: no se debe comenzar la implementacion de una
-extension si el diagrama no muestra su bloque, transiciones, estado y verificacion.
+extension si el diagrama no muestra su bloque, transiciones, estado y verificacion. La quinta
+spec debe revisarse antes de implementar cada contrato para evitar pruebas desconectadas del flujo.
 
 ## Componentes y dependencias
 
@@ -58,3 +61,5 @@ extension si el diagrama no muestra su bloque, transiciones, estado y verificaci
    verificados.
 7. El admin y el timeout se prueban de forma independiente antes de actualizar el diagrama
    publicado.
+8. Las pruebas unitarias y de integracion deben aislar proveedores, datos y estado generado antes
+   de servir como evidencia de los gates.

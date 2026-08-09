@@ -1,17 +1,18 @@
 # Spec: Estructura de entregables bajo `mvp/`
 
-**Estado:** propuesta para revision humana; no aplicada en este checkout
-**Version:** 0.1.0
+**Estado:** implementada; migracion documental/estructural aplicada en este checkout
+**Version:** 0.2.0
 **Fecha:** 2026-08-08
 
 ## Objetivo
 
 Definir una reestructuracion del repositorio en la que los cuatro entregables formales del
-reto y los artefactos de proceso del MVP vivan bajo `mvp/`. Las seis fases CRISP-DM que hoy
-estan directamente dentro de `mvp/` pasaran conceptualmente a `mvp/crisp-dm/`.
+reto y los artefactos de proceso del MVP vivan bajo `mvp/`. Las seis fases CRISP-DM estan bajo
+`mvp/crisp-dm/` y los cuatro entregables tienen rutas formales bajo `mvp/deliverables/`.
 
-Esta spec define ownership, rutas, dependencias y una migracion verificable. No mueve carpetas,
-no copia archivos y no modifica codigo en esta sesion.
+Esta spec define ownership, rutas, dependencias y una migracion verificable. La migracion mueve
+solo los README de fase, corrige sus enlaces relativos y crea indices/manifiestos sin copiar
+fuentes canonicas, runtime, dataset ni estado generado. No modifica codigo.
 
 ## Tech Stack
 
@@ -36,7 +37,7 @@ de texto ambiguo o estado inferido.
 ### Alcance
 
 - Concentrar los entregables formales en `mvp/deliverables/`.
-- Reubicar las seis fases en `mvp/crisp-dm/` durante una etapa posterior.
+- Mantener las seis fases en `mvp/crisp-dm/` como la ubicacion aplicada del proceso.
 - Mantener una unica fuente de verdad por afirmacion, artefacto y evidencia.
 - Preservar los comandos ejecutados desde la raiz y las rutas canonicas del reto.
 - Permitir que el diagrama, la administracion documental y el timeout tengan rutas estables
@@ -76,7 +77,8 @@ de texto ambiguo o estado inferido.
 
 ## Estructura objetivo
 
-La estructura siguiente es objetivo de migracion, no un estado ya aplicado:
+La estructura siguiente es el estado aplicado de las rutas formales. Los artefactos de contenido
+que aun tienen una fuente publicada en `docs/` o `readme/` se enlazan, no se duplican.
 
 ```text
 mvp/
@@ -92,13 +94,8 @@ mvp/
   deliverables/
     01_repository/README.md
     02_architecture/README.md
-    02_architecture/architecture.md
     03_final_report/README.md
-    03_final_report/final_report.md
-    03_final_report/evidence/
     04_video/README.md
-    04_video/demo_script.md
-    04_video/evidence_index.md
 
 app/                    Runtime FastAPI, servicios y web
 scripts/                Validadores y bootstrap
@@ -128,15 +125,16 @@ data/                   Estado generado local, fuera de mvp/
 
 ### `mvp/deliverables/01_repository/`
 
-Debe ser un manifiesto del repositorio entregado: README de entrada, dependencias, comandos,
-commit evaluado, estado G1-G5 y referencia a las rutas de runtime. No debe contener una copia
-de `app/`, `tests/`, `dataset/` ni `docs/`.
+Es un manifiesto del repositorio entregado: README de entrada, dependencias, comandos, estado
+G1-G5 y referencia a las rutas de runtime. No contiene una copia de `app/`, `tests/`, `dataset/`
+ni `docs/`.
 
 ### `mvp/deliverables/02_architecture/`
 
-Debe publicar la vista que el jurado recibe. La fuente normativa de sus bloques y flujos sera
-`specs/06_system_flow_diagram_specification.md`; `docs/arquitectura.md` seguira siendo la vista
-publicada de implementacion hasta que la migracion se apruebe. El manifiesto debe indicar:
+Su README establece la ruta formal y publica la procedencia de la vista que el jurado recibe.
+La fuente normativa de sus bloques y flujos sera `specs/06_system_flow_diagram_specification.md`;
+`docs/arquitectura.md` seguira siendo la vista publicada de implementacion hasta que su agente
+propietario publique `architecture.md`. El manifiesto debe indicar:
 
 - version de la spec del diagrama;
 - commit y fecha de la vista;
@@ -146,14 +144,14 @@ publicada de implementacion hasta que la migracion se apruebe. El manifiesto deb
 
 ### `mvp/deliverables/03_final_report/`
 
-Debe contener el informe final y su indice de evidencia. `docs/informe-final.md` conserva el
-estado documentado del checkout actual mientras la migracion no este aprobada. Ninguna version
-puede cambiar un estado de gate sin evidencia fechada.
+Su README establece la procedencia del informe final y su indice de evidencia. `docs/informe-final.md`
+conserva el estado documentado del checkout actual y no se duplica en esta migracion. Ninguna
+version puede cambiar un estado de gate sin evidencia fechada.
 
 ### `mvp/deliverables/04_video/`
 
-Debe contener guion, indice de escenas, procedencia del commit y enlace o archivo del video.
-El manifiesto debe registrar si el artefacto es externo, su URL, fecha y checksum cuando exista.
+Su README registra la procedencia del guion, indice de escenas, commit y enlace o archivo del
+video. El manifiesto registra si el artefacto es externo, su URL, fecha y checksum cuando exista.
 No debe guardar claves, tokens ni datos clinicos innecesarios.
 
 ## Dependencias
@@ -178,9 +176,11 @@ specs/01_plan  specs/02_tasks
                 vistas en docs/ y mvp/deliverables/
 ```
 
-La secuencia refleja que el diagrama depende de la estructura, del ciclo de documentos y del
-timeout. Si una de esas specs cambia, `06_system_flow_diagram_specification.md` debe revisarse
-antes de actualizar codigo o una vista publicada.
+Las etapas 0 a 3 quedaron aplicadas en esta migracion documental. Las etapas de vistas,
+compatibilidad de codigo, preflight completo y cierre siguen dependiendo de los agentes y
+decisiones indicados abajo. La secuencia refleja que el diagrama depende de la estructura, del
+ciclo de documentos y del timeout. Si una de esas specs cambia, `06_system_flow_diagram_specification.md`
+debe revisarse antes de actualizar codigo o una vista publicada.
 
 ## Migracion por etapas
 
@@ -199,8 +199,9 @@ No se debe iniciar la etapa 2 hasta que las preguntas abiertas de ownership este
 
 ## Comandos de verificacion previstos
 
-Estos comandos se ejecutaran solo durante la implementacion de la migracion. No se ejecutaron
-en esta sesion:
+La implementacion de la migracion se verifica primero con el comando estructural y la revision
+de enlaces. Los comandos de runtime son preflight del repositorio y no se declaran ejecutados
+por esta migracion documental:
 
 ```text
 python -c "from pathlib import Path; required = ['mvp/README.md', 'mvp/crisp-dm/README.md', 'mvp/crisp-dm/01_business_understanding/README.md', 'mvp/crisp-dm/02_data_understanding/README.md', 'mvp/crisp-dm/03_data_preparation/README.md', 'mvp/crisp-dm/04_modeling/README.md', 'mvp/crisp-dm/05_evaluation/README.md', 'mvp/crisp-dm/06_deployment/README.md', 'mvp/deliverables/01_repository/README.md', 'mvp/deliverables/02_architecture/README.md', 'mvp/deliverables/03_final_report/README.md', 'mvp/deliverables/04_video/README.md', 'specs/06_system_flow_diagram_specification.md']; missing = [p for p in required if not Path(p).is_file()]; assert not missing, missing"
@@ -210,8 +211,8 @@ python -m scripts.validate_dataset
 python -m app.bootstrap --data-dir <temp>
 ```
 
-La revision estructural debe incluir una comprobacion de que no existen `mvp/dataset/`,
-`mvp/docs/`, `mvp/app-copy/` ni `mvp/runtime-data/`, y una comprobacion de enlaces Markdown.
+La revision estructural incluye una comprobacion de que no existen `mvp/dataset/`, `mvp/docs/`,
+`mvp/app-copy/` ni `mvp/runtime-data/`, y una comprobacion de enlaces Markdown.
 
 ## Estilo documental y de codigo
 

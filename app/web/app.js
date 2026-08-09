@@ -8,7 +8,9 @@
     if (!value) return "Error desconocido";
     if (typeof value === "string") return value;
     if (Array.isArray(value)) return value.map((item) => item.msg || String(item)).join(", ");
-    return value.detail || value.message || JSON.stringify(value);
+    if (value.detail) return messageFrom(value.detail);
+    if (value.error_code && value.message) return `${value.error_code}: ${value.message}`;
+    return value.message || value.error_code || JSON.stringify(value);
   }
 
   async function api(path, options = {}) {
@@ -41,6 +43,53 @@
     }[status] || status;
   }
 
+  function publicationLabel(documentRecord) {
+    if (documentRecord.status !== "available") {
+      return { className: "publication-unavailable", text: "No disponible" };
+    }
+    return documentRecord.enabled
+      ? { className: "publication-enabled", text: "Habilitado" }
+      : { className: "publication-disabled", text: "Deshabilitado" };
+  }
+
+  const previewState = { documentRecord: null, page: 1 };
+
+  async function loadPreview(documentRecord, page = 1) {
+    const panel = $("#preview-panel");
+    const pageInput = $("#preview-page");
+    const documentLabel = $("#preview-document");
+    const meta = $("#preview-meta");
+    const text = $("#preview-text");
+    if (!panel || !pageInput || !documentLabel || !meta || !text) return;
+    previewState.documentRecord = documentRecord;
+    previewState.page = page;
+    panel.hidden = false;
+    documentLabel.textContent = `${documentRecord.filename} · SHA ${String(documentRecord.id).slice(0, 12)}`;
+    pageInput.value = String(page);
+    text.textContent = "";
+    meta.textContent = "Cargando texto extraido...";
+    setStatus($("#preview-status"), "");
+    try {
+      const data = await api(
+        `/api/admin/documents/${encodeURIComponent(documentRecord.id)}/preview?page=${encodeURIComponent(page)}&offset=0&limit=8000`,
+      );
+      const preview = data.preview || {};
+      if (preview.available) {
+        text.textContent = preview.text || "";
+        meta.textContent = `Pagina ${preview.page} de ${preview.page_count} · ${preview.total_chars} caracteres${preview.truncated ? " · vista truncada a 8000" : ""}`;
+        setStatus($("#preview-status"), "Se muestra texto plano no ejecutable. No se interpreta Markdown ni HTML.", "success");
+      } else {
+        text.textContent = "";
+        meta.textContent = `Pagina ${preview.page || page} de ${preview.page_count || documentRecord.page_count || 0}`;
+        setStatus($("#preview-status"), `Preview no disponible: ${preview.reason || "sin texto extraible"}.`, "error");
+      }
+    } catch (error) {
+      text.textContent = "";
+      meta.textContent = "";
+      setStatus($("#preview-status"), error.message, "error");
+    }
+  }
+
   function renderDocumentRow(documentRecord) {
     const row = document.createElement("tr");
     const nameCell = document.createElement("td");
@@ -50,25 +99,78 @@
     name.textContent = documentRecord.filename;
     const meta = document.createElement("div");
     meta.className = "document-meta";
-    meta.textContent = documentRecord.id.slice(0, 12);
+    const dates = [documentRecord.created_at, documentRecord.processed_at]
+      .filter(Boolean)
+      .map((value) => String(value).replace("T", " "))
+      .join(" → ");
+    const revision = Number.isInteger(Number(documentRecord.corpus_revision))
+      ? ` · revision ${documentRecord.corpus_revision}`
+      : "";
+    meta.textContent = `SHA ${String(documentRecord.id).slice(0, 12)} · ${formatBytes(documentRecord.size_bytes)}${revision}${dates ? ` · ${dates}` : ""}`;
     nameCell.append(name, meta);
 
     const statusCell = document.createElement("td");
-    const badge = document.createElement("span");
-    badge.className = `status-badge status-${documentRecord.status}`;
-    badge.textContent = statusLabel(documentRecord.status);
-    statusCell.appendChild(badge);
+    const processingBadge = document.createElement("span");
+    processingBadge.className = `status-badge status-${documentRecord.status}`;
+    processingBadge.textContent = statusLabel(documentRecord.status);
+    statusCell.appendChild(processingBadge);
 
-    const sizeCell = document.createElement("td");
-    sizeCell.textContent = formatBytes(documentRecord.size_bytes);
+    const publicationCell = document.createElement("td");
+    const publication = publicationLabel(documentRecord);
+    const publicationBadge = document.createElement("span");
+    publicationBadge.className = `status-badge ${publication.className}`;
+    publicationBadge.textContent = publication.text;
+    publicationCell.appendChild(publicationBadge);
+
+    const contentCell = document.createElement("td");
+    contentCell.className = "document-content";
+    contentCell.textContent = `${documentRecord.page_count || 0} paginas · ${documentRecord.chunk_count || 0} chunks`;
 
     const actionCell = document.createElement("td");
+    actionCell.className = "document-actions";
+    const previewButton = document.createElement("button");
+    previewButton.className = "admin-action";
+    previewButton.type = "button";
+    previewButton.textContent = "Previsualizar";
+    previewButton.addEventListener("click", () => {
+      void loadPreview(documentRecord);
+    });
+    actionCell.appendChild(previewButton);
+
+    if (documentRecord.status === "available") {
+      const toggleButton = document.createElement("button");
+      toggleButton.className = "admin-action";
+      toggleButton.type = "button";
+      toggleButton.textContent = documentRecord.enabled ? "Deshabilitar" : "Habilitar";
+      toggleButton.addEventListener("click", async () => {
+        const nextEnabled = !documentRecord.enabled;
+        const action = nextEnabled ? "habilitar" : "deshabilitar";
+        if (!window.confirm(`Confirma ${action} ${documentRecord.filename}.`)) return;
+        toggleButton.disabled = true;
+        try {
+          const result = await api(`/api/admin/documents/${encodeURIComponent(documentRecord.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled: nextEnabled }),
+          });
+          const publicationState = nextEnabled ? "habilitado" : "deshabilitado";
+          setStatus($("#documents-status"), result.changed ? `Documento ${publicationState}.` : "Sin cambios: estado ya aplicado.", "success");
+          await loadDocuments();
+        } catch (error) {
+          toggleButton.disabled = false;
+          setStatus($("#documents-status"), error.message, "error");
+        }
+      });
+      actionCell.appendChild(toggleButton);
+    }
+
     const deleteButton = document.createElement("button");
     deleteButton.className = "delete-button";
     deleteButton.type = "button";
     deleteButton.textContent = "Eliminar";
     deleteButton.setAttribute("aria-label", `Eliminar ${documentRecord.filename}`);
     deleteButton.addEventListener("click", async () => {
+      if (!window.confirm(`Eliminar ${documentRecord.filename} de forma permanente? Esta accion no se puede deshacer.`)) return;
       deleteButton.disabled = true;
       try {
         await api(`/api/admin/documents/${encodeURIComponent(documentRecord.id)}`, { method: "DELETE" });
@@ -80,7 +182,7 @@
       }
     });
     actionCell.appendChild(deleteButton);
-    row.append(nameCell, statusCell, sizeCell, actionCell);
+    row.append(nameCell, statusCell, publicationCell, contentCell, actionCell);
     return row;
   }
 
@@ -93,7 +195,11 @@
       rows.replaceChildren();
       if (!documents.length) {
         const empty = document.createElement("tr");
-        empty.innerHTML = '<td colspan="4" class="empty-state">Aun no hay documentos. Agrega la primera fuente.</td>';
+        const emptyCell = document.createElement("td");
+        emptyCell.colSpan = 5;
+        emptyCell.className = "empty-state";
+        emptyCell.textContent = "Aun no hay documentos. Agrega la primera fuente.";
+        empty.appendChild(emptyCell);
         rows.appendChild(empty);
       } else {
         documents.forEach((item) => rows.appendChild(renderDocumentRow(item)));
@@ -134,6 +240,15 @@
       }
     });
     $("#refresh-documents")?.addEventListener("click", loadDocuments);
+    $("#preview-close")?.addEventListener("click", () => {
+      $("#preview-panel").hidden = true;
+      previewState.documentRecord = null;
+    });
+    $("#preview-load")?.addEventListener("click", () => {
+      if (!previewState.documentRecord) return;
+      const page = Number($("#preview-page")?.value || 1);
+      if (Number.isInteger(page) && page > 0) void loadPreview(previewState.documentRecord, page);
+    });
     loadDocuments();
   }
 
@@ -142,19 +257,144 @@
     speech_ended_at: null,
     audio_started_at: null,
   });
+  const LISTEN_STATES = Object.freeze([
+    "LISTENING",
+    "PARTIAL",
+    "PROCESSING",
+    "NO_RESPONSE",
+    "LISTEN_TIMEOUT",
+    "RECOGNITION_ERROR",
+    "RETRY_REQUIRED",
+  ]);
   const callState = {
     id: null,
     recognition: null,
     listening: false,
     closed: false,
-    pendingTranscript: null,
+    currentAttempt: null,
+    voiceSupported: false,
+    patientListenTimeoutMs: null,
+    healthPromise: null,
+    callEnabled: false,
+    processing: false,
   };
 
-  function setCallEnabled(enabled) {
-    $("#conversation-panel")?.classList.toggle("is-disabled", !enabled);
-    [$("#mic-button"), $("#turn-text"), $("#send-text"), $("#finish-call")].forEach((node) => {
+  function syncCallControls() {
+    const enabled = callState.callEnabled && !callState.closed && !callState.processing;
+    [$("#turn-text"), $("#send-text"), $("#finish-call")].forEach((node) => {
       if (node) node.disabled = !enabled;
     });
+    const micButton = $("#mic-button");
+    if (micButton) micButton.disabled = !enabled || !callState.voiceSupported;
+  }
+
+  function setCallEnabled(enabled) {
+    callState.callEnabled = enabled;
+    $("#conversation-panel")?.classList.toggle("is-disabled", !enabled);
+    syncCallControls();
+  }
+
+  function setTurnBusy(busy) {
+    callState.processing = busy;
+    syncCallControls();
+  }
+
+  function createClientId(prefix) {
+    const random = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID().replace(/-/g, "")
+      : `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    return `${prefix}_${random}`.slice(0, 128);
+  }
+
+  function monotonicNow() {
+    return performance.now();
+  }
+
+  function setVoiceState(state, attempt = callState.currentAttempt) {
+    if (!LISTEN_STATES.includes(state)) return;
+    if (attempt) attempt.state = state;
+    const node = $("#voice-state");
+    if (node) node.textContent = `Estado: ${state}`;
+  }
+
+  function updateListenTimer(attempt, elapsed = null) {
+    const node = $("#listen-timer");
+    if (!node || !attempt?.startedAt || !Number.isFinite(callState.patientListenTimeoutMs)) return;
+    const duration = Number.isFinite(elapsed) ? elapsed : Math.max(0, monotonicNow() - attempt.startedAt);
+    node.textContent = `Escucha ${Math.round(duration)} ms de ${callState.patientListenTimeoutMs} ms`;
+  }
+
+  function clearListenTimer(attempt) {
+    if (!attempt) return;
+    if (attempt.timerId !== null) window.clearTimeout(attempt.timerId);
+    attempt.timerId = null;
+    updateListenTimer(attempt);
+  }
+
+  function clearPartial() {
+    const node = $("#partial-transcript");
+    if (!node) return;
+    node.textContent = "";
+    node.hidden = true;
+  }
+
+  function showPartial(text) {
+    const node = $("#partial-transcript");
+    if (!node) return;
+    node.textContent = text ? `Borrador no clinico: ${text}` : "";
+    node.hidden = !text;
+  }
+
+  async function registerVoiceEvent(attempt, eventType, extra = {}) {
+    if (!callState.id || !attempt?.listenId) return null;
+    const payload = {
+      event_type: eventType,
+      listen_id: attempt.listenId,
+      client_turn_id: attempt.clientTurnId,
+      configured_timeout_ms: callState.patientListenTimeoutMs,
+      elapsed_ms: attempt.startedAt ? Math.max(0, monotonicNow() - attempt.startedAt) : null,
+      locale: "es-CO",
+      implementation: attempt.implementation,
+      ...extra,
+    };
+    try {
+      return await api(`/api/calls/${encodeURIComponent(callState.id)}/voice-events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      if (attempt.state !== "PROCESSING" && !attempt.terminal) {
+        setStatus($("#call-status"), `No se pudo registrar el estado de voz: ${error.message}`, "error");
+      }
+      return null;
+    }
+  }
+
+  function finishAttemptControls(attempt, label = "Hablar") {
+    if (callState.currentAttempt !== attempt) return;
+    callState.listening = false;
+    const micButton = $("#mic-button");
+    micButton?.classList.remove("listening");
+    const micLabel = $("#mic-label");
+    if (micLabel) micLabel.textContent = label;
+  }
+
+  function requireListenTimeout() {
+    if (Number.isInteger(callState.patientListenTimeoutMs)) return Promise.resolve();
+    if (!callState.healthPromise) {
+      callState.healthPromise = api("/health").then((health) => {
+        const timeout = Number(health.patient_listen_timeout_ms);
+        if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 300000) {
+          throw new Error("/health no devolvio un timeout de escucha valido");
+        }
+        callState.patientListenTimeoutMs = timeout;
+      }).catch((error) => {
+        callState.healthPromise = null;
+        throw error;
+      });
+    }
+    return callState.healthPromise;
   }
 
   function renderTriage(result) {
@@ -261,33 +501,51 @@
     }
   }
 
-  async function sendTurn(text, inputTiming = TEXT_INPUT_TIMING) {
+  async function sendTurn(text, inputTiming = TEXT_INPUT_TIMING, attempt = null) {
     if (!callState.id || callState.closed || !text.trim()) return;
     const normalized = text.trim();
     const callId = callState.id;
+    const turnAttempt = attempt || {
+      listenId: createClientId("listen"),
+      clientTurnId: createClientId("client_turn"),
+      state: "PROCESSING",
+      terminal: false,
+      startedAt: null,
+    };
+    turnAttempt.state = "PROCESSING";
+    turnAttempt.terminal = true;
+    setTurnBusy(true);
     const sendButton = $("#send-text");
     if (sendButton) sendButton.disabled = true;
-    renderTurn("patient", normalized);
+    if (!inputTiming?.duplicate) renderTurn("patient", normalized);
     setStatus($("#call-status"), "El agente esta consultando el conocimiento disponible...");
     try {
       const response = await api(`/api/calls/${encodeURIComponent(callState.id)}/turns`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: normalized }),
+        body: JSON.stringify({
+          text: normalized,
+          client_turn_id: turnAttempt.clientTurnId,
+          listen_id: turnAttempt.listenId,
+          elapsed_ms: inputTiming?.elapsed_ms ?? null,
+        }),
       });
       const answer = response.text || response.answer || response.response || "No hay respuesta disponible.";
-      renderTurn("agent", answer, response.sources || []);
-      renderTriage(response);
-      renderSources(response.sources || []);
+      if (!response.duplicate) {
+        renderTurn("agent", answer, response.sources || []);
+        renderTriage(response);
+        renderSources(response.sources || []);
+      }
       const voiceInput = inputTiming?.mode === "voice" ? inputTiming : null;
       speak(answer, (audioStartedAt) => {
         void recordVoiceTiming(callId, response.agent_turn_id, voiceInput, audioStartedAt);
       });
-      setStatus($("#call-status"), "Turno registrado.", "success");
+      setStatus($("#call-status"), response.duplicate ? "Turno ya registrado; se reutilizo la respuesta." : "Turno registrado.", "success");
     } catch (error) {
       setStatus($("#call-status"), error.message, "error");
     } finally {
       if (sendButton) sendButton.disabled = false;
+      setTurnBusy(false);
     }
   }
 
@@ -296,55 +554,177 @@
     const micButton = $("#mic-button");
     const support = $("#voice-support");
     if (!Recognition) {
+      callState.voiceSupported = false;
       if (support) support.textContent = "SpeechRecognition no esta disponible; usa el texto de respaldo.";
       if (micButton) micButton.disabled = true;
+      setVoiceState("RECOGNITION_ERROR");
       return;
     }
+    callState.voiceSupported = true;
     if (support) support.textContent = "Microfono listo · SpeechRecognition es-CO";
-    micButton?.addEventListener("click", () => {
+    micButton?.addEventListener("click", async () => {
       if (callState.listening) {
         callState.recognition?.stop();
         return;
       }
+      if (callState.closed) return;
+      const previousAttempt = callState.currentAttempt;
+      if (previousAttempt && previousAttempt.terminal && previousAttempt.state !== "PROCESSING") {
+        void registerVoiceEvent(previousAttempt, "retry");
+      }
+      try {
+        await requireListenTimeout();
+      } catch (error) {
+        setVoiceState("RECOGNITION_ERROR");
+        setStatus($("#call-status"), `No se pudo obtener la configuracion de escucha: ${error.message}. Usa el texto de respaldo.`, "error");
+        return;
+      }
       const recognition = new Recognition();
+      const implementation = window.SpeechRecognition ? "SpeechRecognition" : "webkitSpeechRecognition";
+      const attempt = {
+        listenId: createClientId("listen"),
+        clientTurnId: createClientId("client_turn"),
+        implementation,
+        state: "LISTENING",
+        startedAt: null,
+        deadline: null,
+        timerId: null,
+        terminal: false,
+        finalSubmitted: false,
+      };
       callState.recognition = recognition;
+      callState.currentAttempt = attempt;
       recognition.lang = "es-CO";
       recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.interimResults = true;
       recognition.maxAlternatives = 1;
       recognition.onstart = () => {
+        if (callState.currentAttempt !== attempt || attempt.terminal) return;
+        attempt.startedAt = monotonicNow();
+        attempt.deadline = attempt.startedAt + callState.patientListenTimeoutMs;
         callState.listening = true;
-        callState.pendingTranscript = null;
         micButton.classList.add("listening");
         $("#mic-label").textContent = "Escuchando...";
-        setStatus($("#call-status"), "Hable ahora. El turno terminara al hacer una pausa.");
+        setVoiceState("LISTENING", attempt);
+        updateListenTimer(attempt, 0);
+        attempt.timerId = window.setTimeout(() => expireAttempt(), callState.patientListenTimeoutMs);
+        void registerVoiceEvent(attempt, "patient_listen_started", { elapsed_ms: 0 });
+        setStatus($("#call-status"), `Hable ahora. Tiene ${callState.patientListenTimeoutMs} ms para este turno.`);
       };
       recognition.onresult = (event) => {
-        const transcript = event.results?.[0]?.[0]?.transcript || "";
-        callState.pendingTranscript = transcript || null;
+        if (
+          callState.currentAttempt !== attempt
+          || attempt.terminal
+          || attempt.finalSubmitted
+          || !attempt.startedAt
+        ) return;
+        let interim = "";
+        let finalText = "";
+        const startIndex = Number.isInteger(event.resultIndex) ? event.resultIndex : 0;
+        for (let index = startIndex; index < (event.results?.length || 0); index += 1) {
+          const result = event.results[index];
+          const transcript = result?.[0]?.transcript || "";
+          if (result?.isFinal) finalText += transcript;
+          else interim += transcript;
+        }
+        const now = monotonicNow();
+        const elapsed = Math.max(0, now - attempt.startedAt);
+        updateListenTimer(attempt, elapsed);
+        if (interim && !finalText) {
+          setVoiceState("PARTIAL", attempt);
+          showPartial(interim.trim());
+          void registerVoiceEvent(attempt, "partial", { elapsed_ms: elapsed });
+        }
+        if (!finalText.trim()) return;
+        if (now > attempt.deadline) {
+          expireAttempt();
+          return;
+        }
+        attempt.finalSubmitted = true;
+        attempt.terminal = true;
+        clearListenTimer(attempt);
+        clearPartial();
+        setVoiceState("PROCESSING", attempt);
+        finishAttemptControls(attempt);
+        const timing = {
+          mode: "voice",
+          speech_ended_at: new Date().toISOString(),
+          audio_started_at: null,
+          elapsed_ms: elapsed,
+        };
+        void registerVoiceEvent(attempt, "final", { elapsed_ms: elapsed });
+        void sendTurn(finalText.trim(), timing, attempt);
       };
       recognition.onerror = (event) => {
-        callState.pendingTranscript = null;
+        if (callState.currentAttempt !== attempt || attempt.terminal || attempt.finalSubmitted) return;
+        attempt.terminal = true;
+        clearListenTimer(attempt);
+        clearPartial();
+        setVoiceState("RECOGNITION_ERROR", attempt);
+        finishAttemptControls(attempt, "Reintentar");
+        const errorCode = String(event.error || "recognition_error").slice(0, 64).replace(/[^A-Za-z0-9_.-]/g, "_");
+        void registerVoiceEvent(attempt, "error", { error_code: errorCode });
         setStatus($("#call-status"), `No se pudo escuchar: ${event.error || "error de microfono"}. Usa el texto de respaldo.`, "error");
       };
       recognition.onend = () => {
-        const transcript = callState.pendingTranscript;
-        callState.pendingTranscript = null;
-        const speechEndedAt = new Date().toISOString();
-        callState.listening = false;
-        micButton.classList.remove("listening");
-        $("#mic-label").textContent = "Hablar";
-        if (transcript) {
-          sendTurn(transcript, {
-            mode: "voice",
-            speech_ended_at: speechEndedAt,
-            audio_started_at: null,
-          });
+        if (callState.currentAttempt !== attempt || attempt.terminal || attempt.finalSubmitted) return;
+        if (!attempt.startedAt) {
+          attempt.terminal = true;
+          setVoiceState("RECOGNITION_ERROR", attempt);
+          finishAttemptControls(attempt, "Reintentar");
+          setStatus($("#call-status"), "El microfono termino antes de iniciar. Usa el texto de respaldo.", "error");
+          return;
         }
+        const elapsed = Math.max(0, monotonicNow() - attempt.startedAt);
+        if (elapsed >= callState.patientListenTimeoutMs) {
+          expireAttempt();
+          return;
+        }
+        attempt.terminal = true;
+        clearListenTimer(attempt);
+        clearPartial();
+        setVoiceState("NO_RESPONSE", attempt);
+        finishAttemptControls(attempt, "Reintentar");
+        void registerVoiceEvent(attempt, "ended", { elapsed_ms: elapsed });
+        void registerVoiceEvent(attempt, "no_response", { elapsed_ms: elapsed });
+        setStatus($("#call-status"), "No se recibio una respuesta. Puede reintentar o escribir el mensaje.", "error");
       };
+
+      function expireAttempt() {
+        if (
+          callState.currentAttempt !== attempt
+          || attempt.terminal
+          || attempt.finalSubmitted
+          || !attempt.startedAt
+        ) return;
+        attempt.terminal = true;
+        clearListenTimer(attempt);
+        const elapsed = Math.max(callState.patientListenTimeoutMs, monotonicNow() - attempt.startedAt);
+        setVoiceState("LISTEN_TIMEOUT", attempt);
+        clearPartial();
+        finishAttemptControls(attempt, "Reintentar");
+        try {
+          if (typeof recognition.abort === "function") recognition.abort();
+          else recognition.stop();
+        } catch (_) {
+          // A late browser callback is ignored by the terminal attempt state.
+        }
+        const eventPromise = registerVoiceEvent(attempt, "timeout", { elapsed_ms: elapsed });
+        void eventPromise.then(() => {
+          if (callState.currentAttempt === attempt && attempt.state === "LISTEN_TIMEOUT") {
+            setVoiceState("RETRY_REQUIRED", attempt);
+          }
+        });
+        setStatus($("#call-status"), "LISTEN_TIMEOUT: no se recibio una respuesta. Reintente o use el texto.", "error");
+      }
+
       try {
         recognition.start();
       } catch (error) {
+        attempt.terminal = true;
+        setVoiceState("RECOGNITION_ERROR", attempt);
+        finishAttemptControls(attempt, "Reintentar");
+        void registerVoiceEvent(attempt, "error", { error_code: "start_failed" });
         setStatus($("#call-status"), "El microfono no pudo iniciar. Usa el texto de respaldo.", "error");
       }
     });
@@ -417,6 +797,7 @@
 
   function initCall() {
     initRecognition();
+    void requireListenTimeout().catch(() => {});
     setCallEnabled(false);
     $("#call-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -430,13 +811,19 @@
         day_postop: dayValue === "" ? null : Number(dayValue),
       };
       try {
-        const call = await api("/api/calls", {
+        await requireListenTimeout();
+         const call = await api("/api/calls", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
         callState.id = call.id;
-        callState.closed = false;
+         callState.closed = false;
+         callState.processing = false;
+         callState.currentAttempt = null;
+        callState.listening = false;
+        clearPartial();
+        setVoiceState("LISTENING");
         $("#call-id-label").textContent = call.id;
         $("#turn-list").replaceChildren();
         const empty = document.createElement("div");
@@ -464,6 +851,7 @@
       if (!callState.id || callState.closed) return;
       const button = $("#finish-call");
       button.disabled = true;
+      setTurnBusy(true);
       try {
         const call = await api(`/api/calls/${encodeURIComponent(callState.id)}/finish`, {
           method: "POST",
@@ -479,6 +867,8 @@
       } catch (error) {
         button.disabled = false;
         setStatus($("#call-status"), error.message, "error");
+      } finally {
+        setTurnBusy(false);
       }
     });
   }

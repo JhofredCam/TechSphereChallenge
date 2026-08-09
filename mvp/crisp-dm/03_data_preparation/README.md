@@ -9,19 +9,21 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
 ## Entradas
 
 - Resultados de [Data Understanding](../02_data_understanding/README.md).
-- Corpus canonico [`dataset/textos/`](../../dataset/textos/).
-- XLSX canonicos bajo [`dataset/`](../../dataset/).
-- [Arquitectura publicada del MVP](../../docs/arquitectura.md).
-- Restriccion de [no mover `dataset/` ni `docs/`](../../specs/00_mvp_specification.md#supuestos-explicitos).
-- [Ciclo documental de `/admin`](../../specs/04_admin_document_lifecycle_specification.md),
+- Corpus canonico [`dataset/textos/`](../../../dataset/textos/).
+- XLSX canonicos bajo [`dataset/`](../../../dataset/).
+- [Arquitectura publicada del MVP](../../../docs/arquitectura.md).
+- Restriccion de [no mover `dataset/` ni `docs/`](../../../specs/00_mvp_specification.md#supuestos-explicitos).
+- [Ciclo documental de `/admin`](../../../specs/04_admin_document_lifecycle_specification.md),
   que separa disponibilidad tecnica de publicacion activa.
 
 ## Salidas
 
 - Base local en `data/` con esquema documental, chunks, fuentes y revision de corpus.
 - Documentos en estados `available`, `needs_ocr` o `error`.
+- Publicacion separada mediante `enabled` y `rag_eligible`; preview textual por pagina.
 - Chunks por pagina con documento, pagina, chunk, cita y puntuacion recuperable.
 - Indices SQLite FTS5 para consultas lexicales y borrado atomico.
+- Flujo de `preview -> disable -> enable -> delete`, con snapshots minimos de fuentes historicas.
 - Contratos de casos preparados sin mezclar `capa1_limpia` con `capa2_ruidosa`.
 - Registro de rutas, duplicados y fallas de extraction para auditoria.
 
@@ -48,8 +50,9 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
   aparecer despues del delete sin reiniciar.
 - [x] Las rutas con espacios, duplicados y capas de conversaciones pasan la validacion.
 - [x] Las consultas son parametrizadas y el estado parcial no se presenta como disponible.
-- [ ] La futura bandera `enabled` conserva chunks y excluye documentos deshabilitados del RAG;
-  esta ampliacion esta especificada pero no implementada en este corte.
+- [x] `enabled` conserva chunks y excluye documentos deshabilitados del RAG; `enable` recupera
+  sin reingesta y `delete` limpia el indice con snapshots historicos.
+- [x] La preview lee `pages.text`, limita a 8.000 caracteres y trata contenido como texto literal.
 
 ## Verificacion y evidencia
 
@@ -57,15 +60,15 @@ Comandos ejecutados desde la raiz:
 
 ```text
 python -m app.bootstrap --data-dir <temp>
+python -m pytest tests/test_admin_lifecycle.py tests/test_live_knowledge.py -q --basetemp <temp>
 python -m pytest -q --basetemp <temp>
 ```
 
 Resultado del 2026-08-08: el bootstrap proceso 104 documentos, con 103 `available` y 1
-`needs_ocr`. La suite de 38 tests paso e incluyo ingestion, API, RAG local, upload/delete,
-trazabilidad y la prueba de idempotencia del bootstrap. La prueba de conocimiento vivo
-confirmo recuperacion antes del borrado y ausencia posterior sin reiniciar el proceso.
-Esto es evidencia local automatizada; la demostracion G5 con documento externo sigue
-pendiente en [metricas y evidencia](../../readme/04_metricas_y_evidencia.md).
+`needs_ocr`. La suite completa de 96 tests paso; el focused admin/timeout y el recorrido de
+conocimiento vivo cubren preview, toggle, snapshots, upload/delete, trazabilidad y la ausencia
+posterior sin reiniciar el proceso. Esta es evidencia local automatizada; la demostracion G5 con
+documento externo sigue pendiente en [metricas y evidencia](../../../readme/04_metricas_y_evidencia.md).
 
 ## Dependencias
 
@@ -75,4 +78,5 @@ pendiente en [metricas y evidencia](../../readme/04_metricas_y_evidencia.md).
 
 ## Estado
 
-**Implementada - ingestion, bootstrap y conocimiento vivo local verificados (2026-08-08).**
+**Implementada - ingestion, bootstrap, preview, publicacion, delete y conocimiento vivo local
+verificados (2026-08-08).**

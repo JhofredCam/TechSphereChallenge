@@ -167,19 +167,21 @@ def search(
     *,
     limit: int = 5,
 ) -> list[SearchResult]:
-    """Search only currently available chunks and return auditable citations."""
+    """Search only currently published chunks and return auditable citations."""
 
     if limit <= 0:
         return []
     match_query = _fts_query(query)
     if not match_query:
         return []
+    revision_before = database.get_corpus_revision()
     rows = database.execute(
         """
         SELECT
             chunks_fts.chunk_id,
             chunks_fts.document_id,
             chunks_fts.page_number,
+            chunks.chunk_index,
             chunks.text,
             documents.filename,
             bm25(chunks_fts) AS rank
@@ -188,6 +190,7 @@ def search(
         JOIN documents ON documents.id = chunks.document_id
         WHERE chunks_fts MATCH ?
           AND documents.status = ?
+          AND documents.enabled = 1
         ORDER BY rank ASC, chunks.document_id ASC,
                  chunks.page_number ASC, chunks.chunk_index ASC
         LIMIT ?
@@ -195,6 +198,10 @@ def search(
         (match_query, "available", max(limit, limit * 4)),
     ).fetchall()
     revision = database.get_corpus_revision()
+    if revision != revision_before:
+        # A corpus mutation raced the read. Returning no evidence is safer than
+        # persisting a citation whose revision no longer describes the result.
+        return []
     results: list[SearchResult] = []
     for row in rows:
         text = str(row["text"])
@@ -211,6 +218,7 @@ def search(
                 score=-rank,
                 citation=f"{row['filename']} (p. {row['page_number']})",
                 corpus_revision=revision,
+                chunk_index=int(row["chunk_index"]),
             )
         )
         if len(results) >= limit:

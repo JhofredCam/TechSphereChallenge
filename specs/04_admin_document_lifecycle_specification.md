@@ -1,7 +1,7 @@
 # Spec: Previsualizacion y publicacion de documentos en `/admin`
 
-**Estado:** propuesta funcional; no implementada en este checkout
-**Version:** 0.1.0
+**Estado:** implementada en runtime; G5 manual pendiente
+**Version:** 0.2.0
 **Fecha:** 2026-08-08
 
 ## Objetivo
@@ -30,7 +30,30 @@ preview o un segundo indice; `pages.text` y FTS5 siguen siendo las fuentes local
 - `app/database.py`: migracion, indice, auditoria y snapshot historico.
 - `tests/`: migracion, API, preview, RAG y recorrido de conocimiento vivo.
 
-Estas rutas describen el destino de implementacion; no se modificaron en esta sesion.
+Estas rutas son las propietarias de la implementacion aplicada en este checkout. `app/config.py`
+tambien rechaza un limite de upload superior a 25 MB para conservar el limite de seguridad.
+
+## Estado de implementacion
+
+- `enabled`, snapshots de `sources`, conteos y version de esquema migran de forma idempotente
+  antes de servir la aplicacion.
+- Upload disponible publica de inmediato; un upload duplicado conserva el estado de publicacion
+  existente.
+- Preview por pagina lee `pages.text`, limita cada respuesta a 8.000 caracteres y mantiene el
+  contenido como texto no ejecutable en API y UI.
+- `PATCH` cambia solo la publicacion de documentos `available`; el cambio efectivo incrementa
+  una vez `corpus_revision` y el no-op no la modifica.
+- Delete limpia paginas, chunks, FTS5 y archivo despues del commit; las fuentes conservan una
+  instantanea minima y nunca se usan como evidencia RAG nueva.
+- Pruebas automatizadas locales: `tests/test_admin_lifecycle.py` (7), regresion API/live (8),
+  base/ingestion (9) y suite completa (45). La evidencia manual externa de G5 permanece
+  pendiente y no se considera aprobada por estos tests.
+
+| Criterio | Estado de este checkout |
+|---|---|
+| ADM-AC-01 a ADM-AC-09 | Implementados y cubiertos por pruebas automatizadas locales |
+| ADM-AC-10 | Implementacion local probada; evidencia manual G5 externa pendiente |
+| ADM-AC-11 y ADM-AC-12 | Implementados y cubiertos por migracion/API/pruebas de lifecycle |
 
 ## Code Style
 
@@ -46,7 +69,7 @@ para tres conceptos. Las respuestas JSON usan nombres estables en `snake_case`, 
 - Estados tecnicos: `processing`, `available`, `needs_ocr` y `error`.
 - Persistencia: SQLite, paginas, chunks y FTS5.
 - Revision: `corpus_revision`.
-- RAG actual: consulta documentos `available`.
+- RAG implementado: consulta documentos `available` con `enabled=1`.
 - Delete: elimina paginas, chunks y filas FTS5 sin reiniciar.
 - G5: upload, uso, delete y olvido sin reinicio.
 
@@ -306,9 +329,9 @@ no ofrece habilitar.
 - No usar el toggle para ocultar una alerta clinica ya persistida; solo controla nuevas
   recuperaciones del conocimiento.
 
-## Comandos de verificacion previstos
+## Comandos de verificacion ejecutados
 
-No se ejecutan en esta sesion. Durante la implementacion se deben ejecutar desde la raiz:
+Desde la raiz se ejecutaron los siguientes comandos durante la implementacion:
 
 ```text
 python -m pytest tests/test_api.py tests/test_live_knowledge.py -q
@@ -317,7 +340,9 @@ python -m pytest -q --basetemp <temp>
 ruff check .
 ```
 
-La evidencia manual debe recorrer `/admin` y `/call` con un documento externo al corpus.
+Resultado local: `7`, `8`, `9` y `45` pruebas pasaron respectivamente; `ruff check app tests`
+no reporto hallazgos. La evidencia manual debe recorrer `/admin` y `/call` con un documento
+externo al corpus.
 
 ## Estrategia de pruebas
 
@@ -366,13 +391,19 @@ La evidencia manual debe recorrer `/admin` y `/call` con un documento externo al
 ## Dependencias y preguntas abiertas
 
 - Depende de `specs/03_mvp_structure_specification.md` para ownership de artefactos.
-- Debe actualizar `specs/06_system_flow_diagram_specification.md` antes de codigo.
+- `specs/06_system_flow_diagram_specification.md` debe ser actualizado por su agente propietario
+  despues de este cambio; no se modifica como parte de esta implementacion.
 - Debe mantener coherencia con G5, README, `docs/arquitectura.md` y evidencia.
 
 Preguntas abiertas:
 
-1. Confirmar si una carga nueva queda habilitada o entra primero en cuarentena.
-2. Confirmar si la preview minima de texto extraido es suficiente o se requiere render visual.
-3. Confirmar si cada toggle exige razon obligatoria y politica de retencion de auditoria.
-4. Confirmar la politica de cancelacion para turnos que coincidan con una mutacion de corpus.
-5. Confirmar si se requiere autenticacion antes de cualquier despliegue fuera de localhost.
+1. La carga nueva queda habilitada cuando termina `available`, conforme a la decision vigente;
+   una cuarentena previa queda como alternativa futura, no como comportamiento actual.
+2. La preview minima de texto extraido es suficiente para este corte; el render visual de PDF
+   sigue fuera de alcance.
+3. Sigue abierta la decision de exigir una razon obligatoria por toggle y la retencion detallada
+   de auditoria.
+4. La politica de cancelacion para turnos que coincidan con una mutacion de corpus debe
+   integrarse con la revalidacion del flujo de llamadas posterior.
+5. Se requiere autenticacion, CSRF y controles de exposicion antes de cualquier despliegue fuera
+   de localhost.

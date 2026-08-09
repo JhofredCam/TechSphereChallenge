@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 import uuid
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
+from ..config import DEFAULT_PATIENT_LISTEN_TIMEOUT_MS, validate_patient_listen_timeout_ms
 from ..database import Database, utc_now
-from .metrics import MetricsService
+from .metrics import VOICE_EVENT_TYPES, MetricsService
 from .triage import TriageResult, highest_level, normalize_level
 
 
@@ -30,6 +33,41 @@ def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex}"
 
 
+_PUBLIC_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+_VOICE_IMPLEMENTATIONS = frozenset({"SpeechRecognition", "webkitSpeechRecognition"})
+_VOICE_LOCALE = "es-CO"
+_ACTIVE_LISTEN_STATUSES = frozenset({"LISTENING", "PARTIAL", "FINAL_RECEIVED"})
+_PRE_FINAL_LISTEN_STATUSES = frozenset({"LISTENING", "PARTIAL"})
+_TERMINAL_LISTEN_STATUSES = frozenset(
+    {
+        "NO_RESPONSE",
+        "LISTEN_TIMEOUT",
+        "RECOGNITION_ERROR",
+        "RETRY_REQUIRED",
+        "COMPLETED",
+    }
+)
+
+
+class ListenEventError(ValueError):
+    """A safe, stable conflict raised by the listening-attempt contract."""
+
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+class LateTranscriptError(ListenEventError):
+    """Raised when a transcript arrives after a timeout won the race."""
+
+    def __init__(self) -> None:
+        super().__init__("late_transcript")
+
+
+class CorpusRevisionChangedError(RuntimeError):
+    """Raised when retrieved evidence changes before its citation is persisted."""
+
+
 def _as_dict(value: Any) -> dict[str, Any]:
     if isinstance(value, Mapping):
         return dict(value)
@@ -47,6 +85,10 @@ def _as_dict(value: Any) -> dict[str, Any]:
         "filename",
         "page_number",
         "chunk_id",
+        "chunk_index",
+        "document_filename_snapshot",
+        "document_sha256_snapshot",
+        "sha256",
         "score",
         "citation",
         "corpus_revision",
@@ -90,6 +132,8 @@ class CallService:
         database: Database,
         agent: Any | None = None,
         metrics: MetricsService | str | Path | None = None,
+        *,
+        configured_timeout_ms: int = DEFAULT_PATIENT_LISTEN_TIMEOUT_MS,
     ) -> None:
         self.database = database
         self.agent = agent
@@ -99,6 +143,7 @@ class CallService:
             self.metrics = MetricsService(database, metrics)
         else:
             self.metrics = metrics
+        self.configured_timeout_ms = validate_patient_listen_timeout_ms(configured_timeout_ms)
 
     def start_call(
         self,
@@ -207,6 +252,11 @@ class CallService:
             revision = int(revision)
         except (TypeError, ValueError):
             revision = corpus_revision
+        chunk_index = value.get("chunk_index")
+        try:
+            chunk_index = int(chunk_index) if chunk_index is not None else None
+        except (TypeError, ValueError):
+            chunk_index = None
         return {
             "id": str(value.get("id") or value.get("source_id") or _new_id("source")),
             "document_id": str(document_id) if document_id is not None else None,
@@ -215,7 +265,468 @@ class CallService:
             "score": score,
             "citation": str(citation),
             "corpus_revision": revision,
+            "document_filename_snapshot": value.get("document_filename_snapshot")
+            or value.get("filename"),
+            "document_sha256_snapshot": value.get("document_sha256_snapshot")
+            or value.get("sha256"),
+            "chunk_index_snapshot": chunk_index,
         }
+
+    @staticmethod
+    def _validate_public_id(value: str | None, name: str) -> None:
+        if value is None:
+            return
+        if not isinstance(value, str) or not _PUBLIC_ID_PATTERN.fullmatch(value):
+            raise ListenEventError(f"invalid_{name}")
+
+    @staticmethod
+    def _validate_elapsed_ms(value: Any | None) -> float | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            raise ListenEventError("invalid_elapsed_ms")
+        try:
+            elapsed = float(value)
+        except (TypeError, ValueError) as exc:
+            raise ListenEventError("invalid_elapsed_ms") from exc
+        if not math.isfinite(elapsed) or elapsed < 0 or elapsed > 300_000:
+            raise ListenEventError("invalid_elapsed_ms")
+        return elapsed
+
+    @staticmethod
+    def _attempt_payload(
+        row: Any,
+        *,
+        event_type: str,
+        duplicate: bool,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "call_id": str(row["call_id"]),
+            "listen_id": str(row["listen_id"]),
+            "event_type": event_type,
+            "status": str(row["status"]),
+            "duplicate": duplicate,
+            "configured_timeout_ms": int(row["configured_timeout_ms"]),
+            "elapsed_ms": row["elapsed_ms"],
+            "locale": str(row["locale"]),
+            "implementation": str(row["implementation"]),
+        }
+        if row["client_turn_id"] is not None:
+            payload["client_turn_id"] = str(row["client_turn_id"])
+        if row["error_code"] is not None:
+            payload["error_code"] = str(row["error_code"])
+        return payload
+
+    @staticmethod
+    def _set_attempt(
+        connection: Any,
+        *,
+        listen_id: str,
+        status: str,
+        client_turn_id: str | None,
+        elapsed_ms: float | None,
+        locale: str,
+        implementation: str,
+        error_code: str | None,
+        patient_turn_id: str | None = None,
+        agent_turn_id: str | None = None,
+        response_json: str | None = None,
+    ) -> None:
+        connection.execute(
+            """
+            UPDATE listening_attempts
+            SET client_turn_id = ?, status = ?, elapsed_ms = ?, locale = ?,
+                implementation = ?, error_code = ?, patient_turn_id = ?,
+                agent_turn_id = ?, response_json = ?, updated_at = ?
+            WHERE listen_id = ?
+            """,
+            (
+                client_turn_id,
+                status,
+                elapsed_ms,
+                locale,
+                implementation,
+                error_code,
+                patient_turn_id,
+                agent_turn_id,
+                response_json,
+                utc_now(),
+                listen_id,
+            ),
+        )
+
+    def _insert_attempt(
+        self,
+        connection: Any,
+        *,
+        call_id: str,
+        listen_id: str,
+        client_turn_id: str | None,
+        status: str,
+        configured_timeout_ms: int,
+        elapsed_ms: float | None,
+        locale: str,
+        implementation: str,
+        error_code: str | None,
+    ) -> None:
+        timestamp = utc_now()
+        connection.execute(
+            """
+            INSERT INTO listening_attempts(
+                listen_id, call_id, client_turn_id, status,
+                configured_timeout_ms, elapsed_ms, locale, implementation,
+                error_code, patient_turn_id, agent_turn_id, response_json,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?, ?)
+            """,
+            (
+                listen_id,
+                call_id,
+                client_turn_id,
+                status,
+                configured_timeout_ms,
+                elapsed_ms,
+                locale,
+                implementation,
+                error_code,
+                timestamp,
+                timestamp,
+            ),
+        )
+
+    def record_voice_event(
+        self,
+        call_id: str,
+        *,
+        event_type: str,
+        listen_id: str,
+        client_turn_id: str | None = None,
+        elapsed_ms: Any | None = None,
+        locale: str = _VOICE_LOCALE,
+        implementation: str = "SpeechRecognition",
+        error_code: str | None = None,
+        configured_timeout_ms: int | None = None,
+    ) -> SerializableRecord:
+        """Persist one bounded listening event without creating a clinical turn."""
+
+        if event_type not in VOICE_EVENT_TYPES:
+            raise ListenEventError("invalid_voice_event")
+        if not isinstance(locale, str) or locale != _VOICE_LOCALE:
+            raise ListenEventError("invalid_locale")
+        if implementation not in _VOICE_IMPLEMENTATIONS:
+            raise ListenEventError("invalid_implementation")
+        if error_code is not None:
+            if (
+                not isinstance(error_code, str)
+                or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", error_code)
+            ):
+                raise ListenEventError("invalid_error_code")
+        self._validate_public_id(listen_id, "listen_id")
+        self._validate_public_id(client_turn_id, "client_turn_id")
+        elapsed = self._validate_elapsed_ms(elapsed_ms)
+        effective_timeout = self.configured_timeout_ms
+        if configured_timeout_ms is not None:
+            try:
+                requested_timeout = validate_patient_listen_timeout_ms(configured_timeout_ms)
+            except ValueError as exc:
+                raise ListenEventError("invalid_configured_timeout_ms") from exc
+            if requested_timeout != effective_timeout:
+                raise ListenEventError("timeout_configuration_mismatch")
+
+        should_log = False
+        late_error = False
+        with self.database.transaction() as connection:
+            call_row = connection.execute(
+                "SELECT status FROM calls WHERE id = ?",
+                (call_id,),
+            ).fetchone()
+            if call_row is None:
+                raise KeyError(f"unknown call: {call_id}")
+            if str(call_row["status"]) != "active":
+                raise ListenEventError("call_not_active")
+
+            existing_client = None
+            if client_turn_id is not None:
+                existing_client = connection.execute(
+                    "SELECT * FROM listening_attempts WHERE client_turn_id = ?",
+                    (client_turn_id,),
+                ).fetchone()
+                if existing_client is not None and str(existing_client["call_id"]) != str(call_id):
+                    raise ListenEventError("client_turn_id_not_for_call")
+
+            row = connection.execute(
+                "SELECT * FROM listening_attempts WHERE listen_id = ?",
+                (listen_id,),
+            ).fetchone()
+            if row is not None and str(row["call_id"]) != str(call_id):
+                raise ListenEventError("listen_id_not_for_call")
+            if row is None and existing_client is not None:
+                row = existing_client
+                if str(row["listen_id"]) != listen_id:
+                    if str(row["status"]) == "LISTEN_TIMEOUT" and event_type == "final":
+                        raise LateTranscriptError()
+                    return SerializableRecord(
+                        self._attempt_payload(row, event_type=event_type, duplicate=True)
+                    )
+
+            if row is None:
+                initial_status = {
+                    "patient_listen_started": "LISTENING",
+                    "partial": "PARTIAL",
+                    "final": "FINAL_RECEIVED",
+                    "ended": "NO_RESPONSE",
+                    "no_response": "NO_RESPONSE",
+                    "timeout": "LISTEN_TIMEOUT",
+                    "error": "RECOGNITION_ERROR",
+                    "retry": "RETRY_REQUIRED",
+                }[event_type]
+                if event_type == "final" and elapsed is not None and elapsed > effective_timeout:
+                    initial_status = "LISTEN_TIMEOUT"
+                self._insert_attempt(
+                    connection,
+                    call_id=call_id,
+                    listen_id=listen_id,
+                    client_turn_id=client_turn_id,
+                    status=initial_status,
+                    configured_timeout_ms=effective_timeout,
+                    elapsed_ms=elapsed,
+                    locale=locale,
+                    implementation=implementation,
+                    error_code=error_code,
+                )
+                row = connection.execute(
+                    "SELECT * FROM listening_attempts WHERE listen_id = ?",
+                    (listen_id,),
+                ).fetchone()
+                should_log = True
+                if event_type == "final" and initial_status == "LISTEN_TIMEOUT":
+                    late_error = True
+            else:
+                current_status = str(row["status"])
+                stored_client_id = row["client_turn_id"]
+                if event_type == "final" and current_status == "LISTEN_TIMEOUT":
+                    late_error = True
+                elif stored_client_id is not None and client_turn_id != stored_client_id:
+                    raise ListenEventError("client_turn_id_mismatch")
+                bound_client_id = client_turn_id or stored_client_id
+                next_status: str | None = None
+                late = late_error
+                if event_type == "final":
+                    if current_status in _TERMINAL_LISTEN_STATUSES:
+                        if current_status != "COMPLETED":
+                            late = True
+                    elif elapsed is not None and elapsed > int(row["configured_timeout_ms"]):
+                        next_status = "LISTEN_TIMEOUT"
+                        late = True
+                    elif current_status in {"FINAL_RECEIVED", "PROCESSING"}:
+                        pass
+                    else:
+                        next_status = "FINAL_RECEIVED"
+                elif event_type == "timeout":
+                    if current_status in {
+                        "LISTEN_TIMEOUT",
+                        "FINAL_RECEIVED",
+                        "PROCESSING",
+                        "COMPLETED",
+                    }:
+                        pass
+                    elif current_status in _ACTIVE_LISTEN_STATUSES:
+                        next_status = "LISTEN_TIMEOUT"
+                    else:
+                        pass
+                elif event_type in {"ended", "no_response"}:
+                    if current_status in _PRE_FINAL_LISTEN_STATUSES:
+                        next_status = "NO_RESPONSE"
+                elif event_type == "partial":
+                    if current_status == "LISTENING":
+                        next_status = "PARTIAL"
+                elif event_type == "error":
+                    if current_status in _PRE_FINAL_LISTEN_STATUSES:
+                        next_status = "RECOGNITION_ERROR"
+                elif event_type == "retry":
+                    if current_status in _PRE_FINAL_LISTEN_STATUSES:
+                        next_status = "RETRY_REQUIRED"
+                    elif current_status in {
+                        "LISTEN_TIMEOUT",
+                        "NO_RESPONSE",
+                        "RECOGNITION_ERROR",
+                        "RETRY_REQUIRED",
+                    }:
+                        should_log = True
+
+                if late:
+                    if next_status is not None:
+                        self._set_attempt(
+                            connection,
+                            listen_id=listen_id,
+                            status=next_status,
+                            client_turn_id=bound_client_id,
+                            elapsed_ms=elapsed,
+                            locale=locale,
+                            implementation=implementation,
+                            error_code=error_code,
+                        )
+                    late_error = True
+                if next_status is not None:
+                    self._set_attempt(
+                        connection,
+                        listen_id=listen_id,
+                        status=next_status,
+                        client_turn_id=bound_client_id,
+                        elapsed_ms=elapsed,
+                        locale=locale,
+                        implementation=implementation,
+                        error_code=error_code,
+                    )
+                    should_log = True
+                elif event_type == "patient_listen_started" and current_status == "LISTENING":
+                    should_log = False
+                row = connection.execute(
+                    "SELECT * FROM listening_attempts WHERE listen_id = ?",
+                    (listen_id,),
+                ).fetchone()
+
+            if row is None:
+                raise RuntimeError("listening attempt disappeared after event")
+            payload = self._attempt_payload(row, event_type=event_type, duplicate=not should_log)
+
+        if should_log:
+            try:
+                self.metrics.record_voice_event(
+                    event_type=event_type,
+                    call_id=call_id,
+                    listen_id=listen_id,
+                    client_turn_id=payload.get("client_turn_id"),
+                    configured_timeout_ms=int(payload["configured_timeout_ms"]),
+                    elapsed_ms=payload.get("elapsed_ms"),
+                    locale=str(payload["locale"]),
+                    implementation=str(payload["implementation"]),
+                    status=str(payload["status"]),
+                    error_code=payload.get("error_code"),
+                )
+            except Exception:
+                pass
+        if late_error:
+            raise LateTranscriptError()
+        return SerializableRecord(payload)
+
+    def _claim_turn_attempt(
+        self,
+        call_id: str,
+        *,
+        listen_id: str | None,
+        client_turn_id: str | None,
+        elapsed_ms: Any | None,
+    ) -> tuple[str | None, str | None, dict[str, Any] | None]:
+        """Claim a final transcript before any model or clinical persistence work."""
+
+        self._validate_public_id(listen_id, "listen_id")
+        self._validate_public_id(client_turn_id, "client_turn_id")
+        elapsed = self._validate_elapsed_ms(elapsed_ms)
+        if listen_id is None and client_turn_id is None:
+            return None, None, None
+        if listen_id is None:
+            listen_id = _new_id("listen")
+
+        late_error = False
+        with self.database.transaction() as connection:
+            call_row = connection.execute(
+                "SELECT status FROM calls WHERE id = ?",
+                (call_id,),
+            ).fetchone()
+            if call_row is None:
+                raise KeyError(f"unknown call: {call_id}")
+            call_is_active = str(call_row["status"]) == "active"
+
+            row = connection.execute(
+                "SELECT * FROM listening_attempts WHERE listen_id = ?",
+                (listen_id,),
+            ).fetchone()
+            existing_client = None
+            if client_turn_id is not None:
+                existing_client = connection.execute(
+                    "SELECT * FROM listening_attempts WHERE client_turn_id = ?",
+                    (client_turn_id,),
+                ).fetchone()
+                if existing_client is not None and str(existing_client["call_id"]) != str(call_id):
+                    raise ListenEventError("client_turn_id_not_for_call")
+            if row is not None and str(row["call_id"]) != str(call_id):
+                raise ListenEventError("listen_id_not_for_call")
+            if row is None and existing_client is not None:
+                row = existing_client
+                if str(row["listen_id"]) != listen_id:
+                    if str(row["status"]) == "COMPLETED" and row["response_json"]:
+                        stored = _json_loads(row["response_json"])
+                        if isinstance(stored, dict):
+                            return (
+                                str(row["listen_id"]),
+                                str(row["client_turn_id"]),
+                                stored,
+                            )
+                    if str(row["status"]) == "LISTEN_TIMEOUT":
+                        raise LateTranscriptError()
+                    raise ListenEventError("client_turn_id_in_progress")
+
+            if row is None:
+                if not call_is_active:
+                    raise ValueError(f"call is not active: {call_id}")
+                self._insert_attempt(
+                    connection,
+                    call_id=call_id,
+                    listen_id=listen_id,
+                    client_turn_id=client_turn_id,
+                    status="PROCESSING",
+                    configured_timeout_ms=self.configured_timeout_ms,
+                    elapsed_ms=elapsed,
+                    locale=_VOICE_LOCALE,
+                    implementation="SpeechRecognition",
+                    error_code=None,
+                )
+            else:
+                current_status = str(row["status"])
+                stored_client_id = row["client_turn_id"]
+                client_turn_id = client_turn_id or (
+                    str(stored_client_id) if stored_client_id is not None else None
+                )
+                if current_status == "LISTEN_TIMEOUT":
+                    raise LateTranscriptError()
+                if stored_client_id is not None and client_turn_id != stored_client_id:
+                    raise ListenEventError("client_turn_id_mismatch")
+                if current_status == "COMPLETED" and row["response_json"]:
+                    stored = _json_loads(row["response_json"])
+                    if isinstance(stored, dict):
+                        return str(row["listen_id"]), client_turn_id, stored
+                if not call_is_active:
+                    raise ValueError(f"call is not active: {call_id}")
+                if current_status == "PROCESSING":
+                    raise ListenEventError("turn_in_progress")
+                if current_status in _TERMINAL_LISTEN_STATUSES:
+                    raise LateTranscriptError()
+                if elapsed is not None and elapsed > int(row["configured_timeout_ms"]):
+                    self._set_attempt(
+                        connection,
+                        listen_id=listen_id,
+                        status="LISTEN_TIMEOUT",
+                        client_turn_id=client_turn_id,
+                        elapsed_ms=elapsed,
+                        locale=str(row["locale"]),
+                        implementation=str(row["implementation"]),
+                        error_code=None,
+                    )
+                    late_error = True
+                self._set_attempt(
+                    connection,
+                    listen_id=listen_id,
+                    status="PROCESSING" if not late_error else "LISTEN_TIMEOUT",
+                    client_turn_id=client_turn_id,
+                    elapsed_ms=elapsed,
+                    locale=str(row["locale"]),
+                    implementation=str(row["implementation"]),
+                    error_code=None,
+                )
+        if late_error:
+            raise LateTranscriptError()
+        return listen_id, client_turn_id, None
 
     def record_turn(
         self,
@@ -238,6 +749,7 @@ class CallService:
         metrics: Mapping[str, Any] | None = None,
         speech_ended_at: Any | None = None,
         audio_started_at: Any | None = None,
+        expected_corpus_revision: int | None = None,
     ) -> SerializableRecord:
         """Append a turn and its source links atomically."""
 
@@ -278,6 +790,11 @@ class CallService:
 
         with self.database.transaction() as connection:
             call_row = self._call_row_for_update(connection, call_id)
+            if (
+                expected_corpus_revision is not None
+                and self.database.get_corpus_revision() != expected_corpus_revision
+            ):
+                raise CorpusRevisionChangedError()
             if turn_index is None:
                 index_row = connection.execute(
                     "SELECT COALESCE(MAX(turn_index), -1) + 1 AS next_index "
@@ -329,12 +846,35 @@ class CallService:
                     ).fetchone()
                     if chunk_exists is None:
                         source_value["chunk_id"] = None
+                if source_value["document_id"] is not None:
+                    document_snapshot = connection.execute(
+                        "SELECT filename, sha256 FROM documents WHERE id = ?",
+                        (source_value["document_id"],),
+                    ).fetchone()
+                    if document_snapshot is not None:
+                        source_value["document_filename_snapshot"] = (
+                            source_value["document_filename_snapshot"]
+                            or document_snapshot["filename"]
+                        )
+                        source_value["document_sha256_snapshot"] = (
+                            source_value["document_sha256_snapshot"]
+                            or document_snapshot["sha256"]
+                        )
+                if source_value["chunk_id"] is not None:
+                    chunk_snapshot = connection.execute(
+                        "SELECT chunk_index FROM chunks WHERE id = ?",
+                        (source_value["chunk_id"],),
+                    ).fetchone()
+                    if chunk_snapshot is not None and source_value["chunk_index_snapshot"] is None:
+                        source_value["chunk_index_snapshot"] = int(chunk_snapshot["chunk_index"])
                 connection.execute(
                     """
                     INSERT INTO sources(
                         id, turn_id, document_id, chunk_id, page_number,
-                        score, citation, corpus_revision, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        score, citation, corpus_revision, created_at,
+                        document_filename_snapshot, document_sha256_snapshot,
+                        chunk_index_snapshot
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         source_value["id"],
@@ -346,6 +886,9 @@ class CallService:
                         source_value["citation"],
                         source_value["corpus_revision"],
                         timestamp,
+                        source_value["document_filename_snapshot"],
+                        source_value["document_sha256_snapshot"],
+                        source_value["chunk_index_snapshot"],
                     ),
                 )
                 persisted_source_ids.append(source_value["id"])
@@ -420,7 +963,11 @@ class CallService:
 
     def get_turn(self, turn_id: str) -> SerializableRecord | None:
         row = self.database.execute(
-            "SELECT * FROM turns WHERE id = ?",
+            "SELECT turns.*, listening_attempts.listen_id, listening_attempts.client_turn_id "
+            "FROM turns LEFT JOIN listening_attempts "
+            "ON listening_attempts.patient_turn_id = turns.id "
+            "OR listening_attempts.agent_turn_id = turns.id "
+            "WHERE turns.id = ?",
             (turn_id,),
         ).fetchone()
         if row is None:
@@ -439,6 +986,8 @@ class CallService:
                 "output_tokens": row["output_tokens"],
                 "model_calls": int(row["model_calls"] or 0),
                 "rag_queries": int(row["rag_queries"] or 0),
+                "listen_id": row["listen_id"],
+                "client_turn_id": row["client_turn_id"],
                 "sources": self.get_sources(turn_id=turn_id),
             }
         )
@@ -487,6 +1036,9 @@ class CallService:
                     "turn_id": row["turn_id"],
                     "document_id": row["document_id"],
                     "chunk_id": row["chunk_id"],
+                    "document_filename_snapshot": row["document_filename_snapshot"],
+                    "document_sha256_snapshot": row["document_sha256_snapshot"],
+                    "chunk_index_snapshot": row["chunk_index_snapshot"],
                     "page_number": row["page_number"],
                     "score": row["score"],
                     "citation": str(row["citation"]),
@@ -614,11 +1166,20 @@ class CallService:
         timestamp = ended_at or utc_now()
         summary_json = json.dumps(final_summary, ensure_ascii=False, sort_keys=True)
         with self.database.transaction() as connection:
+            pending_attempt = connection.execute(
+                "SELECT 1 FROM listening_attempts "
+                "WHERE call_id = ? AND status IN ('PROCESSING', 'FINAL_RECEIVED') LIMIT 1",
+                (call_id,),
+            ).fetchone()
+            if pending_attempt is not None:
+                raise ValueError("turn is in progress")
             connection.execute(
                 "UPDATE calls SET status = 'closed', ended_at = ?, summary_json = ?, "
-                "triage_level = ?, alert = ? WHERE id = ?",
+                "triage_level = ?, alert = ? WHERE id = ? AND status = 'active'",
                 (timestamp, summary_json, final_level, int(final_alert), call_id),
             )
+            if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ValueError(f"call is not active: {call_id}")
             self.database.record_audit(
                 entity_type="call",
                 entity_id=call_id,
@@ -645,6 +1206,51 @@ class CallService:
         value = call.get("summary")
         return dict(value) if isinstance(value, Mapping) else None
 
+    @staticmethod
+    def _corpus_changed_response(
+        triage: TriageResult,
+        metrics: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        text = (
+            "El conocimiento disponible cambio durante la consulta. "
+            "No puedo responder con seguridad; intente de nuevo."
+        )
+        return {
+            "text": text,
+            "answer": text,
+            "grounded": False,
+            "abstained": True,
+            "reason": "corpus_changed",
+            "sources": [],
+            "alert": triage.alert,
+            "level": triage.level,
+            "metrics": dict(metrics),
+        }
+
+    def _complete_listen_attempt(
+        self,
+        *,
+        listen_id: str,
+        patient_turn_id: str,
+        agent_turn_id: str,
+        response: Mapping[str, Any],
+    ) -> None:
+        response_json = json.dumps(dict(response), ensure_ascii=False, default=str, sort_keys=True)
+        with self.database.transaction() as connection:
+            row = connection.execute(
+                "SELECT status FROM listening_attempts WHERE listen_id = ?",
+                (listen_id,),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError("listening attempt disappeared before completion")
+            if str(row["status"]) not in {"PROCESSING", "FINAL_RECEIVED"}:
+                raise ListenEventError("turn_state_changed")
+            connection.execute(
+                "UPDATE listening_attempts SET status = 'COMPLETED', patient_turn_id = ?, "
+                "agent_turn_id = ?, response_json = ?, updated_at = ? WHERE listen_id = ?",
+                (patient_turn_id, agent_turn_id, response_json, utc_now(), listen_id),
+            )
+
     def handle_turn(
         self,
         call_id: str,
@@ -654,15 +1260,40 @@ class CallService:
         patient_speaker: str = "patient",
         agent_speaker: str = "agent",
         history: Iterable[Any] | None = None,
+        client_turn_id: str | None = None,
+        listen_id: str | None = None,
+        elapsed_ms: Any | None = None,
     ) -> SerializableRecord:
         """Run an agent for one patient turn and persist both sides."""
 
         active_agent = agent or self.agent
-        if active_agent is None:
-            raise ValueError("an AgentService is required to handle a turn")
         call = self.get_call(call_id)
         if call is None:
             raise KeyError(f"unknown call: {call_id}")
+
+        claimed_listen_id, claimed_client_turn_id, duplicate_response = self._claim_turn_attempt(
+            call_id,
+            listen_id=listen_id,
+            client_turn_id=client_turn_id,
+            elapsed_ms=elapsed_ms,
+        )
+        if duplicate_response is not None:
+            duplicate_response = dict(duplicate_response)
+            duplicate_response["duplicate"] = True
+            if claimed_listen_id is not None:
+                duplicate_response.setdefault("listen_id", claimed_listen_id)
+            if claimed_client_turn_id is not None:
+                duplicate_response.setdefault("client_turn_id", claimed_client_turn_id)
+            return SerializableRecord(duplicate_response)
+        if active_agent is None:
+            if claimed_listen_id is not None:
+                with self.database.transaction() as connection:
+                    connection.execute(
+                        "UPDATE listening_attempts SET status = 'FINAL_RECEIVED', updated_at = ? "
+                        "WHERE listen_id = ? AND status = 'PROCESSING'",
+                        (utc_now(), claimed_listen_id),
+                    )
+            raise ValueError("an AgentService is required to handle a turn")
 
         from .triage import classify_triage
 
@@ -715,22 +1346,84 @@ class CallService:
         response_metrics = response_data.get("metrics")
         if not isinstance(response_metrics, Mapping):
             response_metrics = response_data
-        agent_turn = self.record_turn(
-            call_id,
-            agent_speaker,
-            response_text,
-            sources=response_data.get("sources") or (),
-            metrics=response_metrics,
-            triage=triage,
+
+        source_values = response_data.get("sources") or ()
+        if isinstance(source_values, Mapping) or isinstance(source_values, (str, bytes)):
+            source_values = [source_values]
+        else:
+            source_values = list(source_values)
+        source_revisions: list[int] = []
+        revision_fields = 0
+        for source in source_values:
+            source_value = _as_dict(source)
+            if "corpus_revision" not in source_value:
+                continue
+            revision_fields += 1
+            try:
+                source_revisions.append(int(source_value["corpus_revision"]))
+            except (TypeError, ValueError):
+                source_revisions.append(-1)
+        expected_revision = (
+            source_revisions[0]
+            if revision_fields == len(source_values)
+            and source_revisions
+            and len(set(source_revisions)) == 1
+            else None
         )
+        stale_evidence = bool(source_values) and (
+            revision_fields > 0
+            and (
+                expected_revision is None
+                or self.database.get_corpus_revision() != expected_revision
+            )
+        )
+        if stale_evidence:
+            response_data = self._corpus_changed_response(triage, response_metrics)
+            response_text = response_data["text"]
+            response_metrics = response_data["metrics"]
+            source_values = []
+            expected_revision = None
+        try:
+            agent_turn = self.record_turn(
+                call_id,
+                agent_speaker,
+                response_text,
+                sources=source_values,
+                metrics=response_metrics,
+                triage=triage,
+                expected_corpus_revision=expected_revision,
+            )
+        except CorpusRevisionChangedError:
+            response_data = self._corpus_changed_response(triage, response_metrics)
+            response_text = response_data["text"]
+            agent_turn = self.record_turn(
+                call_id,
+                agent_speaker,
+                response_text,
+                sources=(),
+                metrics=response_data["metrics"],
+                triage=triage,
+            )
         response_data.update(
             {
                 "call_id": call_id,
                 "patient_turn_id": patient_turn["id"],
                 "agent_turn_id": agent_turn["id"],
                 "triage": triage.to_dict(),
+                "duplicate": False,
             }
         )
+        if claimed_listen_id is not None:
+            response_data["listen_id"] = claimed_listen_id
+        if claimed_client_turn_id is not None:
+            response_data["client_turn_id"] = claimed_client_turn_id
+        if claimed_listen_id is not None:
+            self._complete_listen_attempt(
+                listen_id=claimed_listen_id,
+                patient_turn_id=str(patient_turn["id"]),
+                agent_turn_id=str(agent_turn["id"]),
+                response=response_data,
+            )
         return SerializableRecord(response_data)
 
     process_turn = handle_turn
@@ -762,6 +1455,9 @@ def close_call(database: Database, call_id: str, **kwargs: Any) -> SerializableR
 
 __all__ = [
     "CallService",
+    "CorpusRevisionChangedError",
+    "LateTranscriptError",
+    "ListenEventError",
     "SerializableRecord",
     "close_call",
     "create_call",

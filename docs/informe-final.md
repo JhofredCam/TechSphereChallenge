@@ -15,18 +15,22 @@ responder con conocimiento trazable y escalar senales de alarma sin depender de 
 conserva alertas, el agente responde en espanol con cita o abstencion y el cierre guarda un
 resumen estructurado.
 
-**Resultado:** runtime local implementado. Pasaron 38 tests, Ruff no reporto hallazgos, el
-dataset fue validado y el bootstrap proceso el corpus local. La demo manual de voz, el
-cronometraje G2 y la evidencia G5 con documento externo siguen pendientes.
+**Resultado:** runtime local implementado. Pasaron 96 tests, Ruff no reporto hallazgos, el
+dataset fue validado y el bootstrap proceso el corpus local. Preview/toggle/timeout tienen
+pruebas locales; la demo manual de voz, el cronometraje G2, Groq/Whisper real y la evidencia G5
+con documento externo siguen pendientes.
 
 ## 2. Alcance y limites
 
 El MVP busca una aplicacion web local para seguimiento postoperatorio en espanol de pacientes
 colombianos. Incluye:
 
-- Consola para subir, listar y eliminar documentos con estado visible.
+- Consola para subir, listar, previsualizar, habilitar/deshabilitar y eliminar documentos con
+  estado tecnico y publicacion visibles.
 - Llamada desde navegador/API con microfono, transcripcion, respuesta y audio.
-- Recuperacion trazable desde el corpus local.
+- Recuperacion trazable desde el corpus local, solo con `status='available' AND enabled=1`.
+- Timeout total configurable por turno, estados de escucha, reintento/texto, `listen_id`,
+  `client_turn_id` y `late_transcript`.
 - Triaje conservador, alerta persistente y resumen de llamada.
 - Metricas de latencia, consumo, recuperacion y costo.
 
@@ -75,35 +79,40 @@ no modifica las fuentes canonicas. El bootstrap proceso 104 documentos del corpu
 
 ## 5. Arquitectura y comportamiento
 
-Consultar [arquitectura.md](arquitectura.md). La implementacion demuestra localmente que:
+Consultar [arquitectura.md](arquitectura.md) y la [vista formal derivada](../mvp/deliverables/02_architecture/architecture.md).
+La implementacion demuestra localmente que:
 
 1. El triaje determinista puede elevar y conservar el nivel, pero nunca degradar rojo.
 2. El agente solo redacta respuestas clinicas con evidencia recuperada y cita trazable.
 3. Una consulta sin evidencia produce abstencion explicita.
-4. Upload y delete cambian el conocimiento disponible sin reiniciar.
-5. El cierre persiste paciente, procedimiento, sintomas, decision, fuentes, alerta y pasos.
+4. Preview inspecciona `pages.text`; disable conserva el documento pero lo excluye del RAG,
+   enable lo recupera sin reingesta y delete cambia el conocimiento disponible sin reiniciar.
+5. La escucha publica su timeout por `/health`, no convierte parcial/timeout en turno y evita
+   duplicados mediante `listen_id`/`client_turn_id`.
+6. El cierre persiste paciente, procedimiento, sintomas, decision, fuentes, alerta y pasos.
 
 **Correspondencia con codigo:** verificada en `app/main.py`, `app/database.py`, los servicios
 de `app/services/` y las pruebas de API, ingestion, agente, triaje, llamadas, metricas y
 conocimiento vivo. El smoke de voz en navegador y la prueba G5 con documento externo siguen
 pendientes.
 
-### Especificaciones de la siguiente iteracion
+### Especificaciones y estado sincronizado
 
-Este informe conserva el estado del baseline y no presenta como implementadas las ampliaciones
-planificadas:
-
-- [Estructura de entregables](../specs/03_mvp_structure_specification.md): fases bajo
-  `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/`.
+- [Estructura de entregables](../specs/03_mvp_structure_specification.md): fases aplicadas bajo
+  `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/`; preflight estructural verificado.
 - [Ciclo documental de `/admin`](../specs/04_admin_document_lifecycle_specification.md):
-  preview, `enabled`, `rag_eligible`, habilitar, deshabilitar y delete.
+  preview textual, `enabled`, `rag_eligible`, habilitar, deshabilitar, snapshots y delete;
+  runtime y pruebas locales verificados.
 - [Timeout de escucha](../specs/05_patient_listening_timeout_specification.md):
-  `PATIENT_LISTEN_TIMEOUT_MS` y comportamiento seguro ante timeout.
-- [Diagrama normativo](../specs/06_system_flow_diagram_specification.md): ASCII, Mermaid,
-  etapas y matriz de trazabilidad dependiente de las tres specs anteriores.
+  `PATIENT_LISTEN_TIMEOUT_MS`, estados, eventos, reintento, `client_turn_id`, `listen_id` y
+  `late_transcript`; runtime y pruebas locales verificados.
+- [Diagrama integrador](../specs/06_system_flow_diagram_specification.md): ASCII, Mermaid,
+  contratos y matriz `TRZ-*` sincronizados con las tres specs anteriores.
+- [Pruebas unitarias e integracion](../specs/07_testing_unit_integration_specification.md):
+  estrategia ejecutable, cobertura branch `80.07%` y frontera manual conservada.
 
-El estado de estas cuatro specs es `Especificado`; no hay evidencia de ejecucion o runtime nueva
-en este corte.
+G2, G4, G5 externo, Groq/Whisper real y las metricas de voz/costo siguen pendientes de evidencia
+manual; las pruebas locales no cambian esos estados.
 
 ## 6. Configuracion y prompts
 
@@ -118,7 +127,9 @@ Valores configurados en el codigo, sin incluir secretos:
 | Regla de abstencion | Sin evidencia actual, evidencia insegura o inyeccion: explicar limite y no inventar | Implementado y cubierto por tests |
 | Regla de triaje | `classify_triage` y `highest_level` en `app/services/triage.py` | Implementado; rojo/amarillo no degradan |
 | Timeout y reintentos | Groq chat 12 s; Whisper 30 s; fallback extractivo sin reintento inseguro | Implementado |
-| Escucha del paciente | `PATIENT_LISTEN_TIMEOUT_MS=30000` en `.env.example` | Especificado; no aplicado al runtime actual |
+| Ciclo admin | `enabled`, `rag_eligible`, preview <=8000, snapshots y filtro RAG | Implementado y cubierto por `tests/test_admin_lifecycle.py` |
+| Escucha del paciente | `PATIENT_LISTEN_TIMEOUT_MS=30000`, default/rango y `/health` publico | Implementado y cubierto por `tests/test_timeout.py`; smoke browser PENDIENTE |
+| Idempotencia de escucha | `listen_id`, `client_turn_id`, duplicate y `409 late_transcript` | Implementado y cubierto por `tests/test_timeout.py` |
 
 ## 7. Metricas
 
@@ -148,18 +159,20 @@ costo_llamada = (tokens_entrada / 1_000_000 * precio_entrada) +
 | Gate | Evidencia | Estado |
 |---|---|---|
 | G1 | Repositorio, diagrama, informe y video | PENDIENTE; falta video de entrega |
-| G2 | Setup limpio en <=15 minutos siguiendo README | PENDIENTE de cronometraje desde entorno limpio |
-| G3 | Familia/modelo permitido y declarado | Verificado en configuracion, codigo y tests: Meta Llama / `llama-3.1-8b-instant`; uso remoto en vivo PENDIENTE |
-| G4 | Saludo y pregunta trivial con audio de ida y vuelta | PENDIENTE de smoke manual con microfono/audio; no se infiere de mocks |
-| G5 | Upload, uso, delete y olvido sin reinicio | Prueba automatizada e integracion local verificadas; PENDIENTE de evidencia con documento externo en demo |
+| G2 | Setup limpio en <=15 minutos siguiendo README | `MANUAL_PENDING`: falta cronometraje desde entorno limpio |
+| G3 | Familia/modelo permitido y declarado | `TESTED` local en configuracion, codigo y tests: Meta Llama / `llama-3.1-8b-instant`; uso remoto `MANUAL_PENDING` |
+| G4 | Saludo y pregunta trivial con audio de ida y vuelta | `MANUAL_PENDING`: falta smoke manual con microfono/audio; no se infiere de mocks |
+| G5 | Upload, preview, uso, disable/enable, delete y olvido sin reinicio | `TESTED` local; `MANUAL_PENDING` para documento externo en demo |
 
 ### Resultados de pruebas
 
 | Prueba | Comando / recorrido | Resultado | Fecha |
 |---|---|---|---|
 | Dataset | `python -m scripts.validate_dataset` | Valido: `3991/40/40/160` | 2026-08-08 |
-| Suite | `python -m pytest -q --basetemp <temp>` | 38 tests pasaron | 2026-08-08 |
+| Admin/timeout | `python -m pytest tests/test_admin_lifecycle.py tests/test_timeout.py -q --basetemp <temp>` | 24 tests pasaron | 2026-08-08 |
+| Suite | `python -m pytest -q --basetemp <temp>` | 96 tests pasaron | 2026-08-08 |
 | Calidad | `ruff check .` | Paso sin hallazgos | 2026-08-08 |
+| Sintaxis web | `node --check app/web/app.js` | Valida | 2026-08-08 |
 | Bootstrap | `python -m app.bootstrap --data-dir <temp>` | 104 documentos: `available=103`, `needs_ocr=1` | 2026-08-08 |
 | Idempotencia | Test de bootstrap dentro de la suite | Paso; segunda ejecucion sin reprocesar contenido | 2026-08-08 |
 | Conocimiento vivo | `tests/test_live_knowledge.py` dentro de la suite | Upload/search/delete local verificado sin reinicio | 2026-08-08 |

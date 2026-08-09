@@ -6,10 +6,16 @@ La instrumentacion y la agregacion local estan implementadas; los valores de una
 voz real siguen `PENDIENTES` al 2026-08-08. La [rubrica](../docs/rubrica-evaluacion.md#5-qué-debe-reportar-tu-readme)
 exige reportar estos numeros y contrastarlos con los logs.
 
+La estrategia de pruebas esta definida en
+[specs/07_testing_unit_integration_specification.md](../specs/07_testing_unit_integration_specification.md).
+Las cifras historicas de la documentacion pertenecen a la sesion de implementacion previa; en
+esta sincronizacion se ejecutaron pytest, Ruff, validacion del dataset y bootstrap, con los
+resultados fechados de abajo.
+
 La [spec del diagrama](../specs/06_system_flow_diagram_specification.md) define la trazabilidad
 entre eventos, submodulos y evidencia. La [spec de timeout](../specs/05_patient_listening_timeout_specification.md)
 separa el tiempo de escucha del paciente de la latencia oficial de respuesta; el valor de
-`.env.example` aun no tiene efecto en el runtime.
+`.env.example` se valida y llega al navegador por `/health`.
 
 ## Metricas obligatorias
 
@@ -21,7 +27,8 @@ separa el tiempo de escucha del paciente de la latencia oficial de respuesta; el
 | Invocaciones al modelo | Conteo por turno | Log de llamada | Implementado; demo real PENDIENTE |
 | Consultas RAG | Conteo por llamada y resultados con fuente | Log de recuperacion | Implementado; demo real PENDIENTE |
 | Costo estimado | Precio documentado por millon de tokens aplicado a cada llamada | Informe + logs | PENDIENTE; falta precio vigente y muestra de proveedor |
-| Timeout de escucha | Duracion y resultado de `PATIENT_LISTEN_TIMEOUT_MS` | Eventos de voz y navegador | Especificado; no aplicado en este baseline |
+| Ciclo admin | Preview textual, disable/enable, filtro RAG, delete y snapshot | `tests/test_admin_lifecycle.py`, API y UI | Tests locales ejecutados; smoke manual/G5 externo PENDIENTE |
+| Timeout de escucha | Duracion y resultado de `PATIENT_LISTEN_TIMEOUT_MS` | `tests/test_timeout.py`, `voice-events`, navegador | 24 tests enfocados; smoke manual Chrome/Edge PENDIENTE |
 
 Usar los nombres de campo del contrato previsto: `call_id`, `turn_id`, `speech_ended_at`,
 `audio_started_at`, `latency_ms`, `input_tokens`, `output_tokens`, `model_calls`,
@@ -45,10 +52,10 @@ o se excluyen. No llenar `PENDIENTE` con una estimacion sin logs.
 | Gate | Evidencia necesaria | Estado 2026-08-08 |
 |---|---|---|
 | G1 | Repositorio, diagrama, informe y video completos | PENDIENTE; falta video de entrega |
-| G2 | Setup limpio cronometrado en <=15 minutos siguiendo solo el README | PENDIENTE de cronometraje desde entorno limpio |
-| G3 | Modelo exacto, familia Meta Llama permitida, configuracion y uso coherentes | Verificado en configuracion, codigo y tests; uso remoto en vivo no ejercitado |
-| G4 | Saludo y pregunta trivial con voz de ida y vuelta | PENDIENTE de smoke manual con microfono y audio |
-| G5 | Upload, uso, delete y olvido de documento nuevo sin reinicio | Prueba automatizada e integracion local verificadas; PENDIENTE de demo con documento externo |
+| G2 | Setup limpio cronometrado en <=15 minutos siguiendo solo el README | `MANUAL_PENDING`: falta cronometraje desde entorno limpio |
+| G3 | Modelo exacto, familia Meta Llama permitida, configuracion y uso coherentes | `TESTED` local; `MANUAL_PENDING` para uso remoto real |
+| G4 | Saludo y pregunta trivial con voz de ida y vuelta | `MANUAL_PENDING`: falta smoke manual con microfono y audio |
+| G5 | Upload, preview, disable/enable, uso, delete y olvido de documento nuevo sin reinicio | `TESTED` local; `MANUAL_PENDING` para demo con documento externo |
 
 ## Pruebas de calidad
 
@@ -56,14 +63,14 @@ Conservar resultados de:
 
 - Validacion de hojas `result`, JSON embebido y joins del dataset.
 - Recuperacion con fuente antes y despues de borrar.
-- Preview y estado `enabled` de documentos cuando se implemente la ampliacion de `/admin`.
-- Exclusión de documentos deshabilitados de nuevas consultas RAG.
+- Preview, estado `enabled` y revision de documentos en `/admin`.
+- Exclusión de documentos deshabilitados de nuevas consultas RAG y recuperacion al habilitar.
 - Abstencion cuando no hay evidencia.
 - Triaje rojo sin degradacion, amarillo con alerta y ambiguo con aclaracion.
 - Resumen de cierre y persistencia de alerta.
 - Voz en navegador, fallback textual y comportamiento ante permisos denegados.
 - Timeout de escucha, resultado parcial, no respuesta y reintento, sin inferir una decision
-  clinica desde el silencio.
+  clinica desde el silencio; tests locales pasaron y smoke manual sigue PENDIENTE.
 
 ## Formato de evidencia
 
@@ -81,8 +88,10 @@ ejecuta, escribir `PENDIENTE` con la razon y no inferir el resultado.
 
 | Comando o prueba | Resultado |
 |---|---|
-| `python -m pytest -q --basetemp <temp>` | 38 tests pasaron |
+| `python -m pytest tests/test_admin_lifecycle.py tests/test_timeout.py -q --basetemp <temp>` | 24 tests pasaron |
+| `python -m pytest -q --basetemp <temp>` | 96 tests pasaron |
 | `ruff check .` | Paso sin hallazgos |
+| `node --check app/web/app.js` | Sintaxis valida |
 | `python -m scripts.validate_dataset` | Dataset valido: `3991/40/40/160` |
 | `python -m app.bootstrap --data-dir <temp>` | 104 documentos procesados: `available=103`, `needs_ocr=1` |
 | Idempotencia de bootstrap | Segunda ejecucion sin reprocesar contenido ya indexado |
@@ -101,3 +110,31 @@ python -m app.bootstrap --data-dir <temp>
 
 Los comandos se deben ejecutar desde la raiz con el servidor real para G4/G5; mocks solo
 pueden cubrir pruebas unitarias y de contrato.
+
+## Actualizacion de pruebas 2026-08-08
+
+La estrategia de `specs/07_testing_unit_integration_specification.md` ya es ejecutable en este
+checkout. Se agregaron 31 casos nuevos y las regresiones de concurrencia dejaron la suite en
+`96 passed`. La cobertura se ejecuto con `--cov=app --cov=scripts --cov-branch --cov-fail-under=80`
+y alcanzo `80.07%`; el XML se
+escribio en un temporal fuera del repositorio. No se declara cobertura de `app/web/app.js` con
+pytest-cov.
+
+Resultados enfocados:
+
+- `tests/test_api.py tests/test_live_knowledge.py`: `8 passed`.
+- `tests/test_agent.py tests/test_triage.py tests/test_calls.py tests/test_metrics.py`:
+  `28 passed`.
+- `tests/test_database.py tests/test_ingestion.py tests/test_bootstrap.py`: `16 passed`.
+- `ruff check .`: sin hallazgos.
+- `python -m scripts.validate_dataset`: valido, filas `3991/40/40/160`.
+- `python -m app.bootstrap --data-dir <temp>/techsphere-bootstrap`: `104` documentos,
+  `103 available` y `1 needs_ocr`.
+- Estructura de `mvp/`: 13 rutas requeridas, sin copias prohibidas.
+- `git diff --check`: sin errores.
+
+La eliminacion fisica local, snapshot, preview/toggle, filtro RAG, timeout, idempotencia, eventos,
+metricas y ausencia de `stored_path`/secretos tienen evidencia automatizada. La API no valida MIME
+de forma independiente; esta brecha permanece documentada. La cobertura no cambia el estado
+`MANUAL_PENDING` de navegador, microfono, TTS, Groq/Whisper real, G2 ni G5 externo. La sesion se
+registro como `working tree/no commit`, sin inventar fecha de commit ni metricas de voz reales.

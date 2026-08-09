@@ -45,9 +45,12 @@ implementados:
    `PATIENT_LISTEN_TIMEOUT_MS` y sus limites de seguridad.
 4. [Diagrama normativo del flujo](06_system_flow_diagram_specification.md): depende de las
    tres anteriores y es la fuente de los bloques y subflujos futuros.
+5. [Pruebas unitarias e integracion](07_testing_unit_integration_specification.md): define la
+   piramide, fixtures, contratos, cobertura y frontera entre automatizacion y evidencia manual.
 
 El orden obligatorio es estructura, admin, timeout y finalmente diagrama. Un cambio en cualquiera
-de las tres primeras obliga a revisar la spec del diagrama antes de escribir codigo.
+de las tres primeras obliga a revisar la spec del diagrama y la estrategia de pruebas antes de
+escribir codigo.
 
 ## Stack y modelo
 

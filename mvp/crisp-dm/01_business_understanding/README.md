@@ -8,14 +8,14 @@ que no intenta resolver y como se demostrara que las dos superficies funcionan.
 
 ## Entradas
 
-- [README del reto](../../README.md), incluido el contrato de las dos superficies.
-- [Especificacion del MVP](../../specs/00_mvp_specification.md).
-- [Rubrica y compuertas G1-G5](../../docs/rubrica-evaluacion.md).
-- [Familias de modelos permitidas](../../docs/stack-tecnico.md).
+- [README del reto](../../../README.md), incluido el contrato de las dos superficies.
+- [Especificacion del MVP](../../../specs/00_mvp_specification.md).
+- [Rubrica y compuertas G1-G5](../../../docs/rubrica-evaluacion.md).
+- [Familias de modelos permitidas](../../../docs/stack-tecnico.md).
 - Restriccion operativa de levantar el sistema en 15 minutos o menos.
-- [Spec de estructura objetivo](../../specs/03_mvp_structure_specification.md), que separa
+- [Spec de estructura objetivo](../../../specs/03_mvp_structure_specification.md), que separa
   entregables, fuentes canonicas y runtime.
-- [Spec de diagrama normativo](../../specs/06_system_flow_diagram_specification.md), que
+- [Spec de diagrama normativo](../../../specs/06_system_flow_diagram_specification.md), que
   convierte actores, etapas y contratos en una vista verificable.
 
 ## Salidas
@@ -47,9 +47,9 @@ que no intenta resolver y como se demostrara que las dos superficies funcionan.
 ## Criterios de aceptacion
 
 - [x] El alcance, los no-objetivos y las dos superficies estan descritos en la
-  [especificacion del MVP](../../specs/00_mvp_specification.md).
+  [especificacion del MVP](../../../specs/00_mvp_specification.md).
 - [x] Las compuertas de voz, conocimiento vivo, modelo permitido y levantamiento estan
-  identificadas en la [rubrica](../../docs/rubrica-evaluacion.md).
+  identificadas en la [rubrica](../../../docs/rubrica-evaluacion.md).
 - [x] Existe una aplicacion ejecutable que satisface el contrato sin depender de telefonia
   real: `app.main` expone `/admin`, `/call` y la API local.
 - [ ] Existe evidencia reproducible de la demo, las metricas y las cinco compuertas.
@@ -62,8 +62,8 @@ Comando de verificacion documental desde la raiz:
 python -c "from pathlib import Path; required = ['README.md', 'specs/00_mvp_specification.md', 'docs/rubrica-evaluacion.md', 'docs/stack-tecnico.md']; assert all(Path(p).is_file() for p in required)"
 ```
 
-La evidencia de runtime se captura en [metricas y evidencia](../../readme/04_metricas_y_evidencia.md)
-y en [el informe final](../../docs/informe-final.md). En este corte la suite automatizada,
+La evidencia de runtime se captura en [metricas y evidencia](../../../readme/04_metricas_y_evidencia.md)
+y en [el informe final](../../../docs/informe-final.md). En este corte la suite automatizada,
 la validacion del dataset y el bootstrap estan verificados; la demo manual, el cronometraje
 y la evidencia de las compuertas de voz siguen `PENDIENTE`.
 

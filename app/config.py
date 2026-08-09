@@ -14,6 +14,10 @@ from typing import Mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+DEFAULT_PATIENT_LISTEN_TIMEOUT_MS = 30_000
+MIN_PATIENT_LISTEN_TIMEOUT_MS = 1_000
+MAX_PATIENT_LISTEN_TIMEOUT_MS = 300_000
 
 
 def _configured_path(value: str | Path | None, default: Path, base_dir: Path) -> Path:
@@ -33,6 +37,37 @@ def _configured_int(environ: Mapping[str, str], name: str, default: int) -> int:
         raise ValueError(f"{name} must be an integer") from exc
 
 
+def validate_patient_listen_timeout_ms(value: int) -> int:
+    """Validate the total browser listening duration in milliseconds."""
+
+    if type(value) is not int:
+        raise ValueError("patient_listen_timeout_ms must be an integer")
+    if not MIN_PATIENT_LISTEN_TIMEOUT_MS <= value <= MAX_PATIENT_LISTEN_TIMEOUT_MS:
+        raise ValueError(
+            "patient_listen_timeout_ms must be between "
+            f"{MIN_PATIENT_LISTEN_TIMEOUT_MS} and {MAX_PATIENT_LISTEN_TIMEOUT_MS}"
+        )
+    return value
+
+
+def _configured_patient_listen_timeout(environ: Mapping[str, str]) -> int:
+    """Parse the optional environment override without accepting an empty value."""
+
+    if "PATIENT_LISTEN_TIMEOUT_MS" not in environ:
+        return DEFAULT_PATIENT_LISTEN_TIMEOUT_MS
+    raw_value = environ.get("PATIENT_LISTEN_TIMEOUT_MS")
+    if not isinstance(raw_value, str) or not raw_value.strip():
+        raise ValueError("PATIENT_LISTEN_TIMEOUT_MS must not be empty")
+    try:
+        value = int(raw_value.strip())
+    except (TypeError, ValueError) as exc:
+        raise ValueError("PATIENT_LISTEN_TIMEOUT_MS must be an integer") from exc
+    try:
+        return validate_patient_listen_timeout_ms(value)
+    except ValueError as exc:
+        raise ValueError(f"PATIENT_LISTEN_TIMEOUT_MS: {exc}") from exc
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Filesystem and ingestion settings for one local application instance."""
@@ -42,7 +77,8 @@ class Settings:
     uploads_dir: Path | None = None
     chunk_size: int = 1200
     chunk_overlap: int = 200
-    max_upload_bytes: int = 25 * 1024 * 1024
+    max_upload_bytes: int = MAX_UPLOAD_BYTES
+    patient_listen_timeout_ms: int = DEFAULT_PATIENT_LISTEN_TIMEOUT_MS
 
     def __post_init__(self) -> None:
         data_dir = Path(self.data_dir).expanduser().resolve()
@@ -63,8 +99,9 @@ class Settings:
             raise ValueError("chunk_size must be greater than zero")
         if self.chunk_overlap < 0 or self.chunk_overlap >= self.chunk_size:
             raise ValueError("chunk_overlap must be between zero and chunk_size - 1")
-        if self.max_upload_bytes <= 0:
-            raise ValueError("max_upload_bytes must be greater than zero")
+        if self.max_upload_bytes <= 0 or self.max_upload_bytes > MAX_UPLOAD_BYTES:
+            raise ValueError(f"max_upload_bytes must be between 1 and {MAX_UPLOAD_BYTES}")
+        validate_patient_listen_timeout_ms(self.patient_listen_timeout_ms)
 
         object.__setattr__(self, "data_dir", data_dir)
         object.__setattr__(self, "database_path", database_path)
@@ -119,8 +156,9 @@ class Settings:
             max_upload_bytes=_configured_int(
                 values,
                 "APP_MAX_UPLOAD_BYTES",
-                25 * 1024 * 1024,
+                MAX_UPLOAD_BYTES,
             ),
+            patient_listen_timeout_ms=_configured_patient_listen_timeout(values),
         )
 
     def ensure_directories(self) -> None:
@@ -138,7 +176,12 @@ def get_settings(environ: Mapping[str, str] | None = None) -> Settings:
 
 __all__ = [
     "DEFAULT_DATA_DIR",
+    "DEFAULT_PATIENT_LISTEN_TIMEOUT_MS",
+    "MAX_PATIENT_LISTEN_TIMEOUT_MS",
+    "MAX_UPLOAD_BYTES",
+    "MIN_PATIENT_LISTEN_TIMEOUT_MS",
     "PROJECT_ROOT",
     "Settings",
     "get_settings",
+    "validate_patient_listen_timeout_ms",
 ]

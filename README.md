@@ -60,7 +60,11 @@ de la misma familia Meta Llama y actualiza el informe.
 1. Entra a `/admin`.
 2. Sube un `.pdf`, `.txt` o `.md`.
 3. Confirma `Disponible` o `Necesita OCR` en el inventario.
-4. Usa `Eliminar`; se borran sus páginas, chunks y filas FTS5 sin reiniciar el servidor.
+4. Usa `Previsualizar` para inspeccionar el texto extraido como texto plano no ejecutable.
+5. Usa `Deshabilitar` para conservar el documento y excluirlo del RAG; `Habilitar` lo publica de
+   nuevo sin reprocesarlo.
+6. Usa `Eliminar` para borrar paginas, chunks y filas FTS5, conservar el snapshot historico y
+   retirar el archivo sin reiniciar el servidor.
 
 Los documentos se identifican por SHA-256, se procesan de forma síncrona y conservan página,
 chunk, cita y revisión del corpus. Un PDF sin texto no se presenta como disponible.
@@ -71,9 +75,12 @@ chunk, cita y revisión del corpus. Un PDF sin texto no se presenta como disponi
 2. Permite el micrófono y pulsa `Hablar`; el idioma configurado es `es-CO`.
 3. El agente muestra la transcripción, consulta el corpus, muestra fuentes y reproduce la
    respuesta con la voz del navegador.
-4. Si Web Speech API no está disponible, usa el campo de texto; sigue siendo el mismo endpoint
+4. El timeout total de cada intento llega desde `/health` (`PATIENT_LISTEN_TIMEOUT_MS`, default
+   30000 ms). Un parcial es solo borrador; timeout, no respuesta o error ofrecen reintento/texto
+   y no crean un turno clinico.
+5. Si Web Speech API no está disponible, usa el campo de texto; sigue siendo el mismo endpoint
    auditable. El endpoint `/api/calls/{id}/audio` acepta audio para Whisper cuando hay clave.
-5. Pulsa `Finalizar llamada` para guardar el resumen estructurado.
+6. Pulsa `Finalizar llamada` para guardar el resumen estructurado.
 
 El triaje determinista no delega la seguridad al LLM:
 
@@ -102,8 +109,8 @@ python -m pytest tests/test_live_knowledge.py -q
 
 ```text
 Navegador
-  ├── /admin: upload, listado, delete
-  └── /call: SpeechRecognition -> API -> SpeechSynthesis
+  ├── /admin: upload, listado, preview, enable/disable, delete
+  └── /call: SpeechRecognition + timeout -> API -> SpeechSynthesis
                          │
                          ▼
                     FastAPI monolito
@@ -122,23 +129,26 @@ El diagrama detallado y el flujo de decisión están en [`docs/arquitectura.md`]
 La API está documentada por OpenAPI en `http://127.0.0.1:8000/docs` cuando el servidor está
 levantado.
 
-La fuente normativa para la siguiente iteracion es
+La fuente normativa integradora de este flujo es
 [`specs/06_system_flow_diagram_specification.md`](specs/06_system_flow_diagram_specification.md).
 Depende de las specs de estructura, administracion documental y timeout; por eso cualquier cambio
 en esas tres debe reflejarse primero en el ASCII, los subdiagramas Mermaid y la matriz `TRZ-*`.
-Las capacidades nuevas de preview, habilitar/deshabilitar y timeout configurable estan
-especificadas, pero no se declaran implementadas en este checkout.
+La spec 06 esta integrada con el runtime aplicado: preview, habilitar/deshabilitar, filtro
+`available + enabled`, snapshots y timeout configurable tienen pruebas locales. La vista formal
+derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/deliverables/02_architecture/architecture.md).
 
-## Especificaciones de la siguiente iteracion
+## Especificaciones y estado sincronizado
 
 - [`03_mvp_structure_specification.md`](specs/03_mvp_structure_specification.md): entregables
   bajo `mvp/` y fases bajo `mvp/crisp-dm/`.
 - [`04_admin_document_lifecycle_specification.md`](specs/04_admin_document_lifecycle_specification.md):
-  preview, publicacion independiente y delete.
+  preview textual, publicacion independiente, filtro RAG, snapshots y delete implementados.
 - [`05_patient_listening_timeout_specification.md`](specs/05_patient_listening_timeout_specification.md):
-  timeout configurable de escucha y fallback seguro.
+  timeout total configurable, estados, eventos, reintento y fallback implementados.
 - [`06_system_flow_diagram_specification.md`](specs/06_system_flow_diagram_specification.md):
-  diagrama que integra y depende de las tres anteriores.
+  diagrama integrador sincronizado con codigo, contratos y pruebas.
+- [`07_testing_unit_integration_specification.md`](specs/07_testing_unit_integration_specification.md):
+  estrategia de pruebas unitarias, integracion, cobertura y evidencia manual.
 
 ## Modelo permitido
 
@@ -181,12 +191,22 @@ y `1 needs_ocr`.
 python -m pytest -q
 ruff check .
 python -m pytest tests/test_api.py tests/test_live_knowledge.py -q
+python -m pytest tests/test_admin_lifecycle.py tests/test_timeout.py -q --basetemp <temp>
+python -m pytest -q --basetemp <temp>/coverage-pytest --cov=app --cov=scripts --cov-branch --cov-report=term-missing --cov-report=xml:<temp>/coverage.xml --cov-fail-under=80
+node --check app/web/app.js
 python -m scripts.validate_dataset
 ```
 
-La suite cubre SQLite/FTS5, extracción, PDF sin texto, validación XLSX, upload/delete,
-abstención, prompt injection, triaje, llamadas, resumen, API y métricas. El último resultado
-registrado en esta sesión fue `38 passed` y Ruff sin errores.
+La suite cubre SQLite/FTS5, extracción, PDF sin texto, validación XLSX, upload/preview/toggle/delete,
+abstención, prompt injection, triaje, llamadas, resumen, API, timeout, eventos e idempotencia.
+La evidencia de la sincronización previa registró `24` pruebas enfocadas y `93` en la suite
+completa; Ruff no reportó hallazgos y `node --check app/web/app.js` fue válido.
+
+La implementación ejecutable de la spec 07 agregó 31 casos; las regresiones de concurrencia dejan
+`96 passed` en la suite completa y `80.07%` de cobertura de `app` y `scripts` con ramas y umbral 80.
+El XML se escribió en un
+temporal fuera del repositorio. G4, G2, G5 externo y Groq/Whisper real siguen `MANUAL_PENDING`
+aunque sus contratos locales estén probados; la API tampoco valida MIME de forma independiente.
 
 ## Métricas obligatorias
 
@@ -212,10 +232,10 @@ Después de una demo real, copia la respuesta de `/api/metrics`, fecha, modelo y
 | Gate | Estado en este checkout | Evidencia o pendiente |
 |---|---|---|
 | G1 | Pendiente de entrega final | Repositorio, diagrama e informe están presentes; falta video y sus respuestas de cierre. |
-| G2 | Pendiente | El setup es ejecutable; falta cronometraje desde entorno limpio siguiendo solo este README. |
-| G3 | Configurado | `llama-3.1-8b-instant` pertenece a Meta Llama permitida; confirmar disponibilidad y llamada efectiva antes de grabar. |
-| G4 | Implementacion presente; gate pendiente | Micrófono `SpeechRecognition` y audio `SpeechSynthesis` viven en `/call`; falta evidencia manual con navegador. |
-| G5 | Verificado localmente; gate pendiente | Test de aprender/olvidar y CRUD pasan; repetir con un documento externo al corpus durante la evaluación. |
+| G2 | `MANUAL_PENDING` | El setup es ejecutable; falta cronometraje desde entorno limpio siguiendo solo este README. |
+| G3 | `TESTED` local; `MANUAL_PENDING` real | `llama-3.1-8b-instant` pertenece a Meta Llama permitida; falta confirmar disponibilidad y llamada efectiva antes de grabar. |
+| G4 | `MANUAL_PENDING` | Micrófono `SpeechRecognition` y audio `SpeechSynthesis` viven en `/call`; falta evidencia manual con navegador. |
+| G5 | `TESTED` local; `MANUAL_PENDING` externo | Tests de aprender/olvidar, preview y toggle pasan; repetir upload/uso/delete con un documento externo al corpus durante la evaluación. |
 
 No se declara una compuerta aprobada solo por intención o por un mock.
 
@@ -226,8 +246,7 @@ No se declara una compuerta aprobada solo por intención o por un mock.
 - [`tests/`](tests/): pruebas unitarias e integración HTTP.
 - [`specs/`](specs/): especificaciones, plan y tareas de spec-driven development; fuente
   normativa durante la migracion.
-- [`mvp/`](mvp/): contenedor objetivo de entregables y fases CRISP-DM; las fases actuales aun
-  conservan su ruta directa hasta aprobar la reestructuracion.
+- [`mvp/`](mvp/): contenedor aplicado de entregables y fases CRISP-DM bajo `mvp/crisp-dm/`.
 - [`readme/`](readme/): setup, demo, métricas, sesiones y snapshot pre-fork.
 - [`docs/arquitectura.md`](docs/arquitectura.md): diagrama y flujo de decisión.
 - [`docs/informe-final.md`](docs/informe-final.md): informe vivo, riesgos y evidencia pendiente.
@@ -235,8 +254,9 @@ No se declara una compuerta aprobada solo por intención o por un mock.
 - [`GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md`](GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md): iniciar planificación y specs.
 - [`GUIA_AGENTE_EJECUTOR_DE_TAREAS.md`](GUIA_AGENTE_EJECUTOR_DE_TAREAS.md): iniciar ejecución y verificación.
 
-La estructura objetivo, preview administrativa y timeout de escucha estan en estado
-`Especificado`; no se ejecutaron ni se implementaron como parte de esta planificacion.
+La estructura bajo `mvp/`, preview administrativa, publicación `enabled` y timeout de escucha
+están implementados y probados localmente. La evidencia manual de voz, G2 y G5 externo sigue
+pendiente; las métricas de voz y costo no se inventan.
 
 Para registrar una nueva sesión, crea `readme/06_bitacora_de_sesiones/YYYY-MM-DD_nombre.md` con
 alcance, decisiones, comandos ejecutados, resultados y pendientes. Las decisiones sobre modelo exacto, OCR,

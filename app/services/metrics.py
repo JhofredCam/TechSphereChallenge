@@ -10,6 +10,18 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 DEFAULT_MODEL_VERSION = "llama-3.1-8b-instant"
+VOICE_EVENT_TYPES = frozenset(
+    {
+        "patient_listen_started",
+        "partial",
+        "final",
+        "ended",
+        "no_response",
+        "timeout",
+        "error",
+        "retry",
+    }
+)
 
 
 def _utc_now() -> str:
@@ -234,6 +246,43 @@ class MetricsService:
             return self.log_event("voice_timing", payload)
 
     record_voice_latency = record_voice_timing
+
+    def record_voice_event(
+        self,
+        *,
+        event_type: str,
+        call_id: str,
+        listen_id: str,
+        client_turn_id: str | None = None,
+        configured_timeout_ms: int,
+        elapsed_ms: float | None,
+        locale: str,
+        implementation: str,
+        status: str,
+        error_code: str | None = None,
+        created_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Record bounded listening telemetry without clinical payloads."""
+
+        if event_type not in VOICE_EVENT_TYPES:
+            raise ValueError("unsupported voice event")
+        payload: dict[str, Any] = {
+            "call_id": str(call_id),
+            "listen_id": str(listen_id),
+            "configured_timeout_ms": int(configured_timeout_ms),
+            "elapsed_ms": elapsed_ms,
+            "locale": str(locale),
+            "implementation": str(implementation),
+            "status": str(status),
+        }
+        if client_turn_id is not None:
+            payload["client_turn_id"] = str(client_turn_id)
+        if error_code is not None:
+            payload["error_code"] = str(error_code)
+            payload["code"] = str(error_code)
+        if created_at is not None:
+            payload["created_at"] = created_at
+        return self.log_event(event_type, payload)
 
     def record_call(
         self,
@@ -489,6 +538,7 @@ def calculate_metrics(
 __all__ = [
     "DEFAULT_MODEL_VERSION",
     "MetricsService",
+    "VOICE_EVENT_TYPES",
     "calculate_metrics",
     "log_event",
     "percentile",

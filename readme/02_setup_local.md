@@ -14,9 +14,9 @@ requiere aun cronometraje desde un entorno limpio.
 - `GROQ_API_KEY` solo para la ruta remota completa; los tests locales deben poder usar el
   modo extractivo sin secreto.
 - Los datos ya estan locales en [`dataset/`](../dataset/); no se descarga ningun dataset.
-- `.env.example` incluye `PATIENT_LISTEN_TIMEOUT_MS=30000` como valor planificado para una
-  futura escucha configurable. El checkout actual no carga automaticamente ese archivo ni
-  aplica ese timer.
+- `.env.example` incluye `PATIENT_LISTEN_TIMEOUT_MS=30000`. `Settings` valida el valor y el
+  runtime lo publica por `/health`; el checkout no carga automaticamente el archivo de ejemplo.
+  El timer del navegador usa el valor efectivo, no una lectura directa de `.env`.
 
 ## Instalacion
 
@@ -71,14 +71,22 @@ Abrir:
 
 - `http://127.0.0.1:8000/admin` para gestionar documentos.
 - `http://127.0.0.1:8000/call` para la llamada browser/API.
+- `http://127.0.0.1:8000/health` para comprobar FTS5, modelo, voz, revision y timeout publico.
+- `http://127.0.0.1:8000/docs` para OpenAPI.
 
 Si se usa Groq, definir `GROQ_API_KEY` en el entorno antes de arrancar. No escribir claves en
 Git ni en capturas.
 
-El timeout de escucha del paciente se especifica por separado en
+El timeout de escucha del paciente esta implementado y se documenta en
 [`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md).
-No modifica los timeouts actuales de Groq, Whisper ni SQLite y no debe reportarse como
-implementado hasta contar con pruebas y smoke de navegador.
+Es una duracion total por intento, default `30000`, rango `1000..300000`, distinta de Groq
+(`12 s`), Whisper (`30 s`) y SQLite (`5000 ms`). Un timeout/no respuesta/parcial no crea turno;
+la UI ofrece reintento o texto y un transcript tardio recibe `409 late_transcript`. Las pruebas
+locales cubren el contrato; el smoke manual de Chrome/Edge, microfono y audio sigue pendiente.
+
+En `/admin`, el flujo local es: upload -> preview textual -> disable (conserva e indexa pero
+excluye de RAG) -> enable (recupera sin reingesta) -> delete (limpia FTS5, conserva snapshot y
+retira el archivo). G5 externo sigue pendiente aunque el recorrido local este probado.
 
 ## Preflight
 
@@ -86,12 +94,15 @@ Antes de la demo, ejecutar:
 
 ```text
 python -m pytest -q --basetemp <temp>
+python -m pytest tests/test_admin_lifecycle.py tests/test_timeout.py -q --basetemp <temp>
 ruff check .
+node --check app/web/app.js
 python -m scripts.validate_dataset
 python -m app.bootstrap --data-dir <temp>
 ```
 
-Resultados del 2026-08-08: 38 tests pasaron, Ruff no reporto hallazgos, el dataset fue
+Resultados del 2026-08-08: 24 tests enfocados y 96 tests completos pasaron, Ruff no reporto
+hallazgos, `node --check app/web/app.js` fue valido, y el dataset fue
 validado como `3991/40/40/160` y el bootstrap proceso 104 documentos con estados
 `available=103` y `needs_ocr=1`. La prueba de idempotencia paso dentro de la suite. El
 recorrido de conocimiento vivo local tambien esta cubierto por las pruebas, pero G5 aun
@@ -101,5 +112,6 @@ requiere una demostracion con documento externo al corpus.
 
 Cronometrar desde `python -m venv .venv` hasta que `/admin` y `/call` respondan. Anotar
 version de Python, commit, navegador, hora de inicio/fin y cualquier espera de credenciales
-en [metricas y evidencia](04_metricas_y_evidencia.md). El resultado actual es `PENDIENTE`:
+en [metricas y evidencia](04_metricas_y_evidencia.md). El resultado actual es
+`MANUAL_PENDING`:
 el bootstrap y los tests locales no sustituyen el cronometraje G2 desde un entorno limpio.

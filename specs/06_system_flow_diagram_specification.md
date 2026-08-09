@@ -1,64 +1,59 @@
-# Spec: Diagrama normativo del flujo completo del MVP
+# Spec: Diagrama integrador del flujo completo del MVP
 
-**Estado:** propuesta normativa para revision humana; no ejecutada ni implementada
-**Version:** 0.1.0
+**Estado:** integrada; runtime y pruebas locales verificadas; evidencia manual pendiente
+**Version:** 0.2.0
 **Fecha:** 2026-08-08
-**Rol:** fuente principal del diagrama que guiara los cambios posteriores de codigo
+**Rol:** fuente normativa del diagrama y de la trazabilidad de las specs 03, 04 y 05
 
 ## Objetivo
 
-Definir una vista ASCII y un conjunto de subdiagramas Mermaid que cualquier persona pueda leer
-para entender el sistema completo: actores, superficies, etapas, submodulos, persistencia,
-conocimiento vivo, voz, triaje, RAG, fallbacks y metricas.
+Definir la vista ASCII y los subdiagramas Mermaid del MVP que ya existe en el checkout. La vista
+integra estructura, administracion documental, llamada browser/API, escucha, triaje, RAG,
+respuesta, persistencia y metricas. No es una ilustracion libre: cada bloque y cada limite
+importante tiene una spec de origen, una ruta de codigo o contrato y una verificacion local o
+manual explicitamente clasificada.
 
-Este documento es el corazon de la implementacion posterior. No es una ilustracion libre: cada
-bloque, estado y flecha normativa debe poder trazarse a una spec, un contrato, una ruta de
-codigo y una verificacion. Los elementos que todavia no existen se marcan como `PROPOSED` y no
-como implementados.
+La fuente normativa de requisitos sigue siendo `specs/00_mvp_specification.md` y las specs 03,
+04 y 05 aportan respectivamente estructura, ciclo documental y timeout. Esta spec no modifica el
+runtime; sincroniza su vista integradora y deja visibles las divergencias y los pendientes de
+evidencia.
 
-## Tech Stack
+## Precedencia y fuentes
 
-La vista se publica en Markdown con bloques `text` y `mermaid`, compatible con un renderizador
-Mermaid moderno del repositorio o de GitHub. No agrega una libreria de runtime: el diagrama
-documenta FastAPI/Uvicorn, SQLite/FTS5, Web Speech API, Groq opcional, fallback extractivo,
-JSONL y las rutas de `mvp/` definidas por las specs upstream.
-
-## Project Structure
-
-- `specs/06_system_flow_diagram_specification.md`: fuente normativa y matriz `TRZ-*`.
-- `docs/arquitectura.md`: vista publicada del baseline actual.
-- `mvp/deliverables/02_architecture/`: vista formal futura, derivada con procedencia.
-- `app/`, `scripts/`, `tests/`: rutas que cada modulo del diagrama debe poder localizar.
-- `mvp/crisp-dm/`: fases de proceso futuras, sin copias de `dataset/` o `docs/`.
-
-## Code Style
-
-Los nodos usan IDs estables, etiquetas cortas y estado explicito. Las relaciones se rotulan con
-direccion, tipo (`HTTP`, `DB`, `RAG`, `T=`) y contrato cuando cruzan un limite. Un nodo nuevo se
-agrega primero a la tabla de modulos y a `TRZ-*`, antes de aparecer en Mermaid o en el codigo.
-
-## Dependencias y precedencia
-
-El diagrama se actualiza despues de las tres specs que cambian el alcance:
-
-| ID | Fuente | Aporta al diagrama |
+| ID | Fuente | Aporte al diagrama |
 |---|---|---|
-| `SPEC-BASE-001` | `specs/00_mvp_specification.md` | contrato del MVP, superficies, RAG, triaje y limites |
-| `SPEC-STRUCT-001` | `specs/03_mvp_structure_specification.md` | ownership, rutas de entregables y fases `mvp/crisp-dm/` |
-| `SPEC-ADMIN-001` | `specs/04_admin_document_lifecycle_specification.md` | preview, `enabled`, disable, enable, delete y filtro RAG |
-| `SPEC-TIMEOUT-001` | `specs/05_patient_listening_timeout_specification.md` | `PATIENT_LISTEN_TIMEOUT_MS`, estados de escucha y fallback |
-| `SPEC-RUBRIC-001` | `docs/rubrica-evaluacion.md` | G1-G5, voz, conocimiento vivo y metricas |
-| `SPEC-STACK-001` | `docs/stack-tecnico.md` | familias de modelos permitidas |
+| `SPEC-BASE-001` | [`specs/00_mvp_specification.md`](00_mvp_specification.md) | contrato del MVP, superficies, RAG, triaje y limites |
+| `SPEC-STRUCT-001` | [`specs/03_mvp_structure_specification.md`](03_mvp_structure_specification.md) | ownership aplicado, `mvp/crisp-dm/` y `mvp/deliverables/` |
+| `SPEC-ADMIN-001` | [`specs/04_admin_document_lifecycle_specification.md`](04_admin_document_lifecycle_specification.md) | preview textual, `enabled`, `rag_eligible`, toggle, delete y snapshots |
+| `SPEC-TIMEOUT-001` | [`specs/05_patient_listening_timeout_specification.md`](05_patient_listening_timeout_specification.md) | `PATIENT_LISTEN_TIMEOUT_MS`, estados, IDs, eventos e idempotencia |
+| `SPEC-TEST-001` | [`specs/07_testing_unit_integration_specification.md`](07_testing_unit_integration_specification.md) | frontera entre pruebas locales y evidencia manual; estrategia ejecutable |
+| `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
+| `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
-Regla de precedencia:
+La precedencia operativa es:
 
 ```text
-fuentes canonicas -> specs 00/03/04/05 -> esta spec 06 -> vistas publicadas -> codigo -> evidencia
+fuentes canonicas -> specs 00/03/04/05 -> spec 06 -> vistas publicadas -> codigo -> evidencia
 ```
 
-Si la implementacion real contradice este documento, no se corrige el diagrama para esconder la
-divergencia: se registra la diferencia, se actualiza primero la spec correspondiente y se marca
-el elemento como `PROPOSED`, `MANUAL_PENDING` o `OUT_OF_SCOPE`.
+Si una vista publicada o el codigo contradicen una spec, se registra la divergencia y su fuente
+responsable. `PROPOSED` no se usa para ocultar una capacidad que ya existe o una discrepancia.
+
+## Estados de implementacion y evidencia
+
+Los estados se aplican al alcance indicado. Cuando una capacidad tiene codigo pero carece de una
+prueba que requiera navegador o proveedor, se conserva la dimension separada.
+
+| Estado | Significado |
+|---|---|
+| `IMPLEMENTED` | existe en el checkout y tiene ruta o contrato identificable |
+| `TESTED` | existe y tiene una prueba automatizada o una comprobacion reproducible ejecutada |
+| `MANUAL_PENDING` | existe, pero falta navegador, microfono, audio, proveedor real, cronometraje o documento externo |
+| `PROPOSED` | capacidad futura que no existe en el runtime actual |
+| `OUT_OF_SCOPE` | limite explicito del MVP; no se implementa en este corte |
+
+`DIVERGENCE` es una anotacion de sincronizacion, no un estado adicional. Se documenta en la
+seccion [Divergencias conocidas](#divergencias-conocidas) con la fuente que debe resolverla.
 
 ## Convenciones visuales
 
@@ -67,88 +62,62 @@ el elemento como `PROPOSED`, `MANUAL_PENDING` o `OUT_OF_SCOPE`.
 | Prefijo | Elemento | Ejemplo |
 |---|---|---|
 | `ACT` | actor | `ACT-PATIENT-001` |
-| `UI` | superficie de usuario | `UI-CALL-001` |
+| `UI` | superficie browser | `UI-CALL-001` |
 | `API` | ruta o contrato HTTP | `API-CALL-TURN-001` |
-| `STG` | etapa del flujo | `STG-VOICE-001` |
+| `STG` | etapa | `STG-VOICE-001` |
 | `MOD` | submodulo | `MOD-RAG-001` |
-| `EXT` | dependencia externa | `EXT-GROQ-001` |
+| `EXT` | dependencia externa | `EXT-GROQ-LLM-001` |
 | `DATA` | persistencia o entidad | `DATA-SQLITE-001` |
 | `STATE` | estado o transicion | `STATE-DOC-DISABLED-001` |
-| `RULE` | regla de seguridad o decision | `RULE-TRIAGE-STICKY-001` |
-| `MET` | metrica o evento | `MET-VOICE-P95-001` |
+| `RULE` | regla de seguridad | `RULE-TRIAGE-STICKY-001` |
+| `MET` | metrica o evento | `MET-VOICE-TIMEOUT-001` |
 | `TRZ` | requisito trazable | `TRZ-RAG-CITATION-001` |
-| `TEST` | prueba o evidencia | `TEST-LIVE-KNOWLEDGE-001` |
+| `TEST` | prueba o evidencia | `TEST-TIMEOUT-001` |
 | `GATE` | compuerta del reto | `GATE-G5-001` |
 
-### Estados de implementacion
+Las flechas que cruzan navegador/API llevan `HTTP`; las de persistencia, `DB`; las de
+recuperacion, `RAG`; y las que tienen un limite temporal, `T=`. La tabla de
+[contratos](#mapa-de-contratos-y-submodulos) y la matriz `TRZ-*` son la autoridad para localizar
+cada flecha.
 
-Cada nodo o relacion se etiqueta con uno de estos estados. Cuando se necesiten dos dimensiones,
-se escribe `implementation=...; evidence=...`; no se inventan estados nuevos como `PARTIAL` o
-`TESTED local`.
-
-- `IMPLEMENTED`: existe en el checkout y tiene ruta o contrato identificable.
-- `TESTED`: ademas tiene prueba automatizada o evidencia reproducible.
-- `MANUAL_PENDING`: existe, pero falta navegador, microfono, audio o demo real.
-- `PROPOSED`: lo exige una spec futura, pero no existe aun en runtime.
-- `OUT_OF_SCOPE`: se muestra para dejar claro el limite, pero no se implementara en el MVP.
-
-`OPTIONAL` es un atributo de una dependencia externa, no un estado de implementacion. Por
-ejemplo, el proveedor remoto puede ser `OPTIONAL; implementation=IMPLEMENTED; evidence=MANUAL_PENDING`.
-Cuando un bloque mezcla baseline y extension, el estado se aplica al alcance indicado entre
-parentesis, por ejemplo `IMPLEMENTED (preview/toggle PROPOSED)`.
-
-### Lectura de flechas y bloques
-
-- Flecha solida: flujo obligatorio del MVP.
-- Flecha punteada: dependencia opcional, fallback o proveedor externo.
-- Flecha roja en Mermaid: riesgo o regla que no puede degradarse.
-- `HTTP`: limite de API entre navegador y FastAPI.
-- `DB`: lectura o escritura persistente.
-- `RAG`: consulta de conocimiento activo y cita.
-- `T=`: timeout aplicable a la flecha.
-- Los bloques `ACT`, `UI`, `MOD`, `DATA` y `EXT` no se mezclan: actor no es submodulo,
-  navegador no decide triaje y proveedor no escribe directamente en persistencia.
-
-### ID de cada vista
-
-Las referencias `D1` a `D6` de la matriz significan:
+### IDs de vistas
 
 | ID | Vista |
 |---|---|
-| `D1` | contexto, actores, bloques y estructura |
-| `D2` | llamada completa del paciente |
+| `D1` | contexto, actores, ownership y estructura |
+| `D2` | llamada completa del paciente, escucha e idempotencia |
 | `D3` | administracion y conocimiento vivo |
 | `D4` | triaje, RAG, agente y abstencion |
-| `D5` | escucha, timeout y fallback |
+| `D5` | estados de escucha, timeout y fallback |
 | `D6` | datos, evidencia y metricas |
 
 ## Etapas de extremo a extremo
 
-| Etapa | ID | Accion humana o tecnica | Salida observable |
-|---|---|---|---|
-| 0. Preparar | `STG-BOOT-001` | validar XLSX y recorrer corpus local | corpus inicial, hash y revision |
-| 1. Administrar | `STG-ADMIN-001` | subir, previsualizar, habilitar, deshabilitar o borrar | inventario y estado visible |
-| 2. Iniciar | `STG-CALL-001` | paciente abre `/call` y crea llamada | `call_id` y estado activo |
-| 3. Escuchar | `STG-VOICE-001` | navegador captura voz o texto | transcript final o fallback |
-| 4. Analizar | `STG-TRIAGE-001` | normalizar y clasificar con nivel previo | `rojo`, `amarillo`, `verde` o `unknown` |
-| 5. Recuperar | `STG-RAG-001` | buscar solo `available + enabled` (extension propuesta) | chunks, score, pagina y cita |
-| 6. Responder | `STG-AGENT-001` | LLM permitido o fallback extractivo | respuesta grounded o abstencion |
-| 7. Hablar | `STG-TTS-001` | reproducir audio en `es-CO` | audio y timestamps |
-| 8. Persistir | `STG-OBS-001` | guardar turno, fuente, alerta y metricas | SQLite, JSONL y `/api/metrics` |
-| 9. Cerrar | `STG-CLOSE-001` | finalizar llamada | resumen estructurado y siguiente paso |
+| Etapa | ID | Accion | Salida observable | Estado |
+|---|---|---|---|---|
+| 0. Preparar | `STG-BOOT-001` | validar XLSX y recorrer el corpus local | base, hash y revision de corpus | TESTED |
+| 1. Administrar | `STG-ADMIN-001` | subir, preview, habilitar, deshabilitar o borrar | inventario, badges y revision | TESTED |
+| 2. Iniciar | `STG-CALL-001` | abrir `/call` y crear llamada | `call_id` activo | TESTED |
+| 3. Escuchar | `STG-VOICE-001` | capturar voz o aceptar texto | transcript final o fallback | IMPLEMENTED; browser MANUAL_PENDING |
+| 4. Analizar | `STG-TRIAGE-001` | normalizar y clasificar con nivel previo | `red`, `yellow`, `green` o `unknown` | TESTED |
+| 5. Recuperar | `STG-RAG-001` | buscar `status='available' AND enabled=1` | chunks, score, pagina y cita | TESTED |
+| 6. Responder | `STG-AGENT-001` | Llama permitido o fallback extractivo | respuesta grounded o abstencion | TESTED local; proveedor MANUAL_PENDING |
+| 7. Hablar | `STG-TTS-001` | reproducir en `es-CO` | audio y timestamps | IMPLEMENTED; MANUAL_PENDING |
+| 8. Persistir | `STG-OBS-001` | guardar turnos, fuentes, alertas y eventos | SQLite, JSONL y `/api/metrics` | TESTED |
+| 9. Cerrar | `STG-CLOSE-001` | finalizar llamada | resumen estructurado | TESTED |
 
-## Mermaid 0: ownership de estructura
+## Mermaid 0: ownership aplicado
 
 ```mermaid
 flowchart TD
-    ROOT["Repositorio raiz<br/>README, app, scripts, tests, specs, readme"]
-    MVP["mvp/<br/>contenedor de entrega y proceso<br/>[PROPOSED]"]
-    CRISP["mvp/crisp-dm/<br/>seis fases CRISP-DM<br/>[PROPOSED]"]
-    DELIV["mvp/deliverables/<br/>repo, arquitectura, informe, video<br/>[PROPOSED]"]
+    ROOT["Repositorio raiz<br/>README, app, scripts, tests, specs, readme<br/>[TESTED]"]
+    MVP["mvp/<br/>contenedor de entrega y proceso<br/>[TESTED]"]
+    CRISP["mvp/crisp-dm/<br/>seis fases CRISP-DM<br/>[TESTED]"]
+    DELIV["mvp/deliverables/<br/>cuatro entregables formales<br/>[TESTED]"]
     SPEC["specs/<br/>fuente normativa<br/>[IMPLEMENTED]"]
-    OPS["readme/<br/>setup, demo, evidencia, sesiones<br/>[IMPLEMENTED]"]
-    CODE["app/ + scripts/ + tests/<br/>runtime y verificaciones<br/>[IMPLEMENTED]"]
-    CANON["dataset/ + docs canonicos<br/>fuera de mvp<br/>[IMPLEMENTED]"]
+    OPS["readme/<br/>setup, demo, evidencia y sesiones<br/>[IMPLEMENTED]"]
+    CODE["app/ + scripts/ + tests/<br/>runtime y verificaciones<br/>[TESTED]"]
+    CANON["dataset/ + docs canonicos<br/>fuera de mvp; se enlazan<br/>[TESTED]"]
 
     ROOT --> MVP
     MVP --> CRISP
@@ -157,23 +126,24 @@ flowchart TD
     ROOT --> OPS
     ROOT --> CODE
     ROOT --> CANON
-    SPEC -.->|"define rutas y procedencia"| MVP
+    SPEC -.->|"define ownership y procedencia"| MVP
     CANON -.->|"se enlaza, no se copia"| CRISP
 ```
 
-Esta vista hace visible la dependencia de `SPEC-STRUCT-001`: `mvp/` contiene entregables, pero
-no absorbe runtime, dataset ni documentos canonicos.
+`mvp/crisp-dm/` y `mvp/deliverables/` existen en las rutas aplicadas. No contienen copias de
+`dataset/`, `docs/`, runtime ni estado generado. La comprobacion estructural y la ausencia de
+copias prohibidas se ejecutan en el preflight documental.
 
 ## Diagrama ASCII canonico
 
-Este es el resumen humano obligatorio. Los subdiagramas Mermaid que siguen detallan sus
-secciones; no pueden introducir un camino que contradiga este flujo.
+Este resumen es la vista humana obligatoria. Los diagramas Mermaid detallan sus bloques sin
+introducir caminos alternativos que contradigan el flujo.
 
 ```text
  ACT-ADMIN-001                                      ACT-PATIENT-001
  Administrador                                      Paciente
        |                                                  |
-       | subir / preview / enable / disable / delete      | voz o texto
+       | upload / preview / enable / disable / delete    | voz o texto
        v                                                  v
  +----------------------+                       +----------------------+
  | UI-ADMIN-001        |                       | UI-CALL-001         |
@@ -186,7 +156,7 @@ secciones; no pueden introducir un camino que contradiga este flujo.
                     +-------------------------+
                     | MOD-API-001             |
                     | FastAPI / Uvicorn       |
-                    | [IMPLEMENTED]           |
+                    | [TESTED]                |
                     +------------+------------+
                                  |
               +------------------+------------------+
@@ -194,61 +164,62 @@ secciones; no pueden introducir un camino que contradiga este flujo.
               v                                     v
  +--------------------------+             +--------------------------+
  | MOD-DOCUMENT-001        |             | MOD-CALL-001             |
-  | upload/list/delete      |             | call/turn/finish         |
- | enable/disable/delete   |             | [IMPLEMENTED]            |
- | [IMPLEMENTED]           |             +------------+-------------+
- | preview/toggle [PROPOSED]|                          |
+ | upload/list/preview     |             | call/turn/finish         |
+ | enable/disable/delete   |             | [TESTED]                |
+ | [TESTED]                |             +------------+-------------+
  +------------+-------------+                          |
-              |                                        v
-              v                            +--------------------------+
- +--------------------------+               | MOD-TRIAGE-001          |
- | MOD-INGEST-001          |               | rojo/amarillo/verde/    |
- | PDF/TXT/MD, paginas,    |               | unknown, alertas sticky |
- | chunks, needs_ocr       |               | [IMPLEMENTED]            |
- | [IMPLEMENTED]           |               +------------+-------------+
- +------------+-------------+                            |
-              | paginas/chunks/FTS                       | decision
-              +------------------+-------------------------+
+              |                                         v
+              v                             +--------------------------+
+ +--------------------------+                | MOD-TRIAGE-001          |
+ | MOD-INGEST-001          |                | red/yellow/green/       |
+ | PDF/TXT/MD, pages,      |                | unknown; alerts sticky  |
+ | chunks, needs_ocr       |                | [TESTED]                |
+ | [TESTED]                |                +------------+-------------+
+ +------------+-------------+                             |
+              | pages/chunks/FTS5                         | decision
+              +------------------+--------------------------+
                                  v
-                    +-------------------------+
-                    | MOD-RAG-001             |
-                    | FTS5 + active filter    |
-                    | chunks + citas          |
-                    | [IMPLEMENTED]           |
-                    | enabled filter [PROPOSED]|
-                    +------------+------------+
-                                 | contexto delimitado
+                    +--------------------------+
+                    | MOD-RAG-001              |
+                    | available AND enabled=1 |
+                    | chunks + citations       |
+                    | [TESTED]                 |
+                    +------------+-------------+
+                                 | bounded context
                                  v
-                    +-------------------------+
-                    | MOD-AGENT-001           |
-                    | respuesta grounded,     |
-                    | abstencion y seguridad  |
-                    | [IMPLEMENTED]           |
-                    +------------+------------+
+                    +--------------------------+
+                    | MOD-AGENT-001            |
+                    | grounded, abstention,    |
+                    | output safety [TESTED]   |
+                    +------------+-------------+
                                  |
-                    +------------+------------+
+                    +------------+-------------+
                     |                         |
                     v                         v
           +-------------------+     +--------------------------+
           | EXT-GROQ-001      |     | MOD-FALLBACK-001         |
-          | Llama permitido   |     | extractivo FTS5          |
-          | Whisper opcional  |     | determinista             |
-          | OPTIONAL DEPEND.  |     | [IMPLEMENTED]            |
-          +-------------------+     +--------------------------+
+          | Llama allowed     |     | extractive FTS5          |
+          | Whisper optional  |     | deterministic             |
+          | OPTIONAL;         |     | [TESTED]                 |
+          | MANUAL_PENDING    |     +--------------------------+
+          +---------+---------+
                     |
                     v
           +--------------------------+
           | UI-CALL-001              |
           | SpeechSynthesis es-CO   |
-          | [IMPLEMENTED]            |
+          | [IMPLEMENTED;           |
+          |  MANUAL_PENDING]        |
           +------------+-------------+
                        |
                        v
           +--------------------------+
           | DATA-SQLITE-001          |
-          | docs/pages/chunks/FTS5  |
+          | docs/pages/chunks/FTS5   |
           | calls/turns/sources      |
           | alerts/audit/revision    |
+          | listening_attempts       |
+          | [TESTED]                 |
           +------------+-------------+
                        |
               +--------+--------+
@@ -256,39 +227,40 @@ secciones; no pueden introducir un camino que contradiga este flujo.
     +----------------+  +----------------------+
     | DATA-FILES-001 |  | DATA-EVENTS-001     |
     | data/uploads   |  | data/events.jsonl   |
+    | [TESTED]       |  | [TESTED]            |
     +----------------+  +----------+-----------+
                                   |
                                   v
                        +----------------------+
                        | MOD-METRICS-001      |
                        | P50/P95, tokens,     |
-                       | model calls, RAG,    |
-                       | costo y timeouts     |
+                       | calls, RAG, timeout  |
+                       | [TESTED; costo vivo  |
+                       |  PROPOSED]           |
                        +----------------------+
 
  ESCUCHA (STG-VOICE-001)
-   SpeechRecognition es-CO --> PATIENT_LISTEN_TIMEOUT_MS
-   [PROPOSED]                 |-- timeout sin final: reintento/texto, nunca verde
-                              |-- final antes del limite: un solo POST /turns
-                              +-- navegador sin soporte: fallback textual
+   GET /health -> PATIENT_LISTEN_TIMEOUT_MS (default 30000; 1000..300000)
+   onstart -> LISTENING -> PARTIAL (borrador no clinico)
+   final <= limite -> POST /turns con listen_id + client_turn_id
+   timeout/no_response/error -> no turno clinico -> reintento o texto
+   final posterior al timeout -> 409 late_transcript
 
  RAG (STG-RAG-001)
-   pregunta -> normalize -> status=available AND enabled=true [PROPOSED]
-   -> FTS5 -> evidencia suficiente? -> cita o abstencion segura
+   pregunta -> normalizar -> status=available AND enabled=1
+   -> FTS5 -> evidencia suficiente? -> cita trazable o abstencion segura
 
  REGLAS NO NEGOCIABLES
-    proveedor nunca decide triaje; LLM nunca baja rojo/amarillo;
-    documento disabled/deleted nunca aparece en consultas nuevas;
-    fuente historica no se reutiliza como evidencia nueva.
- ```
+   proveedor nunca decide triaje; rojo/amarillo no degradan;
+   disabled/deleted no aparece en consultas nuevas;
+   snapshot historico no se reutiliza como evidencia RAG nueva;
+   timeout, parcial o error nunca se convierten en verde.
+```
 
-Lectura del retorno: `ACT-ADMIN-001` y `ACT-PATIENT-001` interactuan con
-`ACT-BROWSER-001`; el navegador llama a `MOD-API-001`, y solo el API devuelve la respuesta a
-`UI-CALL-001` para `SpeechSynthesis`. El bloque `EXT-GROQ-001` y `MOD-FALLBACK-001` convergen en
-`MOD-AGENT-001`; ningun proveedor o navegador escribe directamente en `DATA-SQLITE-001`.
-El bootstrap sigue el camino `dataset/ -> MOD-BOOTSTRAP-001 -> MOD-INGEST-001 -> SQLite/FTS5`
-antes de la llamada. Los XLSX alimentan validacion y contratos de casos; no se inyectan como
-corpus clinico ni se confunden con una conversacion completa.
+El navegador es el actor tecnico que llama al API; no decide triaje ni escribe directamente en
+SQLite. El bootstrap lee las fuentes canonicas desde sus rutas originales, valida el dataset y
+alimenta la ingesta. La prueba automatizada local de conocimiento vivo no sustituye el recorrido
+G5 con un documento externo.
 
 ## Mermaid 1: contexto, actores y bloques
 
@@ -297,29 +269,29 @@ flowchart LR
     PAT["ACT-PATIENT-001<br/>Paciente"]
     ADM["ACT-ADMIN-001<br/>Administrador"]
     BR["ACT-BROWSER-001<br/>Navegador"]
-    PROV_LLM["EXT-GROQ-LLM-001<br/>Meta Llama permitido<br/>OPTIONAL DEPENDENCY"]
-    PROV_STT["EXT-GROQ-STT-001<br/>Whisper opcional<br/>OPTIONAL DEPENDENCY"]
+    PROV_LLM["EXT-GROQ-LLM-001<br/>Meta Llama permitido<br/>OPTIONAL; MANUAL_PENDING"]
+    PROV_STT["EXT-GROQ-STT-001<br/>Whisper opcional<br/>OPTIONAL; MANUAL_PENDING"]
 
     subgraph WEB["UI-001 | Superficies browser"]
         ADMIN["UI-ADMIN-001<br/>/admin<br/>[IMPLEMENTED]"]
-        CALL["UI-CALL-001<br/>/call<br/>[IMPLEMENTED]"]
-        LISTEN["MOD-VOICE-BROWSER-001<br/>SpeechRecognition es-CO<br/>implementation=IMPLEMENTED; evidence=MANUAL_PENDING"]
-        TTS["MOD-TTS-BROWSER-001<br/>SpeechSynthesis es-CO<br/>[IMPLEMENTED]"]
-        TEXT["UI-TEXT-FALLBACK-001<br/>entrada textual<br/>[IMPLEMENTED]"]
+        CALL["UI-CALL-001<br/>/call<br/>[IMPLEMENTED; MANUAL_PENDING]"]
+        LISTEN["MOD-VOICE-BROWSER-001<br/>SpeechRecognition es-CO<br/>IMPLEMENTED; MANUAL_PENDING"]
+        TTS["MOD-TTS-BROWSER-001<br/>SpeechSynthesis es-CO<br/>IMPLEMENTED; MANUAL_PENDING"]
+        TEXT["UI-TEXT-FALLBACK-001<br/>entrada textual<br/>IMPLEMENTED; MANUAL_PENDING UI"]
     end
 
     subgraph APP["SYS-APP-001 | FastAPI local"]
-        API["MOD-API-001<br/>rutas y contratos<br/>app/main.py"]
-        CFG["MOD-CONFIG-001<br/>env y timeout paciente<br/>[PROPOSED]"]
-        DOC["MOD-DOCUMENT-001<br/>upload/list/delete<br/>[IMPLEMENTED]<br/>preview/toggle [PROPOSED]"]
-        ING["MOD-INGEST-001<br/>extraccion y chunks<br/>[IMPLEMENTED]"]
-        BOOT["MOD-BOOTSTRAP-001<br/>validacion y corpus inicial<br/>[IMPLEMENTED]"]
-        C["MOD-CALL-001<br/>llamadas y resumen<br/>[IMPLEMENTED]"]
-        TRI["MOD-TRIAGE-001<br/>reglas deterministas<br/>[IMPLEMENTED]"]
-        RAG["MOD-RAG-001<br/>FTS5 y citas [IMPLEMENTED]<br/>filtro enabled [PROPOSED]"]
-        AG["MOD-AGENT-001<br/>grounding y abstencion<br/>[IMPLEMENTED]"]
-        VOICE["MOD-VOICE-SERVER-001<br/>Whisper opcional<br/>[IMPLEMENTED]"]
-        MET["MOD-METRICS-001<br/>eventos y agregacion<br/>[IMPLEMENTED]"]
+        API["MOD-API-001<br/>app/main.py<br/>[TESTED]"]
+        CFG["MOD-CONFIG-001<br/>env y timeout paciente<br/>[TESTED]"]
+        DOC["MOD-DOCUMENT-001<br/>upload/list/preview/toggle/delete<br/>[TESTED]"]
+        ING["MOD-INGEST-001<br/>extraccion y chunks<br/>[TESTED]"]
+        BOOT["MOD-BOOTSTRAP-001<br/>validacion y corpus inicial<br/>[TESTED]"]
+        C["MOD-CALL-001<br/>llamadas, turnos, resumen<br/>[TESTED]"]
+        TRI["MOD-TRIAGE-001<br/>reglas deterministas<br/>[TESTED]"]
+        RAG["MOD-RAG-001<br/>FTS5; available AND enabled=1<br/>[TESTED]"]
+        AG["MOD-AGENT-001<br/>grounding y abstencion<br/>[TESTED]"]
+        VOICE["MOD-VOICE-SERVER-001<br/>Whisper opcional<br/>IMPLEMENTED; MANUAL_PENDING real"]
+        MET["MOD-METRICS-001<br/>JSONL y agregacion<br/>[TESTED]"]
     end
 
     subgraph DATA["DATA-001 | Estado local"]
@@ -346,8 +318,7 @@ flowchart LR
     API --> C
     API --> VOICE
     API --> MET
-    API -->|"configuracion publica"| BR
-    API --> CFG
+    API -->|"GET /health: config publica"| CFG
     CFG --> API
     DOC --> ING
     DOC --> DB
@@ -365,32 +336,16 @@ flowchart LR
     C --> DB
     C --> MET
     MET --> EVENTS
-    DB -.->|"leer agregados"| MET
+    DB -.->|"agregados locales"| MET
     VOICE -.->|"STT opcional"| PROV_STT
-    AG -.->|"LLM permitido"| PROV_LLM
-
-    classDef actor fill:#e8f0fe,stroke:#2b579a,color:#111;
-    classDef ui fill:#e7f6ec,stroke:#2e7d32,color:#111;
-    classDef module fill:#eef2ff,stroke:#4f46e5,color:#111;
-    classDef data fill:#fff4d6,stroke:#a16207,color:#111;
-    classDef ext fill:#f3e8ff,stroke:#7e22ce,color:#111;
-    class PAT,ADM,BR actor;
-    class ADMIN,CALL,LISTEN,TTS,TEXT ui;
-    class API,CFG,DOC,ING,BOOT,C,TRI,RAG,AG,VOICE,MET module;
-    class DB,FILES,EVENTS data;
-    class PROV_LLM,PROV_STT ext;
+    AG -.->|"LLM permitido opcional"| PROV_LLM
 ```
 
-### Lectura humana del diagrama 1
+La existencia de la UI, la ruta HTTP o el proveedor no aprueba por si sola G4. El estado de
+`LISTEN`, `TTS`, Groq y Whisper conserva `MANUAL_PENDING` hasta probar navegador, audio y
+credencial real.
 
-1. El paciente solo interactua con el navegador; el navegador no clasifica riesgo.
-2. El administrador opera documentos desde `/admin`; el API coordina, pero no es una fuente
-   clinica.
-3. El agente combina triaje determinista, RAG y redaccion; el proveedor externo es opcional.
-4. SQLite/FTS5 es el punto de verdad del conocimiento activo y de la trazabilidad.
-5. `CFG` es `PROPOSED` hasta que exista la variable y el timer de escucha.
-
-## Mermaid 2: etapas de una llamada del paciente
+## Mermaid 2: llamada, escucha e idempotencia
 
 ```mermaid
 sequenceDiagram
@@ -416,66 +371,76 @@ sequenceDiagram
     API-->>BR: llamada activa
 
     loop Cada turno
-        PAT->>BR: Pulsar Hablar y responder
-        BR->>API: GET /health, timeout publico [PROPOSED]
-        API->>CFG: leer timeout publico
+        BR->>API: GET /health
+        API->>CFG: leer valor validado
         CFG-->>API: patient_listen_timeout_ms
-        API-->>BR: limite efectivo [PROPOSED]
+        API-->>BR: limite 1000..300000 ms
 
-        alt Browser SpeechRecognition disponible
-            BR->>VOICE: iniciar SpeechRecognition es-CO
-        else Audio hacia Whisper opcional
+        alt SpeechRecognition disponible
+            BR->>VOICE: start lang=es-CO, continuous=false
+            VOICE-->>BR: onstart -> LISTENING + timer total
+            VOICE-->>BR: interim -> PARTIAL; no backend clinico
+            BR->>API: POST /api/calls/{id}/voice-events partial
+        else audio al servidor
             BR->>API: POST /api/calls/{id}/audio
             API->>STT: Whisper, T=30s
             STT-->>API: transcript o error
         end
 
-        alt transcript final antes del limite
-            VOICE-->>BR: texto final
-            BR->>API: POST /api/calls/{id}/turns
-        else timeout sin transcript final
-            VOICE-->>BR: cancelar escucha [PROPOSED]
-            BR-->>PAT: Reintentar o usar texto; no respuesta clinica
-            BR->>API: POST /api/calls/{id}/voice-events [PROPOSED]
-            API->>MET: guardar patient_listen_timeout
-        else navegador sin soporte o permiso denegado
-            VOICE-->>BR: error visible
-            BR-->>PAT: Fallback textual
+        alt transcript final <= limite
+            VOICE-->>BR: final
+            BR->>API: POST /api/calls/{id}/voice-events final
+            BR->>API: POST /api/calls/{id}/turns {listen_id, client_turn_id}
+        else timeout/no_response/error sin final
+            VOICE-->>BR: cancelar escucha y limpiar parcial
+            BR-->>PAT: LISTEN_TIMEOUT/RETRY_REQUIRED; reintentar o texto
+            BR->>API: POST /api/calls/{id}/voice-events timeout/no_response/error
+            API->>MET: events.jsonl sin audio ni texto clinico
         end
 
-        API->>CALL: handle_turn(text)
-        CALL->>TRI: normalize + classify(text, previous_level)
+        API->>CALL: handle_turn(text) solo para final
+        CALL->>TRI: classify(text, previous_level)
         TRI-->>CALL: level, triggers, alert, clarify
-        CALL->>DB: guardar turno de paciente
-        CALL->>AG: responder(text, triage, history)
-        AG->>RAG: search(text, active corpus)
-        RAG->>DB: FTS5 WHERE status=available AND enabled=1 [PROPOSED]
+        CALL->>DB: guardar turno paciente
+        CALL->>AG: respond(text, triage, history)
+        AG->>RAG: search(text)
+        RAG->>DB: FTS5 WHERE status=available AND enabled=1
         DB-->>RAG: chunks, score, page, corpus_revision
         RAG-->>AG: fuentes y citas
 
-        alt evidencia suficiente y proveedor disponible
+        alt evidencia y proveedor disponible
             AG->>LLM: Llama permitido, T=12s
-            LLM-->>AG: respuesta candidata
-            AG->>AG: validar cita y seguridad
-        else proveedor caido, timeout o respuesta insegura
+            LLM-->>AG: candidata
+            AG->>AG: validar cita, relevancia y seguridad
+        else proveedor caido, timeout o salida insegura
             AG->>AG: fallback extractivo o abstencion
         end
 
         AG-->>CALL: respuesta, fuentes, decision y metricas
-        CALL->>DB: guardar turno, fuentes y alerta
-        CALL->>MET: registrar turn y rag event
-        MET->>MET: escribir events.jsonl
+        CALL->>DB: turno agente, fuentes, alerta y revision
+        CALL->>MET: turn y rag event
+        MET->>MET: events.jsonl
         API-->>BR: texto, fuentes y decision
         BR->>BR: SpeechSynthesis es-CO
         BR->>API: voice-timing speech_ended/audio_started
     end
 
+    opt resultado final tardio o reintento duplicado
+        BR->>API: POST /turns mismo client_turn_id
+        API-->>BR: duplicate=true o 409 late_transcript
+    end
+
     PAT->>BR: Finalizar llamada
     BR->>API: POST /api/calls/{id}/finish
-    API->>CALL: cerrar y resumir
-    CALL->>DB: resumen, next_steps, estado closed
+    API->>CALL: close_call()
+    CALL->>DB: resumen, next_steps, status=closed
     API-->>BR: resumen estructurado
 ```
+
+El timer es la duracion total de un intento y empieza en `onstart`; no cuenta permisos, TTS ni
+espera de red. Un resultado final exactamente en el limite se acepta si el reloj monotono no lo
+ubica despues del deadline. Un timeout ganado por la carrera deja la llamada activa y un
+transcript posterior recibe `409` con `error_code=late_transcript`.
 
 ## Mermaid 3: administracion y conocimiento vivo
 
@@ -493,49 +458,47 @@ sequenceDiagram
     ADM->>BR: Abrir /admin
     BR->>API: GET /api/admin/documents
     API->>DOC: list()
-    DOC->>DB: documentos, estados y revision
-    DB-->>API: status, enabled, rag_eligible, counts [PROPOSED fields]
-    API-->>BR: status, enabled, rag_eligible, counts [PROPOSED fields]
+    DOC->>DB: documentos, enabled, counts y revision
+    DB-->>API: status, enabled, rag_eligible, preview_available
+    API-->>BR: inventario con badges separados
 
     ADM->>BR: Subir PDF, TXT o MD
     BR->>API: POST /api/admin/documents
-    API->>DOC: validar extension, tamano y SHA-256
-    DOC->>FS: guardar original
-    DOC->>ING: extraer paginas y generar chunks
-    ING->>DB: paginas, chunks y FTS5
-    DOC->>DB: available, needs_ocr o error
+    API->>DOC: validar extension, limite y SHA-256
+    DOC->>FS: guardar original derivado del hash
+    DOC->>ING: extraer paginas y chunks
+    ING->>DB: pages, chunks y FTS5
+    DOC->>DB: status y enabled=true solo al terminar available
     API-->>BR: estado visible sin reiniciar
 
-    ADM->>BR: Abrir preview de pagina [PROPOSED]
-    BR->>API: GET /api/admin/documents/{id}/preview [PROPOSED]
-    API->>DB: leer pages.text, limite <= 8000 [PROPOSED]
-    DB-->>API: texto no ejecutable o reason=needs_ocr [PROPOSED]
-    API-->>BR: texto no ejecutable o reason=needs_ocr [PROPOSED]
+    ADM->>BR: Previsualizar pagina
+    BR->>API: GET /api/admin/documents/{id}/preview?page=1&limit<=8000
+    API->>DB: leer pages.text, nunca HTML ni archivo original
+    DB-->>API: texto plano o reason=needs_ocr
+    API-->>BR: preview acotada y no ejecutable
 
-    ADM->>BR: Deshabilitar documento [PROPOSED]
-    BR->>API: PATCH /api/admin/documents/{id} enabled=false [PROPOSED]
+    ADM->>BR: Deshabilitar documento
+    BR->>API: PATCH /api/admin/documents/{id} {enabled:false}
     API->>DOC: set_enabled(false)
-    DOC->>DB: enabled=0, revision y auditoria
-    DB-->>API: rag_eligible=false [PROPOSED]
-    API-->>BR: rag_eligible=false [PROPOSED]
-    RAG->>DB: nueva consulta con filtro enabled=1
-    DB-->>RAG: fuente deshabilitada excluida
+    DOC->>DB: enabled=0, revision y audit
+    DB-->>API: rag_eligible=false
+    RAG->>DB: nueva consulta con status=available AND enabled=1
+    DB-->>RAG: documento excluido; paginas/chunks se conservan
 
-    ADM->>BR: Habilitar documento [PROPOSED]
-    BR->>API: PATCH /api/admin/documents/{id} enabled=true [PROPOSED]
+    ADM->>BR: Habilitar documento
+    BR->>API: PATCH /api/admin/documents/{id} {enabled:true}
     API->>DOC: set_enabled(true)
-    DOC->>DB: enabled=1, revision y auditoria
-    DB-->>API: rag_eligible=true [PROPOSED]
-    API-->>BR: rag_eligible=true [PROPOSED]
-    RAG->>DB: nueva consulta con filtro enabled=1
-    DB-->>RAG: fuente recuperable sin reingesta
+    DOC->>DB: enabled=1, revision y audit
+    DB-->>API: rag_eligible=true
+    RAG->>DB: nueva consulta con el mismo filtro
+    DB-->>RAG: documento recuperable sin reingesta
 
     ADM->>BR: Eliminar documento
     BR->>API: DELETE /api/admin/documents/{id}
     API->>DOC: delete(id)
-    DOC->>DB: borrar paginas, chunks, FTS5 y documento
-    DOC->>DB: revision y auditoria delete
-    DOC->>FS: eliminar original despues de commit
+    DOC->>DB: snapshot de sources; borrar pages/chunks/FTS5/document
+    DOC->>DB: revision y audit delete
+    DOC->>FS: eliminar original despues del commit
     API-->>BR: deleted=true
     RAG->>DB: nueva consulta
     DB-->>RAG: fuente ausente; abstencion si era la unica evidencia
@@ -544,17 +507,17 @@ sequenceDiagram
 ```mermaid
 stateDiagram-v2
     [*] --> PROCESSING
-    state "STATE-DOC-PROCESSING-001\nprocessing [IMPLEMENTED]" as PROCESSING
-    state "STATE-DOC-AVAILABLE-001\navailable + enabled [PROPOSED]" as ENABLED
-    state "STATE-DOC-DISABLED-001\navailable + disabled [PROPOSED]" as DISABLED
-    state "STATE-DOC-OCR-001\nneeds_ocr [IMPLEMENTED]" as OCR
-    state "STATE-DOC-ERROR-001\nerror [IMPLEMENTED]" as ERROR
-    state "STATE-DOC-DELETED-001\nausente [IMPLEMENTED]" as DELETED
+    state "STATE-DOC-PROCESSING-001\nprocessing [TESTED]" as PROCESSING
+    state "STATE-DOC-AVAILABLE-001\navailable + enabled [TESTED]" as ENABLED
+    state "STATE-DOC-DISABLED-001\navailable + disabled [TESTED]" as DISABLED
+    state "STATE-DOC-OCR-001\nneeds_ocr [TESTED]" as OCR
+    state "STATE-DOC-ERROR-001\nerror [TESTED]" as ERROR
+    state "STATE-DOC-DELETED-001\nausente; snapshots historicos [TESTED]" as DELETED
 
     PROCESSING --> ENABLED: texto extraido e indexado
     PROCESSING --> OCR: sin texto utilizable
     PROCESSING --> ERROR: fallo de extraccion
-    PROCESSING --> DELETED: DELETE durante procesamiento
+    PROCESSING --> DELETED: DELETE
     ENABLED --> DISABLED: PATCH enabled=false
     DISABLED --> ENABLED: PATCH enabled=true
     ENABLED --> DELETED: DELETE
@@ -563,312 +526,334 @@ stateDiagram-v2
     ERROR --> DELETED: DELETE
 ```
 
+`available` es un estado tecnico. `enabled` es publicacion administrativa. `rag_eligible` es la
+interseccion `status == available and enabled == true`; no es un tercer estado persistido. La
+preview usa `pages.text`, limita cada respuesta a 8.000 caracteres y muestra Markdown/HTML como
+texto literal. Delete conserva snapshots minimos de fuentes de llamadas cerradas, pero nunca los
+reintroduce en RAG.
+
 ## Mermaid 4: triaje, RAG, agente y abstencion
 
 ```mermaid
 flowchart TD
-    T["STG-TRIAGE-001<br/>Turno final del paciente"] --> N["MOD-NORMALIZE-001<br/>Normalizar transcript"]
-    N --> INJ{"RULE-SECURITY-001<br/>Contenido no confiable o inyeccion?"}
-    INJ -->|"si"| SAFE["Abstencion de seguridad<br/>pedir sintoma real"]
-    INJ -->|"no"| TRI["MOD-TRIAGE-001<br/>clasificar con nivel previo"]
+    T["STG-TRIAGE-001<br/>Transcript final"] --> N["MOD-NORMALIZE-001<br/>normalizar"]
+    N --> INJ{"RULE-SECURITY-001<br/>inyeccion o datos no confiables?"}
+    INJ -->|"si"| SAFE["Abstencion de seguridad<br/>pedir sintoma real [TESTED]"]
+    INJ -->|"no"| TRI["MOD-TRIAGE-001<br/>nivel previo [TESTED]"]
 
     HISTORY["DATA-TURN-001<br/>historial y nivel previo"] --> TRI
-    TRI --> LEVEL{"Nivel"}
-    LEVEL -->|"rojo"| RED["RULE-RED-001<br/>alerta inmediata<br/>nivel sticky"]
-    LEVEL -->|"amarillo"| YELLOW["RULE-YELLOW-001<br/>alerta persistente"]
-    LEVEL -->|"verde"| GREEN["Continuar evaluacion<br/>sin alarma detectada"]
-    LEVEL -->|"unknown"| UNKNOWN["RULE-UNKNOWN-001<br/>pedir aclaracion"]
+    TRI --> LEVEL{"Nivel determinista"}
+    LEVEL -->|"red"| RED["RULE-RED-001<br/>alerta inmediata; sticky [TESTED]"]
+    LEVEL -->|"yellow"| YELLOW["RULE-YELLOW-001<br/>alerta persistente [TESTED]"]
+    LEVEL -->|"green"| GREEN["Continuar evaluacion<br/>sin alarma detectada [TESTED]"]
+    LEVEL -->|"unknown"| UNKNOWN["RULE-UNKNOWN-001<br/>pedir aclaracion [TESTED]"]
 
-    RED --> CONTEXT["MOD-RAG-001<br/>recuperar si aporta contexto"]
+    RED --> CONTEXT["MOD-RAG-001<br/>contexto activo"]
     YELLOW --> CONTEXT
     GREEN --> CONTEXT
-    UNKNOWN --> RESPONSE["MOD-RESPONSE-001<br/>Respuesta de aclaracion o seguridad"]
+    UNKNOWN --> RESPONSE["MOD-RESPONSE-001<br/>aclaracion o seguridad"]
     SAFE --> RESPONSE
-    CONTEXT --> SEARCH["Buscar status=available<br/>AND enabled=true [PROPOSED]"]
+    CONTEXT --> SEARCH["status=available<br/>AND enabled=1 [TESTED]"]
     SEARCH --> EVIDENCE{"Evidencia suficiente?"}
-    EVIDENCE -->|"no"| ABSTAIN["Abstencion explicita<br/>redireccion segura"]
-    EVIDENCE -->|"si"| CITE["Contexto delimitado<br/>documento/pagina/chunk/score"]
-    CITE --> PROVIDER{"Proveedor LLM disponible?"}
-    PROVIDER -->|"si"| LLM["EXT-GROQ-001<br/>Meta Llama permitido"]
-    PROVIDER -->|"no"| FALLBACK["MOD-FALLBACK-001<br/>FTS5 extractivo"]
+    EVIDENCE -->|"no"| ABSTAIN["Abstencion explicita<br/>redireccion segura [TESTED]"]
+    EVIDENCE -->|"si"| CITE["Contexto delimitado<br/>documento/pagina/chunk/score [TESTED]"]
+    CITE --> PROVIDER{"Proveedor disponible?"}
+    PROVIDER -->|"si"| LLM["EXT-GROQ-LLM-001<br/>Meta Llama [MANUAL_PENDING real]"]
+    PROVIDER -->|"no"| FALLBACK["MOD-FALLBACK-001<br/>FTS5 extractivo [TESTED]"]
     LLM --> VALIDATE{"Cita y salida seguras?"}
-    VALIDATE -->|"si"| ANSWER["Respuesta breve en espanol<br/>con cita y decision"]
+    VALIDATE -->|"si"| ANSWER["Respuesta breve en espanol<br/>con cita y decision [TESTED local]"]
     VALIDATE -->|"no"| FALLBACK
-    FALLBACK --> SAFEANSWER["Respuesta grounded<br/>o abstencion"]
+    FALLBACK --> SAFEANSWER["Respuesta grounded<br/>o abstencion [TESTED]"]
     ABSTAIN --> RESPONSE
     ANSWER --> RESPONSE
     SAFEANSWER --> RESPONSE
-    RESPONSE --> PERSIST["MOD-PERSIST-001<br/>Guardar turno, fuente, alerta y revision"]
-    PERSIST --> AUDIO["STG-TTS-001<br/>texto y SpeechSynthesis es-CO"]
-
-    classDef danger fill:#ffd6d6,stroke:#b91c1c,color:#111;
-    classDef safe fill:#fff4d6,stroke:#a16207,color:#111;
-    classDef normal fill:#e8f0fe,stroke:#2b579a,color:#111;
-    class RED,YELLOW danger;
-    class SAFE,ABSTAIN,UNKNOWN,FALLBACK,SAFEANSWER safe;
-    class TRI,CONTEXT,SEARCH,CITE,ANSWER,RESPONSE,PERSIST,AUDIO normal;
+    RESPONSE --> PERSIST["MOD-PERSIST-001<br/>turno, fuente, alerta, revision [TESTED]"]
+    PERSIST --> AUDIO["STG-TTS-001<br/>SpeechSynthesis es-CO<br/>[MANUAL_PENDING]"]
 ```
 
-Reglas que el codigo debe conservar:
+Reglas que no puede cambiar el proveedor:
 
-- `rojo` nunca baja a otro nivel.
-- `amarillo` no puede ser eliminado por una respuesta del LLM.
+- `red` nunca baja a otro nivel y `yellow` conserva su alerta.
 - `unknown` pide aclaracion y no cierra la decision.
 - El LLM redacta; el triaje determinista decide el nivel.
-- Ningun documento o paciente puede convertir contexto no confiable en instruccion del sistema.
-- Sin evidencia actual hay abstencion, no una respuesta clinica inventada.
-- Un timeout de proveedor conserva la decision de triaje y usa fallback o abstencion.
+- La preview, el paciente y los documentos son datos no ejecutables.
+- Sin evidencia actual hay abstencion, no una recomendacion clinica inventada.
+- Un timeout del proveedor conserva el triaje y usa fallback o abstencion.
 
-## Mermaid 5: escucha y timeout
+## Mermaid 5: estados de escucha y fallback
 
 ```mermaid
 stateDiagram-v2
     [*] --> IDLE
     state "STATE-VOICE-IDLE-001\nListo [IMPLEMENTED]" as IDLE
     state "STATE-VOICE-PERMISSION-001\nPermiso [IMPLEMENTED]" as PERMISSION
-    state "STATE-VOICE-LISTENING-001\nEscucha + timer [PROPOSED]" as LISTENING
-    state "STATE-VOICE-PARTIAL-001\nBorrador no clinico [PROPOSED]" as PARTIAL
-    state "STATE-VOICE-PROCESSING-001\nTranscript final [IMPLEMENTED]" as PROCESSING
-    state "STATE-VOICE-TIMEOUT-001\nTimeout, reintento/texto [PROPOSED]" as TIMEOUT
-    state "STATE-VOICE-ERROR-001\nError visible [IMPLEMENTED]" as ERROR
-    state "STATE-VOICE-TEXT-001\nFallback textual [IMPLEMENTED]" as TEXT
-    state "STATE-VOICE-SPEAK-001\nSpeechSynthesis [IMPLEMENTED]" as SPEAK
+    state "STATE-VOICE-LISTENING-001\nEscucha + timer total [IMPLEMENTED; browser MANUAL_PENDING]" as LISTENING
+    state "STATE-VOICE-PARTIAL-001\nBorrador no clinico [IMPLEMENTED; browser MANUAL_PENDING]" as PARTIAL
+    state "STATE-VOICE-PROCESSING-001\nTranscript final [TESTED]" as PROCESSING
+    state "STATE-VOICE-NO-RESPONSE-001\nTermino sin final [TESTED API]" as NO_RESPONSE
+    state "STATE-VOICE-TIMEOUT-001\nTimeout sin turno [TESTED API]" as TIMEOUT
+    state "STATE-VOICE-ERROR-001\nError visible [TESTED API]" as ERROR
+    state "STATE-VOICE-RETRY-001\nReintentar o texto [IMPLEMENTED; browser MANUAL_PENDING]" as RETRY
+    state "STATE-VOICE-TEXT-001\nFallback textual [IMPLEMENTED; browser MANUAL_PENDING]" as TEXT
+    state "STATE-VOICE-SPEAK-001\nSpeechSynthesis [IMPLEMENTED; MANUAL_PENDING]" as SPEAK
 
     IDLE --> PERMISSION: click Hablar
     PERMISSION --> LISTENING: onstart, T=PATIENT_LISTEN_TIMEOUT_MS
     PERMISSION --> ERROR: permiso denegado
     LISTENING --> PARTIAL: interim result
     PARTIAL --> LISTENING: continua antes del limite
-    PARTIAL --> PROCESSING: resultado final antes del limite
-    PARTIAL --> TIMEOUT: alcanza limite sin final
-    PARTIAL --> ERROR: onerror
-    LISTENING --> PROCESSING: resultado final antes del limite
+    LISTENING --> PROCESSING: final <= deadline
+    PARTIAL --> PROCESSING: final <= deadline
+    LISTENING --> NO_RESPONSE: onend sin final antes del limite
+    PARTIAL --> NO_RESPONSE: onend sin final antes del limite
     LISTENING --> TIMEOUT: alcanza limite sin final
+    PARTIAL --> TIMEOUT: alcanza limite sin final
     LISTENING --> ERROR: onerror
+    PARTIAL --> ERROR: onerror
     PROCESSING --> SPEAK: respuesta del API
-    TIMEOUT --> TEXT: usar fallback textual
-    TIMEOUT --> IDLE: reintentar o cancelar
-    ERROR --> TEXT: usar fallback textual
-    ERROR --> IDLE: cancelar
-    TEXT --> PROCESSING: enviar texto
+    TIMEOUT --> RETRY: evento timeout
+    NO_RESPONSE --> RETRY: evento no_response
+    ERROR --> RETRY: evento error
+    RETRY --> TEXT: usar fallback textual
+    RETRY --> IDLE: reintentar o cancelar
+    TEXT --> PROCESSING: POST /turns
     SPEAK --> IDLE: audio terminado
 ```
 
-El timeout no es el mismo camino que el silencio natural de `SpeechRecognition`. La semantica
-provisional es un limite total; si se aprueba un limite de silencio, esta vista debe cambiar
-junto con `specs/05_patient_listening_timeout_specification.md`. El default propuesto es
-`PATIENT_LISTEN_TIMEOUT_MS=30000`, con rango `1000..300000`; un timeout sin transcript final
-termina en reintento/texto y nunca en `verde`.
+Los eventos de escucha van a `POST /api/calls/{id}/voice-events` y se escriben en JSONL sin
+audio ni texto clinico completo. `client_turn_id` es la clave de idempotencia por llamada;
+`listen_id` identifica el intento. Un `final` posterior a `LISTEN_TIMEOUT` devuelve
+`409 late_transcript`. El timeout no inicia Groq, Whisper, triaje, una alerta ni un turno.
 
 ## Mermaid 6: datos, evidencia y metricas
 
 ```mermaid
 flowchart LR
-    DOC["MOD-DOCUMENT-001<br/>upload/toggle/delete"] --> AUDIT["DATA-AUDIT-001<br/>acciones y revision [PROPOSED]"]
-    CALL["MOD-CALL-001<br/>turno y cierre"] --> TURN["DATA-TURN-001<br/>texto, decision, sources"]
-    RAG["MOD-RAG-001<br/>resultado recuperado"] --> SOURCE["DATA-SOURCE-001<br/>documento/pagina/chunk/cita"]
-    VOICE["MOD-VOICE-BROWSER-001<br/>timestamps y timeout"] --> VOICE_API["API-CALL-VOICE-EVENT-001<br/>POST voice-events [PROPOSED]"]
-    VOICE_API --> EVENT["DATA-EVENTS-001<br/>events.jsonl"]
+    DOC["MOD-DOCUMENT-001<br/>upload/preview/toggle/delete [TESTED]"] --> AUDIT["DATA-AUDIT-001<br/>acciones y revision [TESTED]"]
+    CALL["MOD-CALL-001<br/>turno y cierre [TESTED]"] --> TURN["DATA-TURN-001<br/>texto, decision, sources"]
+    RAG["MOD-RAG-001<br/>resultado recuperado [TESTED]"] --> SOURCE["DATA-SOURCE-001<br/>documento/pagina/chunk/cita/snapshot"]
+    VOICE["MOD-VOICE-BROWSER-001<br/>listen_id, IDs y estados"] --> VOICE_API["API-CALL-VOICE-EVENT-001<br/>POST voice-events [TESTED]"]
+    VOICE_API --> EVENT["DATA-EVENTS-001<br/>events.jsonl [TESTED]"]
     TURN --> EVENT
     AUDIT --> EVENT
     SOURCE --> EVENT
-    EVENT --> AGG["MOD-METRICS-001<br/>agregar sin inventar"]
+    EVENT --> AGG["MOD-METRICS-001<br/>agregar sin inventar [TESTED]"]
     API["API-METRICS-001<br/>GET /api/metrics"] --> AGG
     AGG -->|"respuesta agregada"| API
     AGG --> REPORT["readme/04_metricas_y_evidencia.md<br/>docs/informe-final.md"]
 
-    LAT["MET-VOICE-LATENCY-001<br/>speech_ended -> audio_started"] --> AGG
-    TOK["MET-TOKENS-001<br/>input/output por turno/llamada"] --> AGG
-    MC["MET-MODEL-CALLS-001<br/>invocaciones"] --> AGG
-    RQ["MET-RAG-QUERIES-001<br/>consultas y fuentes"] --> AGG
-    COST["MET-COST-001<br/>precios fechados [PROPOSED]"] --> AGG
-    TO["MET-TIMEOUT-001<br/>etapa y resultado [PROPOSED]"] --> AGG
+    LAT["MET-VOICE-LATENCY-001<br/>speech_ended -> audio_started [TESTED]"] --> AGG
+    TOK["MET-TOKENS-001<br/>input/output por turno/llamada [TESTED local]"] --> AGG
+    MC["MET-MODEL-CALLS-001<br/>invocaciones [TESTED local]"] --> AGG
+    RQ["MET-RAG-QUERIES-001<br/>consultas y fuentes [TESTED local]"] --> AGG
+    TO["MET-VOICE-TIMEOUT-001<br/>estado y duracion [TESTED API]"] --> AGG
+    COST["MET-COST-001<br/>precios vivos [PROPOSED]"] --> AGG
 ```
 
-Campos minimos de un evento conversacional:
+El evento de turno conserva `call_id`, `turn_id`, `speech_ended_at`, `audio_started_at`,
+`latency_ms`, `input_tokens`, `output_tokens`, `model_calls`, `rag_queries`, `source_ids` y
+`model_version` cuando aplica. Los eventos de voz conservan `event_type`, `call_id`, `listen_id`,
+`client_turn_id` cuando existe, `configured_timeout_ms`, `elapsed_ms`, `locale`,
+`implementation`, `status` y `error_code` sin transcript. Sin timestamps reales, P50/P95 es
+`PENDIENTE`; no se extrapola desde TestClient, `node --check` ni un mock.
 
-```text
-event_type, created_at, call_id, turn_id, listen_id, client_turn_id, speech_ended_at, audio_started_at,
-latency_ms, input_tokens, output_tokens, model_calls, rag_queries, source_ids,
-model_version, provider, fallback_reason, timeout_stage, configured_timeout_ms
-```
+El agregador y el contrato de costo existen, pero el costo con precios vivos y una muestra real
+de proveedor sigue `PROPOSED`/`PENDIENTE`; no se presenta una cifra.
 
-Si faltan timestamps de voz, P50/P95 queda ausente. No se extrapola desde una prueba textual
-ni desde un mock.
+## Mapa de contratos y submodulos
 
-## Contratos y mapa de submodulos
+Cada fila es un limite dibujado en D1-D6. La ultima columna identifica la verificacion que permite
+el estado; las capacidades de navegador o proveedor conservan su pendiente manual.
 
-| ID | Entrada | Salida | Ruta actual o futura | Estado |
+| ID | Entrada | Salida | Ruta de codigo/contrato | Verificacion | Estado |
+|---|---|---|---|---|---|
+| `MOD-API-001` | HTTP JSON/multipart | respuestas HTTP | `app/main.py` | `tests/test_api.py`, `tests/test_admin_lifecycle.py`, `tests/test_timeout.py` | TESTED |
+| `MOD-CONFIG-001` | entorno | default/rango y timeout publico | `app/config.py`, `GET /health` | `tests/test_timeout.py` | TESTED |
+| `MOD-DOCUMENT-001` | bytes, id y toggle | inventario, preview, estados, revision | `app/services/documents.py`, `app/database.py` | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py` | TESTED |
+| `MOD-INGEST-001` | PDF/TXT/MD | paginas, chunks y `needs_ocr` | `app/services/ingestion.py` | `tests/test_ingestion.py`, bootstrap | TESTED |
+| `MOD-CALL-001` | turnos y cierre | respuestas, IDs y resumen | `app/services/calls.py` | `tests/test_calls.py`, `tests/test_api.py`, `tests/test_timeout.py` | TESTED |
+| `MOD-NORMALIZE-001` | transcript | texto normalizado | `app/services/triage.py`, `app/services/agent.py` | `tests/test_triage.py`, `tests/test_agent.py` | TESTED |
+| `MOD-TRIAGE-001` | texto y nivel previo | nivel, triggers y alerta | `app/services/triage.py` | `tests/test_triage.py`, `tests/test_calls.py` | TESTED |
+| `MOD-RAG-001` | pregunta | chunks/citas solo elegibles | `app/services/rag.py` | `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED |
+| `MOD-AGENT-001` | contexto, triaje e historia | respuesta o abstencion | `app/services/agent.py` | `tests/test_agent.py`, `tests/test_api.py` | TESTED |
+| `MOD-FALLBACK-001` | fuentes elegibles | respuesta extractiva o abstencion | `app/services/agent.py` | `tests/test_agent.py`, `tests/test_live_knowledge.py` | TESTED |
+| `MOD-RESPONSE-001` | decision y evidencia | texto seguro para paciente | `app/services/agent.py`, `app/services/calls.py` | `tests/test_agent.py`, `tests/test_calls.py` | TESTED |
+| `MOD-PERSIST-001` | turnos, fuentes y alertas | filas, snapshots y revision | `app/database.py`, `app/services/calls.py` | `tests/test_database.py`, `tests/test_calls.py`, `tests/test_admin_lifecycle.py` | TESTED |
+| `MOD-VOICE-BROWSER-001` | microfono | transcript, estados y audio | `app/web/app.js`, `app/web/call.html` | `node --check app/web/app.js`; smoke Chrome/Edge | IMPLEMENTED; MANUAL_PENDING |
+| `MOD-VOICE-SERVER-001` | audio | transcript Whisper | `app/services/voice.py`, `POST /api/calls/{id}/audio` | `tests/test_api.py`; credencial real pendiente | IMPLEMENTED; MANUAL_PENDING |
+| `MOD-TTS-BROWSER-001` | texto | audio `es-CO` | `app/web/app.js` | `node --check app/web/app.js`; smoke audio pendiente | IMPLEMENTED; MANUAL_PENDING |
+| `MOD-METRICS-001` | turnos, timing y eventos | JSONL y agregados | `app/services/metrics.py`, `GET /api/metrics` | `tests/test_metrics.py`, `tests/test_api.py` | TESTED |
+| `MOD-BOOTSTRAP-001` | dataset local | corpus inicial e idempotencia | `app/bootstrap.py`, `scripts/bootstrap.py`, `scripts/validate_dataset.py` | `python -m scripts.validate_dataset`, `python -m app.bootstrap --data-dir <temp>`, `tests/test_bootstrap.py` | TESTED |
+
+### Nodos de datos, UI y observabilidad
+
+| ID | Contrato | Ruta de codigo | Verificacion | Estado |
 |---|---|---|---|---|
-| `MOD-API-001` | HTTP JSON/multipart | respuestas HTTP | `app/main.py` | IMPLEMENTED |
-| `MOD-CONFIG-001` | entorno | limites y timeout publico | `app/config.py` | PROPOSED para paciente |
-| `MOD-DOCUMENT-001` | bytes, id y toggle | inventario, estados y revision | `app/services/documents.py` | IMPLEMENTED; preview/toggle PROPOSED |
-| `MOD-INGEST-001` | PDF/TXT/MD | paginas y chunks | `app/services/ingestion.py` | IMPLEMENTED |
-| `MOD-CALL-001` | turnos y cierre | respuestas y resumen | `app/services/calls.py` | IMPLEMENTED |
-| `MOD-NORMALIZE-001` | transcript | texto normalizado | `app/services/triage.py`, `app/services/agent.py` | IMPLEMENTED |
-| `MOD-TRIAGE-001` | texto y nivel previo | nivel, triggers y alerta | `app/services/triage.py` | IMPLEMENTED |
-| `MOD-RAG-001` | pregunta | chunks y citas | `app/services/rag.py` | IMPLEMENTED; filtro enabled PROPOSED |
-| `MOD-AGENT-001` | contexto, triaje e historia | respuesta o abstencion | `app/services/agent.py` | IMPLEMENTED |
-| `MOD-RESPONSE-001` | decision y evidencia | texto seguro para paciente | `app/services/agent.py`, `app/services/calls.py` | IMPLEMENTED |
-| `MOD-PERSIST-001` | turno, fuentes y alerta | filas y revision | `app/database.py`, `app/services/calls.py` | IMPLEMENTED |
-| `MOD-VOICE-BROWSER-001` | microfono | transcript | `app/web/app.js` | IMPLEMENTED; timer PROPOSED |
-| `MOD-VOICE-SERVER-001` | audio | transcript Whisper | `app/services/voice.py` | IMPLEMENTED |
-| `MOD-TTS-BROWSER-001` | texto | audio `es-CO` | `app/web/app.js` | IMPLEMENTED |
-| `MOD-METRICS-001` | eventos | agregados y JSONL | `app/services/metrics.py` | IMPLEMENTED |
-| `MOD-BOOTSTRAP-001` | dataset local | corpus inicial | `app/bootstrap.py`, `app/dataset.py`, `scripts/bootstrap.py` | IMPLEMENTED |
+| `ACT-BROWSER-001` | navegador coordina superficies, no triaje | `app/web/admin.html`, `app/web/call.html`, `app/web/app.js` | `node --check app/web/app.js`; smoke browser pendiente | IMPLEMENTED; MANUAL_PENDING |
+| `UI-TEXT-FALLBACK-001` | entrada textual auditable cuando voz no esta disponible | `app/web/call.html`, `app/web/app.js` | `node --check app/web/app.js`; smoke UI pendiente | IMPLEMENTED; MANUAL_PENDING |
+| `DATA-TURN-001` | turnos de paciente/agente y metricas | tabla `turns` en `app/database.py`, `app/services/calls.py` | `tests/test_calls.py`, `tests/test_api.py` | TESTED |
+| `DATA-SOURCE-001` | cita, pagina, chunk, revision y snapshot | tabla `sources` en `app/database.py` | `tests/test_calls.py`, `tests/test_admin_lifecycle.py` | TESTED |
+| `DATA-AUDIT-001` | accion documental, entidad, revision y fecha | tabla `audit` en `app/database.py` | `tests/test_admin_lifecycle.py` | TESTED |
+| `DATA-EVENTS-001` | eventos de turno, voz y timing en JSONL | `app/services/metrics.py`, `data/events.jsonl` | `tests/test_metrics.py`, `tests/test_timeout.py` | TESTED |
+| `MET-VOICE-LATENCY-001` | `speech_ended_at -> audio_started_at` | `MetricsService.record_voice_timing` | `tests/test_metrics.py`, `tests/test_api.py` | TESTED local; voz real MANUAL_PENDING |
+| `MET-TOKENS-001` | tokens entrada/salida por turno | `MetricsService.record_turn` | `tests/test_metrics.py` | TESTED local; proveedor real MANUAL_PENDING |
+| `MET-MODEL-CALLS-001` | invocaciones por turno | `AgentService`, `MetricsService` | `tests/test_agent.py`, `tests/test_metrics.py` | TESTED local |
+| `MET-RAG-QUERIES-001` | consultas y source IDs | `AgentService`, `MetricsService` | `tests/test_agent.py`, `tests/test_metrics.py` | TESTED local |
+| `MET-VOICE-TIMEOUT-001` | estado y duracion de escucha | `CallService.record_voice_event` | `tests/test_timeout.py` | TESTED API; browser MANUAL_PENDING |
+
+### Estados y contratos persistidos relevantes
+
+| ID | Contrato | Ruta | Estado |
+|---|---|---|---|
+| `STATE-DOC-AVAILABLE-001` | `status=available`, texto y `enabled=true` | `documents`, `pages`, `chunks`, `chunks_fts` | TESTED |
+| `STATE-DOC-DISABLED-001` | `status=available`, `enabled=false`, no RAG | `PATCH /api/admin/documents/{id}`, `RagService.search` | TESTED |
+| `STATE-DOC-OCR-001` | `status=needs_ocr`, sin preview/RAG utilizable | `app/services/ingestion.py`, preview | TESTED |
+| `STATE-DOC-DELETED-001` | filas indexables ausentes y snapshots historicos | `DocumentService.delete`, `sources` | TESTED |
+| `STATE-VOICE-LISTENING-001` | intento activo y timer total | `app/web/app.js`, `listening_attempts` | IMPLEMENTED; browser MANUAL_PENDING |
+| `STATE-VOICE-PARTIAL-001` | borrador no clinico | `app/web/app.js`, voice-events | IMPLEMENTED; browser MANUAL_PENDING |
+| `STATE-VOICE-PROCESSING-001` | final reclamado antes del agente | `CallService._claim_turn_attempt` | TESTED |
+| `STATE-VOICE-TIMEOUT-001` | no turno, reintento/texto | `record_voice_event`, `POST voice-events` | TESTED API; browser MANUAL_PENDING |
+| `STATE-VOICE-NO-RESPONSE-001` | `onend` sin final, no turno | `record_voice_event` | TESTED API; browser MANUAL_PENDING |
+| `STATE-VOICE-RETRY-001` | nuevo intento o texto | `app/web/app.js` | IMPLEMENTED; browser MANUAL_PENDING |
 
 ### Contratos HTTP visibles
 
-| ID | Metodo/ruta | Uso | Estado |
-|---|---|---|---|
-| `API-ADMIN-PAGE-001` | `GET /admin` | consola | IMPLEMENTED |
-| `API-ADMIN-LIST-001` | `GET /api/admin/documents` | inventario | IMPLEMENTED |
-| `API-ADMIN-UPLOAD-001` | `POST /api/admin/documents` | ingesta | IMPLEMENTED |
-| `API-ADMIN-PREVIEW-001` | `GET /api/admin/documents/{id}/preview` | preview humana | PROPOSED |
-| `API-ADMIN-TOGGLE-001` | `PATCH /api/admin/documents/{id}` | enable/disable | PROPOSED |
-| `API-ADMIN-DELETE-001` | `DELETE /api/admin/documents/{id}` | borrar y olvidar | IMPLEMENTED |
-| `API-CALL-PAGE-001` | `GET /call` | llamada | IMPLEMENTED |
-| `API-CALL-START-001` | `POST /api/calls` | iniciar | IMPLEMENTED |
-| `API-CALL-TURN-001` | `POST /api/calls/{id}/turns` | responder turno | IMPLEMENTED |
-| `API-CALL-AUDIO-001` | `POST /api/calls/{id}/audio` | STT opcional | IMPLEMENTED |
-| `API-CALL-TIMING-001` | `POST /api/calls/{id}/turns/{turn_id}/voice-timing` | latencia | IMPLEMENTED |
-| `API-CALL-VOICE-EVENT-001` | `POST /api/calls/{id}/voice-events` | estados de escucha | PROPOSED |
-| `API-CONFIG-PUBLIC-001` | `GET /health` con `patient_listen_timeout_ms` | timeout publico | PROPOSED |
-| `API-CALL-FINISH-001` | `POST /api/calls/{id}/finish` | cierre | IMPLEMENTED |
-| `API-METRICS-001` | `GET /api/metrics` | metricas | IMPLEMENTED |
+| ID | Metodo/ruta | Uso | Verificacion | Estado |
+|---|---|---|---|---|
+| `API-ADMIN-PAGE-001` | `GET /admin` | consola | ruta en `app/main.py`; smoke UI pendiente | IMPLEMENTED |
+| `API-ADMIN-LIST-001` | `GET /api/admin/documents` | inventario y badges | `tests/test_api.py`, `tests/test_admin_lifecycle.py` | TESTED |
+| `API-ADMIN-UPLOAD-001` | `POST /api/admin/documents` | ingesta sincronica | `tests/test_api.py`, `tests/test_admin_lifecycle.py` | TESTED |
+| `API-ADMIN-PREVIEW-001` | `GET /api/admin/documents/{id}/preview` | preview textual acotada | `tests/test_admin_lifecycle.py` | TESTED |
+| `API-ADMIN-TOGGLE-001` | `PATCH /api/admin/documents/{id}` | enable/disable sin reingesta | `tests/test_admin_lifecycle.py` | TESTED |
+| `API-ADMIN-DELETE-001` | `DELETE /api/admin/documents/{id}` | borrar y olvidar | `tests/test_api.py`, `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED local; G5 MANUAL_PENDING |
+| `API-CALL-PAGE-001` | `GET /call` | llamada | ruta en `app/main.py`; smoke UI pendiente | IMPLEMENTED |
+| `API-CALL-START-001` | `POST /api/calls` | iniciar | `tests/test_api.py`, `tests/test_timeout.py` | TESTED |
+| `API-CALL-TURN-001` | `POST /api/calls/{id}/turns` | un turno final | `tests/test_api.py`, `tests/test_calls.py`, `tests/test_timeout.py` | TESTED |
+| `API-CALL-AUDIO-001` | `POST /api/calls/{id}/audio` | STT opcional | `tests/test_api.py`; Whisper real pendiente | TESTED local; MANUAL_PENDING real |
+| `API-CALL-TIMING-001` | `POST /api/calls/{id}/turns/{turn_id}/voice-timing` | latencia de audio | `tests/test_api.py`, `tests/test_calls.py`, `tests/test_metrics.py` | TESTED |
+| `API-CALL-VOICE-EVENT-001` | `POST /api/calls/{id}/voice-events` | estados de escucha acotados | `tests/test_timeout.py` | TESTED API |
+| `API-CONFIG-PUBLIC-001` | `GET /health` con `patient_listen_timeout_ms` | config publica sin secreto | `tests/test_timeout.py`, `tests/test_api.py` | TESTED |
+| `API-CALL-FINISH-001` | `POST /api/calls/{id}/finish` | cierre y resumen | `tests/test_api.py`, `tests/test_calls.py` | TESTED |
+| `API-METRICS-001` | `GET /api/metrics` | agregados | `tests/test_api.py`, `tests/test_metrics.py` | TESTED |
 
-## Matriz de trazabilidad
+## Matriz de trazabilidad `TRZ-*`
 
-| ID | Requisito observable | Diagrama | Spec origen | Codigo/contrato | Verificacion | Estado |
+Cada fila contiene requisito, vista, spec de origen, codigo/contrato, verificacion y estado. La
+prueba local de una capacidad no se convierte en aprobacion de G2, G4, G5 externo ni proveedor
+real.
+
+| ID | Requisito observable | Diagrama | Spec origen | Codigo/contrato | Prueba o evidencia | Estado |
 |---|---|---|---|---|---|---|
-| `TRZ-ACTORS-001` | paciente, admin, browser y proveedor diferenciados | D1, D2, D3 | 00, rubrica | `app/web/`, `app/main.py` | revision + smoke | IMPLEMENTED |
-| `TRZ-SURFACES-001` | `/admin` y `/call` accesibles | D1, D2 | 00 | `app/main.py` | `tests/test_api.py` | TESTED |
-| `TRZ-STRUCTURE-001` | entregables bajo `mvp/` y fases bajo `mvp/crisp-dm/` | D1 | 03 | indices y manifiestos | revision de rutas | PROPOSED |
-| `TRZ-ADMIN-PREVIEW-001` | texto extraido visible y seguro | D3 | 04 | preview API/UI | test preview + manual | PROPOSED |
-| `TRZ-ADMIN-TOGGLE-001` | disable excluye RAG y enable recupera | D3, D4 | 04 | `enabled`, filtro RAG | test toggle | PROPOSED |
-| `TRZ-ADMIN-DELETE-001` | delete elimina conocimiento futuro | D3, D4 | 00, 04, G5 | `DocumentService.delete` | live knowledge | TESTED |
-| `TRZ-RAG-ACTIVE-001` | RAG usa solo `available + enabled` | D1, D3, D4 | 04 | `RagService.search` | test filtro | PROPOSED |
-| `TRZ-CITATION-001` | respuesta grounded conserva pagina/chunk/cita | D2, D4, D6 | 00 | `SearchResult`, `sources` | agent/calls tests | TESTED |
-| `TRZ-HISTORY-001` | nivel previo y fuentes historicas no se mezclan con evidencia nueva | D2, D4, D6 | 00, 04 | historial de llamada y `corpus_revision` | calls/RAG tests | PROPOSED |
-| `TRZ-VOICE-TIMEOUT-001` | escucha configurable y fallback visible | D2, D5 | 05 | config + `app.js` | config + browser | PROPOSED |
-| `TRZ-TRIAGE-001` | rojo, amarillo, verde y unknown | D2, D4 | 00, rubrica | `triage.py` | `tests/test_triage.py` | TESTED |
-| `TRZ-STICKY-001` | rojo y amarillo no degradan | D4 | 00 | `highest_level` | triage/calls tests | TESTED |
-| `TRZ-ABSTAIN-001` | sin evidencia produce abstencion | D4 | 00 | `agent.py` | agent tests | TESTED |
-| `TRZ-PERSIST-001` | turnos, fuentes, alertas y resumen persisten | D2, D6 | 00 | `database.py`, `calls.py` | calls/API tests | TESTED |
-| `TRZ-METRICS-001` | latencia, tokens, calls y RAG trazables | D2, D6 | rubrica | `metrics.py`, JSONL | metrics tests + demo | TESTED |
-| `TRZ-COST-001` | costo por llamada con precios fechados | D6 | rubrica | informe + agregador | evidencia de proveedor | PROPOSED |
-| `TRZ-VOICE-IDEMP-001` | un transcript final no duplica intercambio | D2, D5 | 05 | `client_turn_id` y API | prueba de carrera | PROPOSED |
-| `TRZ-CONFIG-PUBLIC-001` | timeout efectivo llega al browser sin secreto | D2, D5 | 05 | `/health` | prueba API + browser | PROPOSED |
-| `TRZ-TIMEOUT-SEPARATION-001` | escucha no cambia Groq, Whisper ni SQLite | D2, D5 | 05 | config y adaptadores | pruebas de configuracion | PROPOSED |
-| `TRZ-ADMIN-LOCAL-001` | admin permanece local sin autenticacion | D1, D3 | 04 | bind y setup | preflight de URL | PROPOSED |
-| `TRZ-MODEL-001` | proveedor y modelo pertenecen a familia permitida | D1, D2, D4 | stack, G3 | `GROQ_MODEL`, informe | health + revision | TESTED |
-| `TRZ-BOOTSTRAP-001` | XLSX se valida y corpus alimenta SQLite sin alterar fuentes | D1, D6 | 00 | `app.bootstrap`, `scripts.validate_dataset`, dataset | validador + bootstrap | TESTED |
-| `TRZ-G4-001` | ida y vuelta de voz real | D2, D5 | G4 | browser | smoke manual | MANUAL_PENDING |
-| `TRZ-G5-001` | aprender, usar, borrar y olvidar | D3, D4 | G5 | admin + RAG | test + demo externa | MANUAL_PENDING |
+| `TRZ-ACTORS-001` | paciente, admin, browser y proveedor diferenciados | D1, D2, D3 | 00, rubrica | `app/web/`, `app/main.py` | revision de D1-D3; API local | IMPLEMENTED |
+| `TRZ-SURFACES-001` | `/admin` y `/call` accesibles | D1, D2 | 00 | `GET /admin`, `GET /call` | rutas en `app/main.py`; smoke de browser pendiente | IMPLEMENTED |
+| `TRZ-STRUCTURE-001` | fases bajo `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/` | D1 | 03 | indices y manifiestos | comprobacion Python de rutas y copias prohibidas | TESTED |
+| `TRZ-ADMIN-PREVIEW-001` | texto extraido visible, acotado y literal | D3, D4 | 04 | `DocumentService.preview`, `GET .../preview`, `textContent` | `tests/test_admin_lifecycle.py` | TESTED |
+| `TRZ-ADMIN-TOGGLE-001` | disable excluye RAG y enable recupera sin reingesta | D3, D4 | 04 | `enabled`, `rag_eligible`, `PATCH`, revision | `tests/test_admin_lifecycle.py` | TESTED |
+| `TRZ-ADMIN-DELETE-001` | delete limpia conocimiento futuro y conserva snapshot | D3, D4, D6 | 00, 04, G5 | `DocumentService.delete`, `sources` | `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED local; G5 externo MANUAL_PENDING |
+| `TRZ-RAG-ACTIVE-001` | RAG usa solo `available + enabled` | D1, D3, D4 | 04 | `RagService.search` SQL con ambos filtros | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py` | TESTED |
+| `TRZ-CITATION-001` | respuesta conserva pagina, chunk, cita y revision | D2, D4, D6 | 00 | `SearchResult`, `sources`, `corpus_revision` | `tests/test_agent.py`, `tests/test_calls.py`, `tests/test_api.py` | TESTED |
+| `TRZ-RAG-CITATION-001` | una respuesta grounded solo usa una cita recuperada | D2, D4, D6 | 00 | `AgentService`, `SearchResult`, `sources` | `tests/test_agent.py`, `tests/test_live_knowledge.py` | TESTED |
+| `TRZ-HISTORY-001` | historial/snapshot no se reutiliza como evidencia RAG nueva | D2, D3, D4, D6 | 00, 04 | `sources` snapshot y consulta activa | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py`, `tests/test_calls.py` | TESTED |
+| `TRZ-VOICE-TIMEOUT-001` | escucha total configurable y fallback seguro | D2, D5 | 05 | `PATIENT_LISTEN_TIMEOUT_MS`, estados JS, `voice-events` | `tests/test_timeout.py`; Chrome/Edge pendiente | TESTED API; MANUAL_PENDING browser |
+| `TRZ-TRIAGE-001` | red, yellow, green y unknown | D2, D4 | 00, rubrica | `app/services/triage.py` | `tests/test_triage.py`, `tests/test_api.py` | TESTED |
+| `TRZ-STICKY-001` | red/yellow no degradan | D4 | 00 | `highest_level`, alertas persistentes | `tests/test_triage.py`, `tests/test_calls.py`, `tests/test_api.py` | TESTED |
+| `TRZ-ABSTAIN-001` | sin evidencia produce abstencion | D4 | 00 | `AgentService.respond` | `tests/test_agent.py`, `tests/test_live_knowledge.py`, `tests/test_api.py` | TESTED |
+| `TRZ-PERSIST-001` | turnos, fuentes, alertas y resumen persisten | D2, D6 | 00 | `database.py`, `calls.py` | `tests/test_calls.py`, `tests/test_api.py` | TESTED |
+| `TRZ-METRICS-001` | latencia, tokens, calls y RAG son trazables | D2, D6 | 00, rubrica | `metrics.py`, JSONL, `/api/metrics` | `tests/test_metrics.py`, `tests/test_api.py` | TESTED local; logs de voz real MANUAL_PENDING |
+| `TRZ-COST-001` | costo por llamada con precios vivos fechados | D6 | rubrica | formula en informe/metricas | no hay precios ni logs reales | PROPOSED |
+| `TRZ-VOICE-IDEMP-001` | un transcript final no duplica; final tardio devuelve `late_transcript` | D2, D5 | 05 | `client_turn_id`, `listen_id`, `CallService`, `POST voice-events` | `tests/test_timeout.py` | TESTED API |
+| `TRZ-CONFIG-PUBLIC-001` | timeout efectivo llega al browser sin secreto | D2, D5 | 05 | `/health`, `Settings` | `tests/test_timeout.py`, `tests/test_api.py` | TESTED |
+| `TRZ-TIMEOUT-SEPARATION-001` | escucha no cambia Groq, Whisper ni SQLite | D2, D5 | 05 | `config.py`, adaptadores y `busy_timeout` | `tests/test_timeout.py` | TESTED |
+| `TRZ-ADMIN-LOCAL-001` | admin se opera en localhost mientras no haya auth | D1, D3 | 04 | comando Uvicorn en README | revision de setup; no hay bloqueo de bind en codigo | IMPLEMENTED; DIVERGENCE registrada |
+| `TRZ-MODEL-001` | modelo pertenece a familia permitida | D1, D2, D4 | stack, G3 | allowlist, `GROQ_MODEL`, `/health` | `tests/test_agent.py`, `tests/test_api.py` | TESTED local; Groq real MANUAL_PENDING |
+| `TRZ-BOOTSTRAP-001` | XLSX y corpus alimentan SQLite sin alterar fuentes | D1, D6 | 00 | `app.bootstrap`, scripts, `dataset` | `scripts.validate_dataset`, bootstrap, `tests/test_bootstrap.py` | TESTED |
+| `TRZ-G2-001` | setup limpio en <=15 minutos | D1, D6 | rubrica | README y requirements | cronometraje desde entorno limpio | MANUAL_PENDING |
+| `TRZ-G4-001` | ida y vuelta de voz real | D2, D5 | G4 | SpeechRecognition/SpeechSynthesis, `/call` | Chrome/Edge con microfono y audio | MANUAL_PENDING |
+| `TRZ-G5-001` | aprender, usar, borrar y olvidar documento externo | D3, D4 | G5 | admin + RAG + delete | tests locales; demo con documento externo | MANUAL_PENDING |
 
-## Reglas de sincronizacion con cambios
+## Gates y capacidades futuras
 
-La spec del diagrama debe revisarse antes de aceptar codigo cuando cambie cualquiera de estos
-elementos:
+| ID | Capacidad | Estado actual | Evidencia o pendiente |
+|---|---|---|---|
+| `GATE-G1-001` | cuatro entregables | MANUAL_PENDING | repositorio, diagrama, informe presentes; video real pendiente |
+| `GATE-G2-001` | setup <=15 minutos | MANUAL_PENDING | nunca se infiere desde tests; falta cronometraje limpio |
+| `GATE-G3-001` | modelo permitido y uso declarado | TESTED local; MANUAL_PENDING real | allowlist/config pasan; disponibilidad y llamada real pendientes |
+| `GATE-G4-001` | voz en tiempo real | MANUAL_PENDING | falta microfono, transcripcion, TTS y audio observados |
+| `GATE-G5-001` | conocimiento vivo externo | MANUAL_PENDING | upload/disable/enable/delete locales pasan; falta documento externo |
+| `FUT-OCR-001` | OCR automatico | PROPOSED | hoy `needs_ocr` se informa, no se ejecuta OCR |
+| `FUT-COST-001` | precios vivos y costo real | PROPOSED | no hay precios fechados ni log Groq real |
+| `FUT-VIDEO-001` | video de entrega | PROPOSED | solo existe manifiesto en `mvp/deliverables/04_video/` |
+| `FUT-AUTH-001` | autenticacion/CSRF/multiusuario | OUT_OF_SCOPE | admin local sin autenticacion en este MVP |
+| `FUT-STREAMING-001` | streaming full-duplex/WebRTC | OUT_OF_SCOPE | el contrato es turn-taking browser/API |
 
-1. **Estructura:** cambiar una ruta bajo `mvp/`, `app/`, `specs/` o `readme/` exige actualizar
-   el mapa de ownership, enlaces y manifiestos de `03`.
-2. **Administracion:** agregar preview, enable o disable exige actualizar D1, D3, D4, la
-   maquina de estados, `enabled`, `rag_eligible`, `corpus_revision` y G5 en la matriz.
-3. **Timeout:** cambiar la semantica o default exige actualizar D2, D5, eventos de metricas,
-   `.env.example`, setup y la definicion de P50/P95.
-4. **Modelo:** cambiar proveedor o version exige actualizar D1, D2, informe, `health`, costo y
-   G3; solo se permiten familias de `docs/stack-tecnico.md`.
-5. **Ruta o modulo:** toda flecha entre submodulos debe corresponder a una funcion, endpoint,
-   tabla o prueba. Si es futura, se marca `PROPOSED`.
-6. **Estado:** nunca cambiar `PROPOSED` a `IMPLEMENTED` sin evidencia; los tests automatizados
-   no sustituyen G4 ni la demo externa de G5.
-7. **Vista publicada:** `docs/arquitectura.md` y el paquete bajo `mvp/deliverables/` deben
-   enlazar esta spec y registrar version, fecha y commit de la copia publicada.
+## Divergencias conocidas
 
-### Protocolo de actualizacion
+| ID | Divergencia o limite | Fuente responsable | Tratamiento en esta spec |
+|---|---|---|---|
+| `DIVERGENCE-001` | `app/main.py` no bloquea por codigo un bind distinto de localhost; el setup prescribe `127.0.0.1` y no existe auth | spec 04, runtime/security | no se oculta como `PROPOSED`; se mantiene el bind documentado y auth queda fuera de alcance |
+| `DIVERGENCE-002` | browser real, Groq/Whisper real y documento externo no tienen evidencia automatizable | spec 07, rubrica | se marcan `MANUAL_PENDING`; TestClient, mocks y `node --check` no aprueban gates |
+| `DIVERGENCE-003` | la spec 07 deja explícitas las brechas de MIME independiente, capas no reconstruidas y browser real | `specs/07_testing_unit_integration_specification.md` | brechas documentadas; no se presentan como cobertura local |
+| `DIVERGENCE-004` | la UI no tiene runner browser automatizado; `node --check` solo comprueba sintaxis | `specs/07_testing_unit_integration_specification.md`, `app/web/app.js` | estados de UI/voz siguen `MANUAL_PENDING` aunque el contrato API este `TESTED` |
+| `DIVERGENCE-005` | el costo tiene campos y formula, pero no precios vivos ni tokens reales del proveedor | rubrica, metricas | `TRZ-COST-001` permanece `PROPOSED`; los valores del informe siguen `PENDIENTE` |
 
-```text
-1. Cambiar la spec de alcance afectada (03, 04 o 05).
-2. Registrar la decision y sus preguntas abiertas.
-3. Actualizar esta spec 06 y su matriz TRZ.
-4. Actualizar docs/arquitectura.md, README, fases y entrega bajo mvp/.
-5. Implementar solo despues de que el diagrama y los contratos coincidan.
-6. Ejecutar pruebas enfocadas y luego preflight completo.
-7. Registrar evidencia con fecha, commit y resultado.
-```
+## Sincronizacion obligatoria
 
-## Comandos de verificacion previstos
+1. Cambiar primero la spec de alcance afectada (03, 04 o 05).
+2. Actualizar esta spec: ASCII, Mermaid, contratos, estados y matriz `TRZ-*`.
+3. Actualizar `docs/arquitectura.md`, `mvp/deliverables/02_architecture/architecture.md`,
+   README, fases y evidencia publicada.
+4. Implementar codigo solo despues de que el contrato y el diagrama coincidan.
+5. Ejecutar pruebas enfocadas, suite completa y preflight documental.
+6. Registrar fecha, commit o `working tree/no commit`, entorno, comando y resultado.
 
-No se ejecutan en esta sesion. Cuando exista implementacion, el orden previsto es:
+Un cambio de estructura obliga a revisar D1 y `TRZ-STRUCTURE-001`; un cambio admin obliga a
+revisar D1/D3/D4 y `TRZ-ADMIN-*`; un cambio de timeout obliga a revisar D2/D5, eventos y
+`TRZ-VOICE-*`; un cambio de modelo obliga a revisar proveedor, G3, informe y `TRZ-MODEL-001`.
 
-```text
-python -m pytest tests/test_api.py tests/test_live_knowledge.py -q
-python -m pytest tests/test_triage.py tests/test_calls.py tests/test_metrics.py -q
-python -m scripts.validate_dataset
-python -m app.bootstrap --data-dir <temp>
-python -m pytest -q --basetemp <temp>
-ruff check .
-```
+## Verificacion ejecutada para esta sincronizacion
 
-La verificacion documental debe comprobar manualmente que cada ID `TRZ-*` tiene spec, ruta de
-codigo o contrato, prueba y estado. No se requiere renderizar Mermaid para aprobar la sintaxis
-de la spec, pero una revision humana debe confirmar que los diagramas son legibles.
+Los comandos fueron ejecutados desde la raiz. `<temp>` representa el directorio temporal
+escribible usado en la ejecucion real.
 
-## Estrategia de pruebas
+| Comando | Resultado |
+|---|---|
+| `python -m pytest tests/test_admin_lifecycle.py tests/test_timeout.py -q --basetemp <temp>` | `24 passed` |
+| `python -m pytest -q --basetemp <temp>` | `96 passed` |
+| `ruff check .` | `All checks passed` |
+| `node --check app/web/app.js` | sin salida; codigo JavaScript valido |
+| `python -m scripts.validate_dataset` | valido; filas `3991/40/40/160` |
+| `python -m app.bootstrap --data-dir <temp>` | `104` documentos; `103 available`, `1 needs_ocr` |
+| comprobacion Python de rutas y copias prohibidas | ejecutada como preflight documental |
+| comprobacion de enlaces Markdown relativos en rutas tocadas | ejecutada como preflight documental |
+| `git diff --check` | ejecutado sin errores |
 
-- **Revision humana:** actores, limites, etapas y convenciones se entienden sin leer codigo.
-- **Trazabilidad:** cada nodo normativo tiene ID, fuente, ruta y evidencia.
-- **Contrato:** endpoints actuales y propuestos coinciden con las specs upstream.
-- **Flujo clinico:** triaje rojo/amarillo/verde/unknown, abstencion y no degradacion.
-- **Conocimiento vivo:** upload, preview, disable, enable, delete y olvido sin reinicio.
-- **Voz:** timeout, permiso, resultado parcial, resultado final, audio y fallback textual.
-- **Observabilidad:** nombres de campos coinciden con `/api/metrics` y `events.jsonl`.
-- **Regresion:** la vista no declara implementado lo que el baseline aun marca pendiente.
-
-## Limites
-
-- **Siempre:** mantener ASCII legible en la vista principal, IDs estables, estado visible,
-  separacion entre actor/browser/agente/proveedor, filtro RAG explicito y citas trazables.
-- **Preguntar antes:** cambiar el modelo, sacar el admin de localhost, introducir streaming
-  full-duplex, cambiar la semantica del timeout, agregar OCR o cambiar ownership de fuentes.
-- **Nunca:** dibujar una funcionalidad no especificada como terminada, permitir que el proveedor
-  decida triaje, mostrar documentos deshabilitados como activos, copiar `dataset/` o `docs/`,
-  inventar metricas o citar una fuente borrada en una respuesta nueva.
+No se ejecutaron navegador, microfono, audio real, Groq/Whisper con credencial, cronometraje G2
+ni demo G5 externa. Esas salidas permanecen `MANUAL_PENDING`/`PENDIENTE`.
 
 ## Criterios de exito
 
-- **DGM-AC-01:** existe un ASCII canonico legible desde el actor hasta la persistencia y el RAG.
-- **DGM-AC-02:** existen subdiagramas Mermaid para contexto, llamada, admin, estados de
-  documentos, triaje/RAG, voz/timeout y metricas.
-- **DGM-AC-03:** cada diagrama distingue actores, superficies, submodulos, datos y externos.
-- **DGM-AC-04:** el flujo incluye las etapas de bootstrap, admin, llamada, escucha, triaje,
-  RAG, respuesta, audio, persistencia y cierre.
-- **DGM-AC-05:** el RAG muestra explicitamente `status=available AND enabled=true`, citas y
-  abstencion.
-- **DGM-AC-06:** el flujo muestra `rojo`, `amarillo`, `verde` y `unknown` con reglas sticky.
-- **DGM-AC-07:** el flujo muestra preview, enable, disable y delete, y marca las capacidades
-  futuras como `PROPOSED`.
-- **DGM-AC-08:** el flujo muestra `PATIENT_LISTEN_TIMEOUT_MS`, sus consecuencias seguras y la
-  separacion respecto a Groq, Whisper y SQLite.
-- **DGM-AC-09:** existe matriz `TRZ-*` con spec, codigo/contrato, prueba y estado.
-- **DGM-AC-10:** un cambio en specs 03, 04 o 05 tiene una regla explicita para reflejarse en
-  este documento, las vistas publicadas y luego el codigo.
-- **DGM-AC-11:** no se afirma que la spec haya sido ejecutada ni que las capacidades propuestas
-  hayan sido implementadas.
+- **DGM-AC-01:** ASCII legible desde actores hasta persistencia y RAG.
+- **DGM-AC-02:** Mermaid cubre contexto, llamada, admin, estados documentales, triaje/RAG,
+  escucha/timeout y metricas.
+- **DGM-AC-03:** actores, superficies, submodulos, datos y externos estan diferenciados.
+- **DGM-AC-04:** aparecen bootstrap, admin, llamada, escucha, triaje, RAG, respuesta, audio,
+  persistencia y cierre.
+- **DGM-AC-05:** el RAG muestra `status=available AND enabled=1`, citas y abstencion.
+- **DGM-AC-06:** red, yellow, green y unknown conservan las reglas sticky.
+- **DGM-AC-07:** preview, enable, disable y delete tienen contratos, estados y pruebas locales.
+- **DGM-AC-08:** `PATIENT_LISTEN_TIMEOUT_MS`, consecuencias seguras y separacion de timeouts
+  estan dibujados; browser real permanece pendiente.
+- **DGM-AC-09:** cada `TRZ-*` tiene spec, ruta/contrato, prueba o evidencia y estado.
+- **DGM-AC-10:** la regla de sincronizacion obliga a revisar esta vista tras cambios en 03/04/05.
+- **DGM-AC-11:** solo capacidades realmente futuras quedan `PROPOSED`; G2, G4, G5 externo y
+  proveedor real no se aprueban por pruebas locales.
 
-## Vistas publicadas y preguntas abiertas
+## Vistas derivadas
 
-La vista de implementacion actual esta en [`docs/arquitectura.md`](../docs/arquitectura.md).
-Mientras esta spec no sea aprobada, ese documento describe el baseline actual y no se reemplaza
-silenciosamente. Una vez aprobada, `docs/arquitectura.md` y la vista bajo
-`mvp/deliverables/02_architecture/` deben enlazar la version de esta spec que publican.
+- Vista publicada: [`docs/arquitectura.md`](../docs/arquitectura.md).
+- Vista formal derivada: [`mvp/deliverables/02_architecture/architecture.md`](../mvp/deliverables/02_architecture/architecture.md).
+- Informe y evidencia: [`docs/informe-final.md`](../docs/informe-final.md) y
+  [`readme/04_metricas_y_evidencia.md`](../readme/04_metricas_y_evidencia.md).
 
-Preguntas abiertas:
-
-1. Confirmar el ownership final entre la spec normativa, `docs/arquitectura.md` y la vista bajo
-   `mvp/deliverables/`.
-2. Confirmar si el timeout debe ser total, de silencio o una combinacion de ambos.
-3. Confirmar si la preview de texto extraido satisface el entregable o se requiere render PDF.
-4. Confirmar si las cargas nuevas quedan habilitadas o en cuarentena.
-5. Confirmar si el video vive bajo `mvp/` como archivo o como referencia externa.
+La vista formal declara procedencia, version, fecha, commit de trabajo, modelo, estados y
+divergencias. No copia fuentes canonicas, runtime ni la totalidad de esta spec.

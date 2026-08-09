@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -11,9 +12,12 @@ from app.dataset import validate_joins, validate_workbook
 from app.schemas import DocumentStatus
 from app.services.documents import DocumentService
 from app.services.ingestion import (
+    IngestionError,
+    UnsupportedFileTypeError,
     chunk_pages,
     extract_document,
     extract_pages,
+    guess_mime_type,
     iter_supported_files,
     normalize_for_search,
 )
@@ -134,3 +138,91 @@ def test_document_storage_names_are_windows_safe_and_hash_idempotent(tmp_path):
     assert not first.filename.endswith((".", " "))
     assert len(str(Path(first.stored_path))) <= 240
     assert Path(first.stored_path).is_file()
+
+
+def test_ingestion_rejects_corrupt_pdfs_unsupported_types_and_missing_roots(tmp_path):
+    corrupt = tmp_path / "corrupt.pdf"
+    corrupt.write_bytes(b"not a pdf")
+    unsupported = tmp_path / "notes.csv"
+    unsupported.write_text("content", encoding="utf-8")
+
+    with pytest.raises(IngestionError, match="could not extract PDF"):
+        extract_document(corrupt)
+    with pytest.raises(UnsupportedFileTypeError):
+        extract_pages(unsupported)
+    with pytest.raises(FileNotFoundError):
+        list(iter_supported_files(tmp_path / "missing corpus"))
+    assert guess_mime_type("notes.unknown") == "application/octet-stream"
+
+
+def test_chunking_rejects_invalid_overlap_and_size():
+    with pytest.raises(ValueError, match="chunk_size"):
+        from app.schemas import ExtractedPage
+
+        chunk_pages([ExtractedPage(1, "text")], chunk_size=0)
+    with pytest.raises(ValueError, match="chunk_overlap"):
+        from app.schemas import ExtractedPage
+
+        chunk_pages([ExtractedPage(1, "text")], chunk_size=2, chunk_overlap=2)
+
+
+def test_document_upload_accepts_paths_and_binary_streams_but_requires_names(tmp_path):
+    settings = Settings(data_dir=tmp_path / "data")
+    database = init_database(settings)
+    documents = DocumentService(database, settings)
+    source = tmp_path / "nested" / "guide.txt"
+    source.parent.mkdir()
+    source.write_text("Contenido desde una ruta.", encoding="utf-8")
+
+    from_path = documents.upload(source)
+    from_stream = documents.upload(BytesIO(b"Contenido desde un stream."), "stream.txt")
+
+    assert from_path.filename == "guide.txt"
+    assert from_stream.filename == "stream.txt"
+    with pytest.raises(ValueError, match="filename is required"):
+        documents.upload(b"bytes without a name")
+    with pytest.raises(TypeError, match="source must be"):
+        documents.upload(object())  # type: ignore[arg-type]
+
+
+def test_document_upload_handles_text_readers_and_refuses_cleanup_outside_storage(tmp_path):
+    settings = Settings(data_dir=tmp_path / "data")
+    database = init_database(settings)
+    documents = DocumentService(database, settings)
+
+    class TextReader:
+        filename = "reader.txt"
+
+        def read(self):
+            return "Contenido textual del lector."
+
+    class InvalidReader:
+        def read(self):
+            return 123
+
+    class NoNameReader:
+        def read(self):
+            return b"missing filename"
+
+    reader_record = documents.upload(TextReader())
+    assert reader_record.filename == "reader.txt"
+    with pytest.raises(TypeError, match="must return bytes"):
+        documents.upload(InvalidReader(), "invalid.txt")
+    with pytest.raises(ValueError, match="filename is required"):
+        documents.upload(NoNameReader())
+
+    uploaded = documents.upload(b"Contenido que no debe borrar fuera", "outside.txt")
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(b"keep me")
+    database.execute(
+        "UPDATE documents SET stored_path = ? WHERE id = ?",
+        (str(outside), uploaded.id),
+    )
+
+    assert documents.delete(uploaded.id) is True
+    assert outside.exists()
+    audit = database.execute(
+        "SELECT action FROM audit WHERE entity_id = ? ORDER BY id DESC LIMIT 1",
+        (uploaded.id,),
+    ).fetchone()
+    assert audit["action"] == "delete_storage_error"

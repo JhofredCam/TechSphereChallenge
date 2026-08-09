@@ -81,3 +81,32 @@ def test_voice_timing_is_aggregated_separately_from_turn_metrics():
     assert result["output_tokens"] == 5
     assert result["model_calls"] == 1
     assert result["rag_queries"] == 1
+
+
+def test_metrics_do_not_fabricate_latency_from_invalid_or_reversed_timestamps():
+    metrics = MetricsService()
+    metrics.record_turn(
+        call_id="call-invalid",
+        turn_id="turn-invalid",
+        speech_ended_at="not-a-timestamp",
+        audio_started_at="still-not-a-timestamp",
+    )
+    metrics.record_voice_timing(
+        call_id="call-invalid",
+        turn_id="turn-invalid",
+        speech_ended_at="2026-01-01T00:00:01+00:00",
+        audio_started_at="2026-01-01T00:00:00+00:00",
+    )
+
+    result = metrics.aggregate()
+
+    assert result["latency_count"] == 0  # UT-MET-01
+    assert result["latency_p50_ms"] is None
+    assert result["latency_p95_ms"] is None
+    assert result["voice_latency_count"] == 0
+
+
+def test_percentile_ignores_nonfinite_values_and_clamps_boundaries():
+    assert percentile([float("nan"), 2, float("inf"), 4], 0) == 2
+    assert percentile([2, 4], 50) == 3
+    assert percentile([2, 4], 100) == 4

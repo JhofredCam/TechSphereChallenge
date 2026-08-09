@@ -28,11 +28,12 @@ rutas canonicas; aqui se enlazan, no se duplican.
 - [Spec de ciclo documental de `/admin`](../specs/04_admin_document_lifecycle_specification.md).
 - [Spec de timeout de escucha](../specs/05_patient_listening_timeout_specification.md).
 - [Spec de diagrama normativo](../specs/06_system_flow_diagram_specification.md).
+- [Spec de pruebas unitarias e integracion](../specs/07_testing_unit_integration_specification.md).
 
 ## Estado de evidencia
 
 Al 2026-08-08 el checkout tiene implementacion en `app/`, pruebas en `tests/`,
-`requirements.txt`, `app.bootstrap` y `app.main`. Pasaron 38 tests con
+`requirements.txt`, `requirements-dev.txt`, `app.bootstrap` y `app.main`. Pasaron 96 tests con
 `python -m pytest -q --basetemp <temp>`, `ruff check .` no reporto hallazgos y el validador
 confirmo el dataset `3991/40/40/160`. El bootstrap proceso 104 documentos: 103
 `available` y 1 `needs_ocr`; su prueba de idempotencia tambien paso.
@@ -47,7 +48,8 @@ cambios posteriores. `dataset/` y los documentos canonicos de `docs/` se referen
 copian.
 
 La reestructuracion de entregables, la ampliacion de `/admin`, el timeout de escucha y el
-diagrama integrado estan especificados, pero no se ejecutaron ni se implementaron en este corte.
+diagrama integrado estan aplicados y sincronizados; la evidencia manual de navegador, G2 y G5
+externo permanece pendiente.
 
 ## Fuentes canonicas
 

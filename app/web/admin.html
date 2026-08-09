@@ -58,32 +58,54 @@
         <p id="upload-status" class="form-status" role="status" aria-live="polite"></p>
       </section>
 
-      <section class="panel" aria-labelledby="documents-title">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Inventario</p>
-            <h2 id="documents-title">Fuentes cargadas</h2>
+      <div class="admin-workspace">
+        <section class="panel" aria-labelledby="documents-title">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Inventario</p>
+              <h2 id="documents-title">Fuentes cargadas</h2>
+            </div>
+            <button class="button button-quiet" id="refresh-documents" type="button">Actualizar</button>
           </div>
-          <button class="button button-quiet" id="refresh-documents" type="button">Actualizar</button>
-        </div>
-        <div class="table-wrap">
-          <table class="documents-table">
-            <caption class="visually-hidden">Documentos y estado de procesamiento</caption>
-            <thead>
-              <tr>
-                <th scope="col">Documento</th>
-                <th scope="col">Estado</th>
-                <th scope="col">Tamano</th>
-                <th scope="col"><span class="visually-hidden">Acciones</span></th>
-              </tr>
-            </thead>
-            <tbody id="document-rows">
-              <tr><td colspan="4" class="empty-state">Cargando fuentes...</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p id="documents-status" class="form-status" role="status" aria-live="polite"></p>
-      </section>
+          <div class="table-wrap">
+            <table class="documents-table">
+              <caption class="visually-hidden">Documentos, procesamiento y publicación</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Documento</th>
+                  <th scope="col">Procesamiento</th>
+                  <th scope="col">Publicacion</th>
+                  <th scope="col">Contenido</th>
+                  <th scope="col"><span class="visually-hidden">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody id="document-rows">
+                <tr><td colspan="5" class="empty-state">Cargando fuentes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="documents-status" class="form-status" role="status" aria-live="polite"></p>
+        </section>
+
+        <aside class="panel preview-panel" id="preview-panel" aria-labelledby="preview-title" hidden>
+          <div class="panel-heading compact-heading">
+            <div>
+              <p class="eyebrow">Inspeccion segura</p>
+              <h2 id="preview-title">Texto extraido</h2>
+            </div>
+            <button class="button button-quiet" id="preview-close" type="button">Cerrar</button>
+          </div>
+          <p id="preview-document" class="preview-document"></p>
+          <div class="preview-controls">
+            <label for="preview-page">Pagina</label>
+            <input id="preview-page" type="number" min="1" value="1">
+            <button class="button button-secondary" id="preview-load" type="button">Cargar</button>
+          </div>
+          <p id="preview-meta" class="preview-meta"></p>
+          <pre id="preview-text" class="preview-text"></pre>
+          <p id="preview-status" class="form-status" role="status" aria-live="polite"></p>
+        </aside>
+      </div>
     </main>
 
     <footer class="site-footer">Datos sinteticos del reto. No usar para decisiones clinicas reales.</footer>

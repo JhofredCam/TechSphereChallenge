@@ -20,6 +20,9 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+SCHEMA_VERSION = 3
+
+
 SCHEMA_STATEMENTS = (
     """
     CREATE TABLE IF NOT EXISTS documents (
@@ -32,6 +35,7 @@ SCHEMA_STATEMENTS = (
         status TEXT NOT NULL CHECK (
             status IN ('processing', 'available', 'needs_ocr', 'error')
         ),
+        enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
         error TEXT,
         created_at TEXT NOT NULL,
         processed_at TEXT
@@ -104,6 +108,36 @@ SCHEMA_STATEMENTS = (
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS listening_attempts (
+        listen_id TEXT PRIMARY KEY,
+        call_id TEXT NOT NULL,
+        client_turn_id TEXT,
+        status TEXT NOT NULL CHECK (
+            status IN (
+                'LISTENING', 'PARTIAL', 'FINAL_RECEIVED', 'PROCESSING',
+                'NO_RESPONSE', 'LISTEN_TIMEOUT', 'RECOGNITION_ERROR',
+                'RETRY_REQUIRED', 'COMPLETED'
+            )
+        ),
+        configured_timeout_ms INTEGER NOT NULL CHECK (
+            configured_timeout_ms BETWEEN 1000 AND 300000
+        ),
+        elapsed_ms REAL CHECK (elapsed_ms IS NULL OR elapsed_ms >= 0),
+        locale TEXT NOT NULL,
+        implementation TEXT NOT NULL,
+        error_code TEXT,
+        patient_turn_id TEXT,
+        agent_turn_id TEXT,
+        response_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (call_id) REFERENCES calls(id) ON DELETE CASCADE,
+        FOREIGN KEY (patient_turn_id) REFERENCES turns(id) ON DELETE SET NULL,
+        FOREIGN KEY (agent_turn_id) REFERENCES turns(id) ON DELETE SET NULL,
+        UNIQUE (call_id, client_turn_id)
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS sources (
         id TEXT PRIMARY KEY,
         turn_id TEXT,
@@ -114,6 +148,9 @@ SCHEMA_STATEMENTS = (
         citation TEXT NOT NULL,
         corpus_revision INTEGER NOT NULL,
         created_at TEXT NOT NULL,
+        document_filename_snapshot TEXT,
+        document_sha256_snapshot TEXT,
+        chunk_index_snapshot INTEGER,
         FOREIGN KEY (turn_id) REFERENCES turns(id) ON DELETE CASCADE,
         FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL,
         FOREIGN KEY (chunk_id) REFERENCES chunks(id) ON DELETE SET NULL
@@ -139,9 +176,30 @@ SCHEMA_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS idx_pages_document ON pages(document_id, page_number)",
     "CREATE INDEX IF NOT EXISTS idx_chunks_document ON chunks(document_id, page_number)",
     "CREATE INDEX IF NOT EXISTS idx_turns_call ON turns(call_id, turn_index)",
+    "CREATE INDEX IF NOT EXISTS idx_listening_attempts_call "
+    "ON listening_attempts(call_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_listening_attempts_client "
+    "ON listening_attempts(client_turn_id)",
     "CREATE INDEX IF NOT EXISTS idx_sources_turn ON sources(turn_id)",
     "CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit(entity_type, entity_id)",
 )
+
+
+_DOCUMENT_SELECT = """
+    SELECT
+        documents.*,
+        (
+            SELECT COUNT(*)
+            FROM pages AS document_pages
+            WHERE document_pages.document_id = documents.id
+        ) AS page_count,
+        (
+            SELECT COUNT(*)
+            FROM chunks AS document_chunks
+            WHERE document_chunks.document_id = documents.id
+        ) AS chunk_count
+    FROM documents
+"""
 
 
 class Database:
@@ -178,20 +236,95 @@ class Database:
         return self._connection
 
     def initialize(self) -> None:
-        """Create the schema and initialize the corpus revision."""
+        """Create or migrate the schema before the application can serve requests."""
 
         with self._lock:
             try:
+                self._connection.execute("BEGIN IMMEDIATE")
                 for statement in SCHEMA_STATEMENTS:
                     self._connection.execute(statement)
+
+                document_columns = self._column_names("documents")
+                if "enabled" not in document_columns:
+                    self._connection.execute(
+                        "ALTER TABLE documents ADD COLUMN enabled INTEGER NOT NULL "
+                        "DEFAULT 0 CHECK (enabled IN (0, 1))"
+                    )
+                    # Preserve the active baseline corpus, but never publish a
+                    # document that was processing, awaiting OCR, or in error.
+                    self._connection.execute(
+                        "UPDATE documents SET enabled = CASE "
+                        "WHEN status = 'available' THEN 1 ELSE 0 END"
+                    )
+
+                source_columns = self._column_names("sources")
+                snapshot_columns = {
+                    "document_filename_snapshot": "TEXT",
+                    "document_sha256_snapshot": "TEXT",
+                    "chunk_index_snapshot": "INTEGER",
+                }
+                for column, definition in snapshot_columns.items():
+                    if column not in source_columns:
+                        self._connection.execute(
+                            f"ALTER TABLE sources ADD COLUMN {column} {definition}"
+                        )
+
+                # Backfill only while the referenced rows still exist.  COALESCE
+                # keeps an existing snapshot immutable on later initializations.
+                self._connection.execute(
+                    """
+                    UPDATE sources
+                    SET document_filename_snapshot = COALESCE(
+                            document_filename_snapshot,
+                            (
+                                SELECT filename
+                                FROM documents
+                                WHERE documents.id = sources.document_id
+                            )
+                        ),
+                        document_sha256_snapshot = COALESCE(
+                            document_sha256_snapshot,
+                            (SELECT sha256 FROM documents WHERE documents.id = sources.document_id)
+                        ),
+                        chunk_index_snapshot = COALESCE(
+                            chunk_index_snapshot,
+                            (
+                                SELECT chunk_index
+                                FROM chunks
+                                WHERE chunks.id = sources.chunk_id
+                            )
+                        )
+                    WHERE document_id IS NOT NULL
+                    """
+                )
+                self._connection.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_documents_rag_eligibility "
+                    "ON documents(status, enabled)"
+                )
+                self._connection.execute(
+                    "INSERT OR IGNORE INTO meta(key, value) VALUES (?, ?)",
+                    ("corpus_revision", "0"),
+                )
+                self._connection.execute(
+                    "INSERT INTO meta(key, value) VALUES (?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    ("schema_version", str(SCHEMA_VERSION)),
+                )
+                self._connection.commit()
             except sqlite3.OperationalError as exc:
+                if self._connection.in_transaction:
+                    self._connection.rollback()
                 if "fts5" in str(exc).lower() or "no such module" in str(exc).lower():
                     raise RuntimeError("SQLite was built without FTS5 support") from exc
                 raise
-            self._connection.execute(
-                "INSERT OR IGNORE INTO meta(key, value) VALUES (?, ?)",
-                ("corpus_revision", "0"),
-            )
+            except BaseException:
+                if self._connection.in_transaction:
+                    self._connection.rollback()
+                raise
+
+    def _column_names(self, table_name: str) -> set[str]:
+        rows = self._connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        return {str(row["name"]) for row in rows}
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -262,6 +395,41 @@ class Database:
             except ValueError as exc:
                 raise RuntimeError("corpus_revision metadata is not an integer") from exc
 
+    def get_listening_attempt(self, listen_id: str) -> sqlite3.Row | None:
+        with self._lock:
+            return self._connection.execute(
+                "SELECT * FROM listening_attempts WHERE listen_id = ?",
+                (listen_id,),
+            ).fetchone()
+
+    def get_listening_attempt_for_client(
+        self,
+        call_id: str,
+        client_turn_id: str,
+    ) -> sqlite3.Row | None:
+        with self._lock:
+            return self._connection.execute(
+                "SELECT * FROM listening_attempts "
+                "WHERE call_id = ? AND client_turn_id = ?",
+                (call_id, client_turn_id),
+            ).fetchone()
+
+    def get_listening_attempt_by_client(self, client_turn_id: str) -> sqlite3.Row | None:
+        with self._lock:
+            return self._connection.execute(
+                "SELECT * FROM listening_attempts WHERE client_turn_id = ?",
+                (client_turn_id,),
+            ).fetchone()
+
+    def get_listening_attempt_for_turn(self, turn_id: str) -> sqlite3.Row | None:
+        with self._lock:
+            return self._connection.execute(
+                "SELECT * FROM listening_attempts "
+                "WHERE patient_turn_id = ? OR agent_turn_id = ? "
+                "ORDER BY updated_at DESC LIMIT 1",
+                (turn_id, turn_id),
+            ).fetchone()
+
     def increment_corpus_revision(
         self,
         connection: sqlite3.Connection | None = None,
@@ -314,8 +482,8 @@ class Database:
                 """
                 INSERT INTO documents(
                     id, sha256, filename, stored_path, mime_type, size_bytes,
-                    status, error, created_at, processed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
+                    status, enabled, error, created_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)
                 """,
                 (
                     document_id,
@@ -325,6 +493,7 @@ class Database:
                     mime_type,
                     size_bytes,
                     raw_status,
+                    int(raw_status == DocumentStatus.AVAILABLE.value),
                     timestamp,
                 ),
             )
@@ -336,7 +505,7 @@ class Database:
     def get_document(self, document_id: str) -> DocumentRecord | None:
         with self._lock:
             row = self._connection.execute(
-                "SELECT * FROM documents WHERE id = ?",
+                _DOCUMENT_SELECT + " WHERE documents.id = ?",
                 (document_id,),
             ).fetchone()
             return None if row is None else DocumentRecord.from_row(row)
@@ -344,7 +513,7 @@ class Database:
     def get_document_by_hash(self, sha256: str) -> DocumentRecord | None:
         with self._lock:
             row = self._connection.execute(
-                "SELECT * FROM documents WHERE sha256 = ?",
+                _DOCUMENT_SELECT + " WHERE documents.sha256 = ?",
                 (sha256,),
             ).fetchone()
             return None if row is None else DocumentRecord.from_row(row)
@@ -353,13 +522,13 @@ class Database:
         with self._lock:
             if status is None:
                 rows = self._connection.execute(
-                    "SELECT * FROM documents ORDER BY created_at DESC, id DESC"
+                    _DOCUMENT_SELECT + " ORDER BY documents.created_at DESC, documents.id DESC"
                 ).fetchall()
             else:
                 raw_status = status.value if isinstance(status, DocumentStatus) else str(status)
                 rows = self._connection.execute(
-                    "SELECT * FROM documents WHERE status = ? "
-                    "ORDER BY created_at DESC, id DESC",
+                    _DOCUMENT_SELECT + " WHERE documents.status = ? "
+                    "ORDER BY documents.created_at DESC, documents.id DESC",
                     (raw_status,),
                 ).fetchall()
             return [DocumentRecord.from_row(row) for row in rows]
@@ -371,15 +540,84 @@ class Database:
         *,
         error: str | None = None,
         processed_at: str | None = None,
+        enabled: bool | None = None,
         connection: sqlite3.Connection | None = None,
     ) -> None:
         with self._lock:
             conn = connection or self._connection
             raw_status = status.value if isinstance(status, DocumentStatus) else str(status)
-            conn.execute(
-                "UPDATE documents SET status = ?, error = ?, processed_at = ? WHERE id = ?",
-                (raw_status, error, processed_at, document_id),
-            )
+            if enabled is None:
+                if raw_status == DocumentStatus.AVAILABLE.value:
+                    conn.execute(
+                        "UPDATE documents SET status = ?, error = ?, processed_at = ? "
+                        "WHERE id = ?",
+                        (raw_status, error, processed_at, document_id),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE documents SET status = ?, enabled = 0, error = ?, "
+                        "processed_at = ? WHERE id = ?",
+                        (raw_status, error, processed_at, document_id),
+                    )
+            else:
+                conn.execute(
+                    "UPDATE documents SET status = ?, enabled = ?, error = ?, "
+                    "processed_at = ? WHERE id = ?",
+                    (raw_status, int(enabled), error, processed_at, document_id),
+                )
+
+    def set_document_enabled(
+        self,
+        document_id: str,
+        enabled: bool,
+    ) -> tuple[DocumentRecord, bool, int]:
+        """Publish or unpublish an available document without touching its index."""
+
+        if not isinstance(enabled, bool):
+            raise TypeError("enabled must be a boolean")
+        with self._lock:
+            with self.transaction() as connection:
+                row = connection.execute(
+                    "SELECT status, enabled FROM documents WHERE id = ?",
+                    (document_id,),
+                ).fetchone()
+                if row is None:
+                    raise KeyError(document_id)
+                if str(row["status"]) != DocumentStatus.AVAILABLE.value:
+                    raise ValueError("document_not_searchable")
+                current = bool(int(row["enabled"] or 0))
+                if current == enabled:
+                    revision = self.get_corpus_revision()
+                    changed = False
+                else:
+                    connection.execute(
+                        "UPDATE documents SET enabled = ? WHERE id = ?",
+                        (int(enabled), document_id),
+                    )
+                    revision = self.increment_corpus_revision(connection)
+                    self.record_audit(
+                        entity_type="document",
+                        entity_id=document_id,
+                        action="enable" if enabled else "disable",
+                        details={
+                            "enabled": enabled,
+                            "corpus_revision": revision,
+                        },
+                        connection=connection,
+                    )
+                    changed = True
+            record = self.get_document(document_id)
+            if record is None:
+                raise RuntimeError("document disappeared after publication update")
+            return record, changed, revision
+
+    def get_document_page(self, document_id: str, page_number: int) -> sqlite3.Row | None:
+        with self._lock:
+            return self._connection.execute(
+                "SELECT id, document_id, page_number, text, needs_ocr "
+                "FROM pages WHERE document_id = ? AND page_number = ?",
+                (document_id, page_number),
+            ).fetchone()
 
     def insert_page(
         self,
@@ -481,6 +719,33 @@ class Database:
             if self.get_document(document_id) is None:
                 return False
             with self.transaction() as conn:
+                conn.execute(
+                    """
+                    UPDATE sources
+                    SET document_filename_snapshot = COALESCE(
+                            document_filename_snapshot,
+                            (
+                                SELECT filename
+                                FROM documents
+                                WHERE documents.id = sources.document_id
+                            )
+                        ),
+                        document_sha256_snapshot = COALESCE(
+                            document_sha256_snapshot,
+                            (SELECT sha256 FROM documents WHERE documents.id = sources.document_id)
+                        ),
+                        chunk_index_snapshot = COALESCE(
+                            chunk_index_snapshot,
+                            (
+                                SELECT chunk_index
+                                FROM chunks
+                                WHERE chunks.id = sources.chunk_id
+                            )
+                        )
+                    WHERE document_id = ?
+                    """,
+                    (document_id,),
+                )
                 self.clear_document_content(document_id, connection=conn)
                 deleted = conn.execute(
                     "DELETE FROM documents WHERE id = ?",
@@ -521,6 +786,7 @@ initialize_database = init_database
 __all__ = [
     "Database",
     "SCHEMA_STATEMENTS",
+    "SCHEMA_VERSION",
     "init_database",
     "initialize_database",
     "utc_now",
