@@ -29,6 +29,7 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 - [2026-08-09 | Correccion del 409 entre VAD y turnos](2026-08-09_fix_409_vad_turn_race.md)
 - [2026-08-09 | Recuperacion de respuesta del agente](2026-08-09_agent_response_recovery.md)
 - [2026-08-09 | Prevencion de 409 por timeout de voz](2026-08-09_voice_timeout_final_race.md)
+- [2026-08-09 | Invalidacion de assets frontend de voz](2026-08-09_frontend_asset_cache.md)
 
 ## Regla de integracion
 
