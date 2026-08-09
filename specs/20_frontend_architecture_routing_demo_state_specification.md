@@ -1,7 +1,7 @@
 # Spec: Arquitectura frontend, routing y estado demo por roles
 
 **ID:** `FRONTEND-ARCH-020`
-**Estado:** `PROPOSED`; especificación previa a implementación
+**Estado:** `IMPLEMENTED`; rutas, landing, acceso demo y contexto local integrados; smoke browser pendiente
 **Versión:** 0.1.0
 **Fecha:** 2026-08-09
 **Propietario:** superficie web, navegación y sesión demo

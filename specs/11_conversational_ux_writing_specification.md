@@ -1,7 +1,7 @@
 # Spec: Reescritura integral de mensajes del bot y UX Writing VUI
 
 **ID:** `CONVERSATION-UX-001`
-**Estado:** `SPEC_UPDATED`; requiere migración del runtime para VAD, escucha continua y paridad exacta audio-texto
+**Estado:** `IMPLEMENTED`; copy runtime, paridad audio-texto y escucha continua integradas; smoke browser pendiente
 **Version:** 0.3.0
 **Fecha:** 2026-08-09
 **Propietario:** agente conversacional y superficie `/call`

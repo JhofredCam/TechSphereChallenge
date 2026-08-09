@@ -1,7 +1,7 @@
 # Spec: Operacion, rollout y rollback del RAG en produccion
 
 **ID:** `RAG-OPS-001`  
-**Estado:** `PROPOSED`; runbook objetivo, sin despliegue real en este checkout  
+**Estado:** `PARTIAL`; manifest, validación, promotion, rollback y runbook local integrados; despliegue real pendiente
 **Version:** `0.1.0`  
 **Fecha:** `2026-08-08`  
 **Depende de:** [`14_rag_vector_store_chromadb_specification.md`](14_rag_vector_store_chromadb_specification.md), [`15_rag_chunking_embedding_benchmark_specification.md`](15_rag_chunking_embedding_benchmark_specification.md), [`17_rag_observability_langsmith_specification.md`](17_rag_observability_langsmith_specification.md)

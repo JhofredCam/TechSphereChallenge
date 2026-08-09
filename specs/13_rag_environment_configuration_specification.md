@@ -1,7 +1,7 @@
 # Spec: Configuracion externa del pipeline RAG
 
 **ID:** `RAG-ENV-001`  
-**Estado:** `PROPOSED`; contrato de migracion, aun no aplicado al runtime  
+**Estado:** `PARTIAL`; contrato validado en runtime local; providers semánticos y perfiles staging/production pendientes
 **Version:** `0.1.0`  
 **Fecha:** `2026-08-08`  
 **Depende de:** [`00_mvp_specification.md`](00_mvp_specification.md), [`04_admin_document_lifecycle_specification.md`](04_admin_document_lifecycle_specification.md)

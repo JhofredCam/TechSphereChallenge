@@ -1,7 +1,7 @@
 # Spec: Orquestacion RAG con LangChain y prompt grounded
 
 **ID:** `RAG-ORCH-001`  
-**Estado:** `PROPOSED`; el runtime actual usa servicios propios y FTS5  
+**Estado:** `PARTIAL`; loader, prompt y chain contract integrados con fallback seguro; dependencia LangChain/LLM remoto pendiente
 **Version:** `0.1.0`  
 **Fecha:** `2026-08-08`  
 **Depende de:** [`14_rag_vector_store_chromadb_specification.md`](14_rag_vector_store_chromadb_specification.md), [`15_rag_chunking_embedding_benchmark_specification.md`](15_rag_chunking_embedding_benchmark_specification.md), [`11_conversational_ux_writing_specification.md`](11_conversational_ux_writing_specification.md)

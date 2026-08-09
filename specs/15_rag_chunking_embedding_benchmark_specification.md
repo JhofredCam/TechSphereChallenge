@@ -1,7 +1,7 @@
 # Spec: Benchmark de chunking, embeddings y retrieval
 
 **ID:** `RAG-BENCH-001`  
-**Estado:** `PROPOSED`; no existen aun runner ni resultados de benchmark  
+**Estado:** `PARTIAL`; protocolo, qrels, runner determinista y gates integrados; resultados semánticos con providers reales pendientes
 **Version:** `0.1.0`  
 **Fecha:** `2026-08-08`  
 **Depende de:** [`13_rag_environment_configuration_specification.md`](13_rag_environment_configuration_specification.md), [`14_rag_vector_store_chromadb_specification.md`](14_rag_vector_store_chromadb_specification.md)
