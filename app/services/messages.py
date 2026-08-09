@@ -33,10 +33,13 @@ MESSAGES: dict[str, dict[str, str | None]] = {
         "display_text": "Información sintética de demostración; no reemplaza a tu equipo clínico.",
     },
     "LISTEN_START": {
-        "voice_text": "Te escucho. Tienes hasta {segundos} segundos para contarme cómo te sientes.",
-        "display_text": "Escuchando. Tienes {segundos} segundos.",
+        "voice_text": "Te escucho. Cuéntame con calma cómo te sientes.",
+        "display_text": "Escuchando.",
     },
     "LISTENING": {"voice_text": "Te escucho.", "display_text": "Escuchando..."},
+    "PROCESSING": {"voice_text": None, "display_text": "Procesando tu mensaje..."},
+    "RESPONDING": {"voice_text": None, "display_text": "Preparando una respuesta..."},
+    "RECONNECTING": {"voice_text": None, "display_text": "Preparando la escucha..."},
     "LISTEN_PARTIAL": {"voice_text": None, "display_text": "Borrador de lo que entendí: {texto}"},
     "LISTEN_NO_RESPONSE": {
         "voice_text": "No alcancé a escucharte. ¿Quieres intentarlo de nuevo?",
@@ -44,7 +47,7 @@ MESSAGES: dict[str, dict[str, str | None]] = {
     },
     "LISTEN_TIMEOUT": {
         "voice_text": "No alcancé a escucharte. ¿Quieres intentarlo de nuevo?",
-        "display_text": "Se terminó el tiempo de escucha. Puedes reintentar o escribir.",
+        "display_text": "No pudimos completar la escucha. Puedes reintentar o escribir.",
     },
     "LISTEN_ERROR": {
         "voice_text": "No pude escucharte bien. Puedes intentarlo otra vez o escribir tu mensaje.",

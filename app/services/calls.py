@@ -1214,16 +1214,13 @@ class CallService:
             "red": "TRIAGE_RED",
             "yellow": "TRIAGE_YELLOW",
         }.get(triage.level, "CORPUS_CHANGED")
-        display_code = {
-            "red": "ALERT_RED_UI",
-            "yellow": "ALERT_YELLOW_UI",
-        }.get(triage.level, "CORPUS_CHANGED")
         return {
             "text": text,
             "answer": text,
             "response": text,
+            "patient_text": voice_message(voice_code),
             "voice_text": voice_message(voice_code),
-            "display_text": display_message(display_code),
+            "display_text": voice_message(voice_code),
             "source_display": [],
             "internal_reason": "corpus_changed",
             "grounded": False,
@@ -1347,8 +1344,9 @@ class CallService:
             response = {
                 "text": "No pude generar una respuesta segura. Contacte a su equipo clinico.",
                 "answer": "No pude generar una respuesta segura. Contacte a su equipo clinico.",
+                "patient_text": safe_voice,
                 "voice_text": safe_voice,
-                "display_text": safe_display,
+                "display_text": safe_voice,
                 "source_display": [],
                 "internal_reason": "agent_error",
                 "abstained": True,
@@ -1369,6 +1367,15 @@ class CallService:
         else:
             response_data = {"text": str(response), "answer": str(response), "sources": []}
         response_text = str(response_data.get("text") or response_data.get("answer") or "")
+        patient_text = str(
+            response_data.get("patient_text")
+            or response_data.get("voice_text")
+            or response_data.get("display_text")
+            or response_text
+        ).strip()
+        response_data["patient_text"] = patient_text
+        response_data["voice_text"] = patient_text
+        response_data["display_text"] = patient_text
         response_metrics = response_data.get("metrics")
         if not isinstance(response_metrics, Mapping):
             response_metrics = response_data
