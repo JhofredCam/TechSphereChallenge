@@ -162,6 +162,12 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
 - [`11_conversational_ux_writing_specification.md`](specs/11_conversational_ux_writing_specification.md):
   catálogo aplicado en backend y `/call`: copy `voice_text`/`display_text`, triaje sticky,
   errores seguros, preguntas de una intención y trazabilidad separada en `source_display`.
+- [`20_frontend_architecture_routing_demo_state_specification.md`](specs/20_frontend_architecture_routing_demo_state_specification.md):
+  landing, acceso demo por roles, rutas y contexto local de paciente; `PROPOSED`.
+- [`21_patient_portal_call_ux_specification.md`](specs/21_patient_portal_call_ux_specification.md):
+  conversación dominante, rail visible de triaje/trazabilidad/cierre y responsive; `PROPOSED`.
+- [`22_audio_engine_continuous_vad_specification.md`](specs/22_audio_engine_continuous_vad_specification.md):
+  llamada continua, VAD, silencio configurable y estados de audio; `PROPOSED`.
 - [`13_rag_environment_configuration_specification.md`](specs/13_rag_environment_configuration_specification.md):
    variables, defaults, perfiles y secretos redacted del pipeline.
 - [`14_rag_vector_store_chromadb_specification.md`](specs/14_rag_vector_store_chromadb_specification.md):

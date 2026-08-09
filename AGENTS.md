@@ -18,7 +18,7 @@
 - Read the official challenge context under `readme/ParticipantArtifacts/` first, then read
   `README.md`, `docs/rubrica-evaluacion.md` and `docs/stack-tecnico.md` for this fork's applied
   implementation and evidence.
-- Read `readme/06_bitacora_de_sesiones/README.md` for the session log and its project guidance.
+- Read `readme/06_bitacora_de_sesiones/README.md` for the session log and its project guidance. Add every new session your report of the conversation.
 - Document and verify the fork's real setup, run, and focused-test commands in the README; prefer the implementation's scripts/config files over stale prose.
 
 ## Dataset Traps

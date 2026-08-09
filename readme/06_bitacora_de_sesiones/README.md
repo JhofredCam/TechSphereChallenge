@@ -21,6 +21,7 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 ## Entrada reciente
 
 - [2026-08-09 | Integracion del contexto oficial y guias de agente](2026-08-09_integracion_contexto_reto_guias_agente.md)
+- [2026-08-09 | Specs de portal demo, UX de llamada y VAD](2026-08-09_specs_portal_demo_call_vad.md)
 
 ## Regla de integracion
 

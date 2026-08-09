@@ -1,8 +1,7 @@
 # Spec: Reescritura integral de mensajes del bot y UX Writing VUI
 
 **ID:** `CONVERSATION-UX-001`
-**Estado:** `SPEC_UPDATED`; requiere migración del runtime para eliminar el límite temporal y
-garantizar paridad exacta audio-texto
+**Estado:** `SPEC_UPDATED`; requiere migración del runtime para VAD, escucha continua y paridad exacta audio-texto
 **Version:** 0.3.0
 **Fecha:** 2026-08-09
 **Propietario:** agente conversacional y superficie `/call`
@@ -32,6 +31,14 @@ La reescritura aplica estrictamente estas reglas:
 7. conservar triaje determinista, grounding, abstencion, citas y contratos de API existentes.
 
 ## Rol y voz de la asistente
+
+### Precedencia de la llamada continua
+
+La [`Spec 22`](22_audio_engine_continuous_vad_specification.md) es el contrato sucesor para el
+cierre técnico de segmentos. Mantiene la ausencia de cuenta regresiva y de presión visible, pero
+permite que un silencio estable cierre un segmento después de voz y texto confirmado. El silencio
+sin texto sigue sin crear turno, alerta ni decisión de triaje. Esta actualización no cambia la
+paridad exacta entre `patient_text`, UI y TTS ni las reglas clínicas deterministas.
 
 La asistente:
 
@@ -83,15 +90,16 @@ La asistente:
 
 ## Principios obligatorios de VUI
 
-### Escucha abierta, sin presión temporal
+### Escucha continua, sin presión visible
 
-- no existe un máximo de segundos para la intervención del paciente;
+- la llamada encadena segmentos sin exigir que el paciente pulse `Hablar` para cada turno;
 - no mostrar cuenta regresiva, tiempo restante, `PATIENT_LISTEN_TIMEOUT_MS`, `deadline` ni
   temporizadores equivalentes en la interfaz;
-- no usar `setTimeout` para cortar la escucha ni emitir un timeout clínico;
-- la escucha termina cuando el paciente pulsa `Terminar escucha`, cuando finaliza explícitamente
-  la llamada o cuando el navegador informa una condición técnica real;
-- el silencio no crea un turno, no cambia el triaje y no debe anunciar una respuesta clínica;
+- `VOICE_SILENCE_TIMEOUT_MS` puede cerrar un segmento después de voz y texto confirmado; no es un
+  timeout clínico ni una presión visible;
+- la llamada sigue escuchando después de `RESPONDIENDO` hasta que el paciente finaliza la llamada,
+  el sistema falla o el paciente termina explícitamente la escucha;
+- el silencio sin texto no crea un turno, no cambia el triaje y no debe anunciar una respuesta clínica;
 - si el navegador o la conexión fallan, mostrar una explicación recuperable y ofrecer texto, sin
   atribuir el fallo al paciente.
 
@@ -388,8 +396,8 @@ La validacion de copy no sustituye las reglas deterministas de `triage.py`.
    `app/web/messages.js`;
 2. migrar a `patient_text` y conservar `voice_text`/`display_text` como aliases exactos, sin
    quitar los aliases internos existentes;
-3. retirar del runtime `PATIENT_LISTEN_TIMEOUT_MS`, la cuenta regresiva, `deadline` y el corte por
-   `setTimeout`, manteniendo solo finalización explícita o fallos técnicos reales;
+3. conservar `PATIENT_LISTEN_TIMEOUT_MS` como watchdog técnico oculto y retirar de la interfaz la
+   cuenta regresiva y `deadline`; implementar el cierre VAD según la Spec 22;
 4. aplicar el catálogo al agente, triaje, errores de llamada, corpus obsoleto y estados de voz;
 5. validar que `SpeechSynthesisUtterance.text` y la burbuja visible reciban exactamente el mismo
    string, y cubrirlo con `tests/test_conversational_ux.py`;
@@ -406,13 +414,14 @@ quedan `PENDING_REVIEW` hasta completar la migración del runtime.
 app/services/agent.py       -> seleccion de respuesta, grounding y abstencion
 app/services/triage.py      -> reglas, triggers y preguntas de una etapa
 app/services/calls.py       -> errores, corpus obsoleto, cierre y resumen
-app/web/app.js              -> escucha abierta y mismo texto para TTS/UI
+app/web/app.js              -> escucha continua y mismo texto para TTS/UI
+app/web/voice-loop.js       -> VAD, segmentos y transiciones sin copy clínico
 app/web/call.html           -> copy visible, labels y regiones live
 app/web/messages.js         -> proyección browser del catálogo y validación de voz
 tests/test_agent.py         -> tono, grounding, cita y seguridad
 tests/test_triage.py        -> niveles, sticky, si/no y aclaracion
 tests/test_calls.py         -> errores, resumen, alertas y corpus revision
-tests/test_timeout.py       -> regresiones históricas; no autoriza límite temporal de voz
+tests/test_timeout.py       -> regresión del watchdog; no autoriza presión visible al paciente
 tests/test_conversational_ux.py -> catálogo, canales, triaje, escucha abierta y paridad browser
 tests/test_voice_ui.*       -> smoke de SpeechRecognition/TTS `MANUAL_PENDING`
 specs/07_*                  -> piramide de pruebas y evidencia manual

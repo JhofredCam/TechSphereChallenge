@@ -38,6 +38,9 @@ evidencia.
 | `SPEC-RAG-OBS-001` | [`specs/17_rag_observability_langsmith_specification.md`](17_rag_observability_langsmith_specification.md) | spans, redaccion y SLOs |
 | `SPEC-RAG-OPS-001` | [`specs/18_rag_production_operations_specification.md`](18_rag_production_operations_specification.md) | manifest, rollout, rollback y backup |
 | `SPEC-RAG-MIG-001` | [`specs/19_rag_production_migration_specification.md`](19_rag_production_migration_specification.md) | contrato integrador del upgrade |
+| `SPEC-FRONTEND-ARCH-020` | [`specs/20_frontend_architecture_routing_demo_state_specification.md`](20_frontend_architecture_routing_demo_state_specification.md) | landing, accesos demo, rutas y contexto de paciente |
+| `SPEC-PATIENT-UX-021` | [`specs/21_patient_portal_call_ux_specification.md`](21_patient_portal_call_ux_specification.md) | conversacion en primer plano, rail de triaje, fuentes y cierre |
+| `SPEC-AUDIO-VAD-022` | [`specs/22_audio_engine_continuous_vad_specification.md`](22_audio_engine_continuous_vad_specification.md) | llamada continua, VAD, segmentos, estados y configuracion |
 | `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
 | `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
@@ -172,7 +175,7 @@ El color no decide triaje y no sustituye el texto del estado.
 | `D2` | llamada completa del paciente, escucha e idempotencia |
 | `D3` | administracion y conocimiento vivo |
 | `D4` | triaje, RAG, agente y abstencion |
-| `D5` | estados de escucha, timeout y fallback |
+| `D5` | estados de escucha, VAD, watchdog y fallback |
 | `D6` | datos, evidencia y metricas |
 
 ## Etapas de extremo a extremo
@@ -181,8 +184,8 @@ El color no decide triaje y no sustituye el texto del estado.
 |---|---|---|---|---|
 | 0. Preparar | `STG-BOOT-001` | validar XLSX y recorrer el corpus local | base, hash y revision de corpus | TESTED |
 | 1. Administrar | `STG-ADMIN-001` | subir, preview, habilitar, deshabilitar o borrar | inventario, badges y revision | API TESTED; UI MANUAL_PENDING |
-| 2. Iniciar | `STG-CALL-001` | abrir `/call` y crear llamada | `call_id` activo | TESTED |
-| 3. Escuchar | `STG-VOICE-001` | capturar voz o aceptar texto | transcript final o fallback | IMPLEMENTED; browser MANUAL_PENDING |
+| 2. Iniciar | `STG-CALL-001` | landing -> acceso demo -> contexto -> `/call` | `call_id` activo | PROPOSED; API baseline TESTED |
+| 3. Escuchar | `STG-VOICE-001` | VAD + SpeechRecognition o texto | segmento final o fallback | PROPOSED; browser MANUAL_PENDING |
 | 4. Analizar | `STG-TRIAGE-001` | normalizar y clasificar con nivel previo | `red`, `yellow`, `green` o `unknown` | TESTED |
 | 5. Recuperar | `STG-RAG-001` | buscar con Chroma/FTS5 y filtrar `status='available' AND enabled=1` | chunks, score, pagina, cita, backend y version | TESTED baseline; target PROPOSED |
 | 6. Responder | `STG-AGENT-001` | Llama permitido o fallback extractivo | respuesta grounded o abstencion | TESTED local; proveedor MANUAL_PENDING |
@@ -918,7 +921,10 @@ real.
 | `TRZ-CITATION-001` | respuesta conserva pagina, chunk, cita y revision | D2, D4, D6 | 00 | `SearchResult`, `sources`, `corpus_revision` | `tests/test_agent.py`, `tests/test_calls.py`, `tests/test_api.py` | TESTED |
 | `TRZ-RAG-CITATION-001` | una respuesta grounded solo usa una cita recuperada | D2, D4, D6 | 00 | `AgentService`, `SearchResult`, `sources` | `tests/test_agent.py`, `tests/test_live_knowledge.py` | TESTED |
 | `TRZ-HISTORY-001` | historial/snapshot no se reutiliza como evidencia RAG nueva | D2, D3, D4, D6 | 00, 04 | `sources` snapshot y consulta activa | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py`, `tests/test_calls.py` | TESTED |
-| `TRZ-VOICE-TIMEOUT-001` | escucha total configurable y fallback seguro | D2, D5 | 05 | `PATIENT_LISTEN_TIMEOUT_MS`, estados JS, `voice-events` | `tests/test_timeout.py`; Chrome/Edge pendiente | TESTED API; MANUAL_PENDING browser |
+| `TRZ-VOICE-TIMEOUT-001` | watchdog total configurable y fallback seguro | D2, D5 | 05, 22 | `PATIENT_LISTEN_TIMEOUT_MS`, estados JS, `voice-events` | `tests/test_timeout.py`; Chrome/Edge pendiente | TESTED API; MANUAL_PENDING browser |
+| `TRZ-VAD-001` | silencio estable cierra solo un segmento con voz confirmada | D2, D5 | 22 | `VOICE_SILENCE_TIMEOUT_MS`, `voice-loop.js`, eventos VAD | `tests/test_vad.py`, smoke Chrome/Edge | PROPOSED |
+| `TRZ-DEMO-ACCESS-001` | landing y rol demo llevan contexto paciente o admin a la vista correcta | D1, D2 | 20 | `sessionStorage`, rutas HTML y `POST /api/calls` | `tests/test_demo_access.py`, smoke | PROPOSED |
+| `TRZ-CALL-UX-001` | conversacion, triaje, trazabilidad y cierre son adyacentes y accesibles | D2, D5, D6 | 21 | `call.html`, rail, estados y copy | `tests/test_call_ui_contracts.py`, smoke | PROPOSED |
 | `TRZ-TRIAGE-001` | red, yellow, green y unknown | D2, D4 | 00, rubrica | `app/services/triage.py` | `tests/test_triage.py`, `tests/test_api.py` | TESTED |
 | `TRZ-STICKY-001` | red/yellow no degradan | D4 | 00 | `highest_level`, alertas persistentes | `tests/test_triage.py`, `tests/test_calls.py`, `tests/test_api.py` | TESTED |
 | `TRZ-ABSTAIN-001` | sin evidencia produce abstencion | D4 | 00 | `AgentService.respond` | `tests/test_agent.py`, `tests/test_live_knowledge.py`, `tests/test_api.py` | TESTED |
@@ -949,6 +955,9 @@ real.
 | `FUT-ADMIN-UX-001` | inventario responsive sin SHA visible | PROPOSED | definido en Spec 08; requiere smoke visual |
 | `FUT-ADMIN-SOURCE-001` | archivo original en modal | PROPOSED | definido en Spec 09; requiere endpoint binario y pruebas MIME |
 | `FUT-UX-COPY-001` | catalogo de copy, validacion VUI y separacion voz/UI | PROPOSED | definido en Spec 11; requiere reescritura y smoke de voz |
+| `FUT-FRONTEND-DEMO-001` | landing, acceso demo por roles y contexto de paciente | PROPOSED | definido en Spec 20; requiere rutas, sessionStorage y smoke |
+| `FUT-CALL-UX-001` | rediseno de `/call` con conversacion dominante y rail operativo | PROPOSED | definido en Spec 21; requiere smoke responsive y accesibilidad |
+| `FUT-AUDIO-VAD-001` | llamada continua y cierre de segmentos por silencio | PROPOSED | definido en Spec 22; requiere pruebas sinteticas y microfono real |
 | `FUT-RAG-EMBEDDING-001` | ChromaDB + embeddings, retrieval hibrido y fallback FTS5 | PROPOSED | Specs 13-19, benchmark pendiente y no hay ganador elegido |
 | `FUT-COST-001` | precios vivos y costo real | PROPOSED | no hay precios fechados ni log Groq real |
 | `FUT-VIDEO-001` | video de entrega | PROPOSED | solo existe manifiesto en `mvp/deliverables/04_video/` |
@@ -964,6 +973,8 @@ real.
 | `DIVERGENCE-003` | la spec 07 deja explícitas las brechas de MIME independiente, capas no reconstruidas y browser real | `specs/07_testing_unit_integration_specification.md` | brechas documentadas; no se presentan como cobertura local |
 | `DIVERGENCE-004` | la UI no tiene runner browser automatizado; `node --check` solo comprueba sintaxis | `specs/07_testing_unit_integration_specification.md`, `app/web/app.js` | estados de UI/voz siguen `MANUAL_PENDING` aunque el contrato API este `TESTED` |
 | `DIVERGENCE-005` | el costo tiene campos y formula, pero no precios vivos ni tokens reales del proveedor | rubrica, metricas | `TRZ-COST-001` permanece `PROPOSED`; los valores del informe siguen `PENDIENTE` |
+| `DIVERGENCE-006` | `app/main.py` sirve `/` como `/call`, sin acceso demo ni contexto en sessionStorage | 20, runtime | se marca `PROPOSED`; no se declara implementado hasta tener rutas y pruebas |
+| `DIVERGENCE-007` | el baseline usa turn-taking y timeout total; todavia no hay VAD ni llamada continua | 05, 11, 22, runtime | la Spec 22 es el contrato sucesor; los gates de voz siguen `MANUAL_PENDING` |
 
 ## Sincronizacion obligatoria
 
@@ -978,8 +989,10 @@ real.
 7. Registrar fecha, commit o `working tree/no commit`, entorno, comando y resultado.
 
 Un cambio de estructura obliga a revisar D1 y `TRZ-STRUCTURE-001`; un cambio admin obliga a
-revisar D1/D3/D4 y `TRZ-ADMIN-*`; un cambio de timeout obliga a revisar D2/D5, eventos y
-`TRZ-VOICE-*`; un cambio de modelo obliga a revisar proveedor, G3, informe y `TRZ-MODEL-001`.
+revisar D1/D3/D4 y `TRZ-ADMIN-*`; un cambio de timeout o VAD obliga a revisar D2/D5, eventos y
+`TRZ-VOICE-*`; un cambio de rutas o roles obliga a revisar D1/D2 y `TRZ-DEMO-ACCESS-001`; un
+cambio de UI obliga a revisar D2/D5 y `TRZ-CALL-UX-001`; un cambio de modelo obliga a revisar
+proveedor, G3, informe y `TRZ-MODEL-001`.
 
 ## Verificacion ejecutada para esta sincronizacion
 

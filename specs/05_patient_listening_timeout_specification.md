@@ -1,6 +1,6 @@
 # Spec: Timeout configurable de escucha del paciente
 
-**Estado:** implementada en runtime; evidencia manual de Chrome/Edge pendiente
+**Estado:** implementada como watchdog del baseline; cierre VAD de segmentos definido por la Spec 22
 **Version:** 0.2.0
 **Fecha:** 2026-08-08
 
@@ -14,6 +14,14 @@ silencio en una decision clinica.
 El runtime usa `SpeechRecognition` en `es-CO` con `continuous=false`,
 `interimResults=true` y un timer propio por intento. El valor efectivo llega al navegador desde
 `GET /health`; el navegador no lee `.env`.
+
+### Precedencia posterior
+
+La [`Spec 22`](22_audio_engine_continuous_vad_specification.md) es sucesora para la experiencia
+de llamada continua: `VOICE_SILENCE_TIMEOUT_MS` decide el cierre técnico de un segmento solo si
+existe voz y texto confirmado. Esta spec conserva `PATIENT_LISTEN_TIMEOUT_MS` como watchdog total
+del reconocimiento, con consecuencias seguras y sin cuenta regresiva visible. Los contratos de
+idempotencia, eventos sin texto clínico y rechazo de transcript tardío siguen vigentes.
 
 ## Tech Stack
 
@@ -65,7 +73,7 @@ expresan por estados explicitos (`LISTENING`, `PROCESSING`, `LISTEN_TIMEOUT`, `R
 y el servidor usa `client_turn_id` como clave de idempotencia por llamada. No se usa un booleano
 global que pueda mezclar dos llamadas o dos turnos.
 
-## Semantica implementada
+## Semantica heredada del baseline
 
 La implementacion interpreta "timeout de escucha" como **duracion maxima total de un turno de
 escucha**, no como tiempo de silencio. Se configura con:
@@ -75,8 +83,8 @@ PATIENT_LISTEN_TIMEOUT_MS=30000
 ```
 
 `30000` ms es el default vigente y puede ajustarse con la experiencia y metricas reales. La
-diferencia entre limite total y limite de silencio queda como evolucion abierta al final de esta
-spec.
+diferencia con el limite de silencio esta resuelta en la Spec 22; no se debe reutilizar este
+watchdog como la señal VAD ni mostrarlo al paciente.
 
 ### Lo que controla
 
