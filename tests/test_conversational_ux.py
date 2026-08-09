@@ -61,6 +61,7 @@ def test_agent_returns_separate_voice_display_and_traceability_channels(monkeypa
     response = AgentService(FakeRag([source()])).respond("¿Cómo vigilo la herida?")
 
     assert response.grounded is True
+    assert response.patient_text == response.voice_text == response.display_text
     assert response.voice_text
     assert response.display_text
     assert response.source_display == [
@@ -103,7 +104,8 @@ def test_no_evidence_has_a_safe_next_step_without_false_green(monkeypatch):
     assert response.abstained is True
     assert response.grounded is False
     assert response.level == "unknown"
-    assert response.display_text == "Necesitamos aclarar"
+    assert response.patient_text == response.voice_text == response.display_text
+    assert response.display_text.startswith("Quiero ayudarte con cuidado")
     assert "¿Qué síntoma" in response.voice_text
     assert response.level != "green"
 

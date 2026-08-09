@@ -605,15 +605,11 @@
     if (node) node.textContent = labels[state] || "Puedes reintentar";
   }
 
-  function updateListenTimer(attempt, elapsed = null) {
+  function updateListenTimer() {
     const node = $("#listen-timer");
-    if (!node || !attempt?.startedAt || !Number.isFinite(callState.patientListenTimeoutMs)) return;
-    const duration = Number.isFinite(elapsed) ? elapsed : Math.max(0, monotonicNow() - attempt.startedAt);
-    const remainingSeconds = Math.max(
-      0,
-      Math.ceil((callState.patientListenTimeoutMs - duration) / 1000),
-    );
-    node.textContent = `Escucha en curso · ${remainingSeconds} segundos disponibles`;
+    if (!node) return;
+    node.textContent = "";
+    node.hidden = true;
   }
 
   function clearListenTimer(attempt) {
@@ -832,14 +828,13 @@
           elapsed_ms: inputTiming?.elapsed_ms ?? null,
         }),
       });
-      const voiceAnswer = response.voice_text || callVoice("GENERIC_RETRY");
-      const displayAnswer = response.display_text || voiceAnswer;
+      const patientText = response.patient_text || response.voice_text || response.display_text || callVoice("GENERIC_RETRY");
       if (!response.duplicate) {
-        renderTurn("agent", displayAnswer, response.sources || []);
+        renderTurn("agent", patientText, response.sources || []);
         renderTriage(response);
         renderSources(response.sources || []);
         const voiceInput = inputTiming?.mode === "voice" ? inputTiming : null;
-        speak(voiceAnswer, (audioStartedAt) => {
+        speak(patientText, (audioStartedAt) => {
           void recordVoiceTiming(callId, response.agent_turn_id, voiceInput, audioStartedAt);
         });
       }
@@ -918,9 +913,7 @@
         void registerVoiceEvent(attempt, "patient_listen_started", { elapsed_ms: 0 });
         setStatus(
           $("#call-status"),
-          callCopy("LISTEN_START", "display_text", {
-            segundos: Math.ceil(callState.patientListenTimeoutMs / 1000),
-          }),
+          callCopy("LISTEN_START"),
         );
       };
       recognition.onresult = (event) => {
