@@ -480,7 +480,10 @@ class CallService:
                     "patient_listen_started": "LISTENING",
                     "vad_speech_started": "LISTENING",
                     "vad_silence_started": "LISTENING",
-                    "vad_segment_finalized": "PROCESSING",
+                    # VAD finalization is telemetry only.  The clinical turn is
+                    # claimed by handle_turn once the confirmed transcript is
+                    # submitted, so this event must not reserve the attempt.
+                    "vad_segment_finalized": "LISTENING",
                     "partial": "PARTIAL",
                     "final": "FINAL_RECEIVED",
                     "ended": "NO_RESPONSE",
@@ -565,8 +568,16 @@ class CallService:
                 elif event_type in {"vad_speech_started", "vad_silence_started"}:
                     should_log = current_status in _ACTIVE_LISTEN_STATUSES
                 elif event_type == "vad_segment_finalized":
-                    if current_status in _ACTIVE_LISTEN_STATUSES:
-                        next_status = "PROCESSING"
+                    # This event marks the VAD boundary, not the clinical
+                    # transcript.  Leaving the active state intact avoids a
+                    # race where this telemetry request reaches the API before
+                    # POST /turns and makes the latter look like a duplicate
+                    # in-progress turn.
+                    should_log = current_status in {
+                        *_ACTIVE_LISTEN_STATUSES,
+                        "PROCESSING",
+                        "FINAL_RECEIVED",
+                    }
 
                 if late:
                     if next_status is not None:
