@@ -296,6 +296,20 @@ El contenido de preview se inserta como texto, nunca con `innerHTML`. Un documen
 deshabilitado permanece visible y previsualizable. Un documento `needs_ocr` muestra el motivo y
 no ofrece habilitar.
 
+### Mejora UX derivada: inventario sin espacio desperdiciado
+
+La propuesta [`08_admin_inventory_ux_specification.md`](08_admin_inventory_ux_specification.md)
+define un fix de presentacion separado del ciclo documental. Cuando el preview esta cerrado, el
+inventario debe ocupar todo el ancho util; cuando esta abierto, puede compartir el espacio con el
+preview. La propuesta elimina por completo el SHA visible, pero conserva la identidad SHA-256 en
+API, persistencia, deduplicacion y acciones internas. No cambia `status`, `enabled`,
+`rag_eligible`, revision, snapshots ni el filtro RAG.
+
+Esta propuesta queda `PROPOSED` hasta que exista evidencia de layout responsive, ausencia de scroll
+horizontal, accesibilidad y uso correcto del identificador completo en las acciones. La
+previsualizacion del archivo original pertenece a la spec 09 y no se considera incluida en este
+fix.
+
 ## Invariantes de RAG y concurrencia
 
 1. Toda consulta RAG aplica `status='available' AND enabled=1` en la misma consulta que lee los
