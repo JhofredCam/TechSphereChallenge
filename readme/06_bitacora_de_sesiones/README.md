@@ -28,6 +28,7 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 - [2026-08-09 | Specs 23/24 de logging y testing fail-detect](2026-08-09_specs_logging_testing.md)
 - [2026-08-09 | Correccion del 409 entre VAD y turnos](2026-08-09_fix_409_vad_turn_race.md)
 - [2026-08-09 | Recuperacion de respuesta del agente](2026-08-09_agent_response_recovery.md)
+- [2026-08-09 | Prevencion de 409 por timeout de voz](2026-08-09_voice_timeout_final_race.md)
 
 ## Regla de integracion
 

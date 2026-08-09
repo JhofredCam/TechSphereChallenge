@@ -697,6 +697,30 @@
     if (micLabel) micLabel.textContent = label;
   }
 
+  function markContinuousAttemptTimeout(attempt, elapsedMs) {
+    if (
+      callState.currentAttempt !== attempt
+      || attempt.terminal
+      || attempt.finalSubmitted
+    ) return false;
+    attempt.terminal = true;
+    attempt.state = "LISTEN_TIMEOUT";
+    const timeoutMs = Number(callState.patientListenTimeoutMs);
+    const elapsed = Math.max(timeoutMs, Number(elapsedMs) || timeoutMs);
+    clearListenTimer(attempt);
+    clearPartial();
+    setVoiceState("LISTEN_TIMEOUT", attempt);
+    finishAttemptControls(attempt, "Reintentar");
+    const eventPromise = registerVoiceEvent(attempt, "timeout", { elapsed_ms: elapsed });
+    void eventPromise.then(() => {
+      if (callState.currentAttempt === attempt && attempt.state === "LISTEN_TIMEOUT") {
+        setVoiceState("RETRY_REQUIRED", attempt);
+      }
+    });
+    setStatus($("#call-status"), callCopy("LISTEN_TIMEOUT"), "error");
+    return true;
+  }
+
   function requireListenTimeout() {
     if (Number.isInteger(callState.patientListenTimeoutMs)) return Promise.resolve();
     if (!callState.healthPromise) {
@@ -922,14 +946,19 @@
       onPartial: (interim) => showPartial(interim),
       onEvent: (eventType, identifiers = {}) => {
         if (!callState.id || !callState.voiceLoop) return;
-        const attempt = callState.currentAttempt || {
+        const previousAttempt = callState.currentAttempt;
+        const isNewAttempt = Boolean(
+          !previousAttempt
+          || (identifiers.listenId && previousAttempt.listenId !== identifiers.listenId),
+        );
+        const attempt = isNewAttempt ? {
           listenId: identifiers.listenId || `listen_${createClientId("vad")}`.slice(0, 128),
           clientTurnId: identifiers.clientTurnId || `client_turn_${createClientId("vad")}`.slice(0, 128),
           implementation: "SpeechRecognition",
           state: "LISTENING",
           terminal: false,
           startedAt: monotonicNow(),
-        };
+        } : previousAttempt;
         attempt.listenId = identifiers.listenId || attempt.listenId;
         attempt.clientTurnId = identifiers.clientTurnId || attempt.clientTurnId;
         callState.currentAttempt = attempt;
@@ -946,12 +975,30 @@
         attempt.listenId = identifiers.listenId || attempt.listenId;
         attempt.clientTurnId = identifiers.clientTurnId || attempt.clientTurnId;
         attempt.implementation = "SpeechRecognition";
+        const elapsed = attempt.startedAt ? Math.max(0, monotonicNow() - attempt.startedAt) : null;
+        if (
+          Number.isInteger(callState.patientListenTimeoutMs)
+          && Number.isFinite(elapsed)
+          && elapsed > callState.patientListenTimeoutMs
+        ) {
+          markContinuousAttemptTimeout(attempt, elapsed);
+          return;
+        }
         attempt.state = "PROCESSING";
         attempt.terminal = true;
         callState.currentAttempt = attempt;
         void registerVoiceEvent(attempt, "final");
         clearPartial();
-        void sendTurn(text, { mode: "voice", speech_ended_at: new Date().toISOString(), audio_started_at: null }, attempt);
+        void sendTurn(
+          text,
+          {
+            mode: "voice",
+            speech_ended_at: new Date().toISOString(),
+            audio_started_at: null,
+            elapsed_ms: elapsed,
+          },
+          attempt,
+        );
       },
       onError: () => {
         renderCallState("error");
