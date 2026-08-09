@@ -10,7 +10,7 @@ la vista publicada de implementacion es [`docs/arquitectura.md`](../../../docs/a
 |---|---|
 | `artifact` | Vista formal derivada de arquitectura y flujo |
 | `source` | [`specs/06_system_flow_diagram_specification.md`](../../../specs/06_system_flow_diagram_specification.md) |
-| `spec_version` | `0.2.0` |
+| `spec_version` | `0.3.0` |
 | `generated_at` | `2026-08-08` |
 | `commit` | `working tree/no commit` |
 | `published_view` | [`docs/arquitectura.md`](../../../docs/arquitectura.md) |
@@ -38,6 +38,12 @@ Contratos relacionados: `GET/POST/PATCH/DELETE /api/admin/documents`,
 `POST .../voice-events`, `POST .../voice-timing`, `POST .../finish`, `GET /health` y
 `GET /api/metrics`. Sus estados y trazabilidad normativa estan en la [spec 06](../../../specs/06_system_flow_diagram_specification.md#mapa-de-contratos-y-submodulos).
 
+La spec 06 version `0.3.0` agrega una convencion visual para distinguir usuario, admin, bot, RAG,
+datos, externos, seguridad y metricas. Las propuestas de inventario responsive sin SHA visible y
+de archivo original en modal estan en [spec 08](../../../specs/08_admin_inventory_ux_specification.md)
+y [spec 09](../../../specs/09_admin_source_preview_specification.md); ambas siguen
+`PROPOSED` y no alteran el estado del runtime resumido aqui.
+
 ## Modelo y proveedor
 
 | Componente | Seleccion | Estado |
@@ -54,6 +60,8 @@ Contratos relacionados: `GET/POST/PATCH/DELETE /api/admin/documents`,
 |---|---|---|---|
 | Estructura de entrega y proceso | `mvp/crisp-dm/`, `mvp/deliverables/` | preflight de rutas y ausencia de copias prohibidas | TESTED |
 | Preview textual | `app/services/documents.py`, `GET .../preview`, `app/web/app.js` | `tests/test_admin_lifecycle.py` | TESTED API; UI manual pendiente |
+| Inventario responsive y sin SHA visible | spec 08; todavia sin runtime | smoke responsive y DOM futuros | PROPOSED |
+| Archivo original en modal | spec 09; endpoint binario futuro | pruebas MIME/bytes y smoke modal futuro | PROPOSED |
 | Publicacion independiente | `enabled`, `rag_eligible`, `PATCH .../{id}` | `tests/test_admin_lifecycle.py` | TESTED |
 | RAG activo | `app/services/rag.py` | tests admin/live knowledge | TESTED |
 | Delete y snapshots | `app/database.py`, `DocumentService.delete`, `sources` | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py` | TESTED local; G5 externo pendiente |

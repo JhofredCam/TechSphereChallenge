@@ -20,6 +20,11 @@ Esta pagina es la vista publicada sincronizada. La vista formal derivada del ent
 No se deben agregar bloques nuevos aqui sin actualizar primero la spec normativa y las specs
 upstream:
 
+La version visual vigente usa estas etiquetas: `[USUARIO]` azul, `[ADMIN]` ambar, `[BOT]`
+violeta, `[RAG]` turquesa, `[DATOS]` gris, `[EXTERNO]` naranja, `[SEGURIDAD]` rojo y
+`[METRICAS]` verde. El color solo comunica ownership; los estados y el triaje se expresan tambien
+con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06.
+
 - [`specs/03_mvp_structure_specification.md`](../specs/03_mvp_structure_specification.md):
   entregables bajo `mvp/` y fases bajo `mvp/crisp-dm/`.
 - [`specs/04_admin_document_lifecycle_specification.md`](../specs/04_admin_document_lifecycle_specification.md):
@@ -57,43 +62,43 @@ G2 o G5 externo.
 ```mermaid
 flowchart LR
     subgraph Browser["Navegador"]
-        Admin["Consola admin<br/>/admin"]
-        Call["Interfaz de llamada<br/>/call"]
-        SpeechIn["SpeechRecognition<br/>es-CO"]
-        SpeechOut["SpeechSynthesis"]
-        TextFallback["Entrada textual<br/>fallback"]
+        Admin["[ADMIN] Consola admin<br/>/admin"]:::admin
+        Call["[USUARIO] Interfaz de llamada<br/>/call"]:::actor
+        SpeechIn["[USUARIO] SpeechRecognition<br/>es-CO"]:::actor
+        SpeechOut["[BOT] SpeechSynthesis"]:::bot
+        TextFallback["[USUARIO] Entrada textual<br/>fallback"]:::actor
     end
 
     subgraph API["Aplicacion FastAPI / Uvicorn"]
-        Routes["Rutas HTTP y estaticos"]
-        Config["config.py<br/>timeout publico"]
-        Documents["documents.py<br/>upload / list / preview / toggle / delete"]
-        Ingestion["ingestion.py<br/>PDF, TXT, MD y chunks"]
-        RAG["rag.py<br/>FTS5; available + enabled"]
-        Agent["agent.py<br/>respuesta grounded"]
-        Triage["triage.py<br/>reglas conservadoras"]
-        Calls["calls.py<br/>turnos y resumen"]
-        VoiceEvents["voice-events<br/>estados e idempotencia"]
-        Metrics["metrics.py<br/>logs y agregacion"]
+        Routes["[BOT] Rutas HTTP y estaticos"]:::bot
+        Config["[BOT] config.py<br/>timeout publico"]:::bot
+        Documents["[ADMIN] documents.py<br/>upload / list / preview / toggle / delete"]:::admin
+        Ingestion["[RAG] ingestion.py<br/>PDF, TXT, MD y chunks"]:::rag
+        RAG["[RAG] rag.py<br/>FTS5, available + enabled"]:::rag
+        Agent["[BOT] agent.py<br/>respuesta grounded"]:::bot
+        Triage["[SEGURIDAD] triage.py<br/>reglas conservadoras"]:::security
+        Calls["[BOT] calls.py<br/>turnos y resumen"]:::bot
+        VoiceEvents["[BOT] voice-events<br/>estados e idempotencia"]:::bot
+        Metrics["[METRICAS] metrics.py<br/>logs y agregacion"]:::metrics
     end
 
     subgraph Local["Estado local configurado"]
-        DB[("SQLite + FTS5")]
-        JSONL[("events.jsonl")]
-        Data["data/<br/>app.sqlite3, uploads, events.jsonl"]
+        DB[("[DATOS] SQLite + FTS5")]:::data
+        JSONL[("[METRICAS] events.jsonl")]:::metrics
+        Data["[DATOS] data/<br/>app.sqlite3, uploads, events.jsonl"]:::data
     end
 
     subgraph Sources["Fuentes canonicas"]
-        Corpus["dataset/textos/<br/>corpus clinico"]
-        XLSX["dataset/*.xlsx<br/>casos sinteticos"]
+        Corpus["[DATOS] dataset/textos/<br/>corpus clinico"]:::data
+        XLSX["[DATOS] dataset/*.xlsx<br/>casos sinteticos"]:::data
     end
 
     subgraph Tools["Herramientas CLI"]
-        Bootstrap["app.bootstrap<br/>scripts.bootstrap"]
-        Validate["scripts.validate_dataset"]
+        Bootstrap["[RAG] app.bootstrap<br/>scripts.bootstrap"]:::rag
+        Validate["[DATOS] scripts.validate_dataset"]:::data
     end
 
-    Groq["Groq API opcional<br/>Llama 3.1 8B Instant<br/>+ Whisper STT opcional"]
+    Groq["[EXTERNO] Groq API opcional<br/>Llama 3.1 8B Instant<br/>+ Whisper STT opcional"]:::external
 
     Admin --> Routes
     Call --> Routes
@@ -106,7 +111,7 @@ flowchart LR
     Routes --> VoiceEvents
     Documents --> Ingestion
     Documents --> DB
-    Ingestion --> Corpus
+    Corpus --> Ingestion
     Ingestion --> DB
     Bootstrap --> Validate
     Validate --> XLSX
@@ -124,6 +129,15 @@ flowchart LR
     VoiceEvents --> Metrics
     Metrics --> JSONL
     DB --> Data
+
+    classDef actor fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A,stroke-width:2px;
+    classDef admin fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:2px;
+    classDef bot fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95,stroke-width:2px;
+    classDef rag fill:#CCFBF1,stroke:#0F766E,color:#134E4A,stroke-width:2px;
+    classDef data fill:#E2E8F0,stroke:#475569,color:#1E293B,stroke-width:2px;
+    classDef external fill:#FFEDD5,stroke:#C2410C,color:#7C2D12,stroke-width:2px,stroke-dasharray:5 5;
+    classDef security fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D,stroke-width:2px;
+    classDef metrics fill:#DCFCE7,stroke:#15803D,color:#14532D,stroke-width:2px;
 ```
 
 El adaptador Groq es opcional para pruebas locales: sin `GROQ_API_KEY`, el MVP conserva un
@@ -164,27 +178,32 @@ fallback textual. Estos eventos no entran como P50/P95 de respuesta.
 
 ```mermaid
 flowchart TD
-    Start([Turno del paciente]) --> Normalize["Normalizar texto o transcripcion"]
-    Normalize --> Safety["Evaluar reglas de triaje<br/>con nivel previo"]
+    Start(["[USUARIO] Turno del paciente"]):::actor --> Normalize["[BOT] Normalizar texto o transcripcion"]:::bot
+    Normalize --> Safety["[SEGURIDAD] Evaluar reglas de triaje<br/>con nivel previo"]:::security
 
-    Safety -->|"rojo"| Red["Mantener rojo<br/>persistir alerta"]
-    Safety -->|"amarillo"| Yellow["Mantener amarillo<br/>persistir alerta"]
-    Safety -->|"ambiguo / unknown"| Clarify["Pedir aclaracion<br/>sin cerrar decision"]
-    Safety -->|"verde / sin alarma"| Retrieve["Consultar SQLite FTS5"]
+    Safety -->|"rojo"| Red["[SEGURIDAD] Mantener rojo<br/>persistir alerta"]:::security
+    Safety -->|"amarillo"| Yellow["[SEGURIDAD] Mantener amarillo<br/>persistir alerta"]:::security
+    Safety -->|"ambiguo / unknown"| Clarify["[SEGURIDAD] Pedir aclaracion<br/>sin cerrar decision"]:::security
+    Safety -->|"verde / sin alarma"| Retrieve["[RAG] Consultar SQLite FTS5"]:::rag
 
-    Red --> RetrieveAlert["Recuperar contexto si existe"]
-    Yellow --> RetrieveAlert
-    RetrieveAlert --> Compose
-    Retrieve --> Evidence{"Hay evidencia suficiente?"}
-    Evidence -->|"no"| Abstain["Abstencion explicita<br/>y redireccion segura"]
-    Evidence -->|"si"| Compose["Construir contexto delimitado<br/>con documento, pagina y chunk"]
-    Compose --> Model["Llama permitido o fallback extractivo"]
-    Model --> Cite["Respuesta breve + cita + decision"]
-    Clarify --> Audio["Texto y audio en espanol"]
+    Red --> Retrieve
+    Yellow --> Retrieve
+    Retrieve --> Evidence{"[RAG] Hay evidencia suficiente?"}:::rag
+    Evidence -->|"no"| Abstain["[BOT] Abstencion explicita<br/>y redireccion segura"]:::bot
+    Evidence -->|"si"| Compose["[RAG] Construir contexto delimitado<br/>con documento, pagina y chunk"]:::rag
+    Compose --> Model["[BOT] Llama permitido o fallback extractivo"]:::bot
+    Model --> Cite["[BOT] Respuesta breve + cita + decision"]:::bot
+    Clarify --> Audio["[BOT] Texto y audio en espanol"]:::bot
     Abstain --> Audio
     Cite --> Audio
-    Audio --> Persist["Guardar turno, fuentes,<br/>latencia y tokens"]
-    Persist --> End([Continuar o cerrar llamada])
+    Audio --> Persist["[DATOS] Guardar turno, fuentes,<br/>latencia y tokens"]:::data
+    Persist --> End(["[BOT] Continuar o cerrar llamada"]):::bot
+
+    classDef actor fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A,stroke-width:2px;
+    classDef bot fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95,stroke-width:2px;
+    classDef rag fill:#CCFBF1,stroke:#0F766E,color:#134E4A,stroke-width:2px;
+    classDef data fill:#E2E8F0,stroke:#475569,color:#1E293B,stroke-width:2px;
+    classDef security fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D,stroke-width:2px;
 ```
 
 Las ramas rojas y amarillas no dependen de que el LLM recuerde la regla de seguridad. El
@@ -196,11 +215,11 @@ rojo, amarillo, verde y `unknown`; la cobertura no equivale a un smoke de voz re
 
 ```mermaid
 sequenceDiagram
-    participant U as Administrador
-    participant R as Rutas FastAPI
-    participant I as Ingestion
-    participant D as SQLite/FTS5
-    participant A as Agente
+    participant U as ADMIN - Administrador
+    participant R as BOT - Rutas FastAPI
+    participant I as RAG - Ingestion
+    participant D as DATOS - SQLite/FTS5
+    participant A as BOT - Agente
 
     U->>R: POST /api/admin/documents
     R->>I: extraer por pagina y generar chunks
