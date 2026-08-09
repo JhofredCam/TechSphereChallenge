@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 EXPLORER_FILES = (
@@ -43,7 +42,10 @@ def test_catalog_covers_required_prefixes_ids_views_stages_and_statuses():
     source = (DOCS / "architecture_explorer.data.js").read_text(encoding="utf-8")
     ids = set(re.findall(r'"([A-Z]+-[A-Z0-9_-]+-[0-9]{3})"', source))
 
-    assert {"ACT", "UI", "API", "STG", "MOD", "EXT", "DATA", "STATE", "RULE", "MET", "TRZ", "TEST", "GATE"} <= {
+    assert {
+        "ACT", "UI", "API", "STG", "MOD", "EXT", "DATA", "STATE", "RULE", "MET", "TRZ",
+        "TEST", "GATE",
+    } <= {
         item.split("-", 1)[0] for item in ids
     }
     assert {
@@ -62,7 +64,10 @@ def test_catalog_covers_required_prefixes_ids_views_stages_and_statuses():
         "MET-RAG-QUERIES-001", "MET-COST-001", "GATE-G1-001", "GATE-G2-001",
         "GATE-G3-001", "GATE-G4-001", "GATE-G5-001",
     } <= ids
-    for value in ("D1", "D2", "D3", "D4", "D5", "D6", "IMPLEMENTED", "TESTED", "MANUAL_PENDING", "PROPOSED", "OUT_OF_SCOPE"):
+    for value in (
+        "D1", "D2", "D3", "D4", "D5", "D6", "IMPLEMENTED", "TESTED", "MANUAL_PENDING",
+        "PROPOSED", "OUT_OF_SCOPE",
+    ):
         assert value in source
 
 
