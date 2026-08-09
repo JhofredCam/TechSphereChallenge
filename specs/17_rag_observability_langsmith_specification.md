@@ -1,7 +1,7 @@
 # Spec: Observabilidad RAG y trazabilidad con LangSmith
 
 **ID:** `RAG-OBS-001`  
-**Estado:** `PROPOSED`; metricas locales existentes, LangSmith no integrado  
+**Estado:** `PARTIAL`; spans y redacción local integrados; exporter LangSmith remoto permanece opcional y pendiente
 **Version:** `0.1.0`  
 **Fecha:** `2026-08-08`  
 **Depende de:** [`13_rag_environment_configuration_specification.md`](13_rag_environment_configuration_specification.md), [`16_rag_langchain_orchestration_specification.md`](16_rag_langchain_orchestration_specification.md), [`07_testing_unit_integration_specification.md`](07_testing_unit_integration_specification.md)

@@ -1,7 +1,7 @@
 # Spec: Motor de audio para conversación continua y VAD
 
 **ID:** `AUDIO-VAD-022`
-**Estado:** `PROPOSED`; especificación previa a implementación
+**Estado:** `IMPLEMENTED`; ciclo VAD continuo, eventos y estados integrados; prueba de micrófono/audio pendiente
 **Versión:** 0.1.0
 **Fecha:** 2026-08-09
 **Propietario:** captura de voz, detección de silencio e integración browser/API

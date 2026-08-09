@@ -10,9 +10,9 @@ La suite automatizada, Ruff, la validacion del dataset y el bootstrap local esta
 G2, el smoke manual de voz, Groq/Whisper real y la demo G5 con documento externo siguen
 pendientes.
 
-La migracion RAG de produccion esta planificada en las Specs 13-19. En este checkout ChromaDB,
-embeddings, LangChain, LangSmith y el benchmark semantico siguen `PROPOSED`; el flujo FTS5 que se
-describe abajo es el baseline ejecutable y el fallback obligatorio del upgrade.
+La migracion RAG de produccion de las Specs 13-19 tiene contratos y controles locales integrados.
+El flujo FTS5 que se describe abajo sigue siendo el baseline ejecutable y el fallback obligatorio:
+Chroma/embeddings reales, providers remotos y evidencia de producción permanecen pendientes.
 
 ## Fuente normativa y vista derivada
 
@@ -105,8 +105,9 @@ Paciente -> triaje -> Chroma/FTS5 -> hydration SQLite -> fusion/threshold
 ```
 
 SQLite conserva documentos, `enabled`, `corpus_revision`, chunks, fuentes y snapshots. Chroma solo
-propone candidatos; un vector sin fila elegible se descarta. El target no se considera implementado
-hasta que el benchmark, el rollback y las pruebas de conocimiento vivo pasen.
+propone candidatos; un vector sin fila elegible se descarta. El contrato local no se presenta como
+migración semántica completa hasta que el benchmark con providers, el rollback y las pruebas de
+conocimiento vivo pasen.
 
 ## Componentes y flujo de datos
 
@@ -126,9 +127,9 @@ flowchart LR
         Documents["[ADMIN] documents.py<br/>upload / list / preview / toggle / delete"]:::admin
         Ingestion["[RAG] ingestion.py<br/>PDF, TXT, MD y chunks"]:::rag
         RAG["[RAG] rag.py<br/>FTS5 baseline; Chroma target<br/>available + enabled"]:::rag
-        Chroma["[RAG] ChromaDB<br/>indice versionado<br/>PROPOSED"]:::rag
-        Chain["[BOT] LangChain<br/>prompt y retriever<br/>PROPOSED"]:::bot
-        Trace["[METRICAS] LangSmith<br/>redacted y opcional<br/>PROPOSED"]:::metrics
+        Chroma["[RAG] ChromaDB<br/>indice versionado<br/>PARTIAL"]:::rag
+        Chain["[BOT] LangChain<br/>prompt y retriever<br/>PARTIAL"]:::bot
+        Trace["[METRICAS] LangSmith<br/>redacted y opcional<br/>PARTIAL"]:::metrics
         Agent["[BOT] agent.py<br/>respuesta grounded"]:::bot
         Triage["[SEGURIDAD] triage.py<br/>reglas conservadoras"]:::security
         Calls["[BOT] calls.py<br/>turnos y resumen"]:::bot
@@ -317,18 +318,18 @@ ademas material externo.
 
 | Area | Ruta | Responsabilidad y estado |
 |---|---|---|
-| Configuracion | `app/config.py`, `.env.example` | Entorno, perfiles, RAG, rutas, limites y `PATIENT_LISTEN_TIMEOUT_MS`; baseline TESTED, target PROPOSED |
+| Configuracion | `app/config.py`, `.env.example` | Entorno, perfiles, RAG, rutas, limites y `PATIENT_LISTEN_TIMEOUT_MS`; contrato TESTED, providers pendientes |
 | Persistencia | `app/database.py` | SQLite, FTS5, transacciones, `enabled`, snapshots y revision; TESTED |
 | Contratos | `app/schemas.py`, `app/main.py` | Entrada/salida, preview, toggle, voice-events y serializacion API; TESTED |
 | Dataset | `app/dataset.py`, `scripts/validate_dataset.py` | XLSX, JSON y joins de solo lectura; TESTED |
 | Bootstrap | `app/bootstrap.py`, `scripts/bootstrap.py` | Validacion, hash, ingestion e idempotencia; TESTED |
 | Ingestion | `app/services/ingestion.py` | PDF, TXT, MD, paginas, chunks y `needs_ocr`; TESTED |
 | Documentos | `app/services/documents.py` | Upload/process/preview/toggle/delete y snapshots; TESTED |
-| RAG | `app/services/rag.py`, `vector_store.py` | FTS5 baseline, Chroma target, filtro `available AND enabled` y citas; baseline TESTED, target PROPOSED |
-| Embeddings | `app/services/embeddings.py` | Provider/modelo, dimension, cache y latencia; PROPOSED |
-| LangChain | `app/services/rag_chain.py`, `prompts.py` | loader, retriever, contexto y prompt; PROPOSED |
-| Index ops | `app/services/index_manager.py`, `scripts/` | manifest, reconciliacion, promotion y rollback; PROPOSED |
-| Observabilidad | `app/services/observability.py` | spans, redaction y LangSmith; JSONL baseline TESTED, target PROPOSED |
+| RAG | `app/services/rag.py`, `vector_store.py` | FTS5 baseline, contrato Chroma, filtro `available AND enabled` y citas; PARTIAL |
+| Embeddings | `app/services/embeddings.py` | Superficie de provider/modelo, dimension, cache y latencia; provider real pendiente |
+| LangChain | `app/services/rag_chain.py`, `prompts.py` | loader, retriever, contexto y prompt contract; PARTIAL |
+| Index ops | `app/services/index_manager.py`, `scripts/` | manifest, reconciliacion, promotion y rollback; TESTED local |
+| Observabilidad | `app/services/observability.py` | spans, redaction y exporter opcional; TESTED local, LangSmith pendiente |
 | Agente | `app/services/agent.py`, `app/services/messages.py` | Groq opcional, fallback, abstencion, copy `voice_text`/`display_text` y seguridad de salida; TESTED local |
 | Seguridad | `app/services/triage.py` | Nivel conservador, alertas y aclaraciones; TESTED |
 | Llamadas | `app/services/calls.py` | Turnos, fuentes, alertas, resumen, IDs, `late_transcript` y errores seguros; TESTED |
@@ -354,3 +355,11 @@ en [`mvp/deliverables/02_architecture/architecture.md`](../mvp/deliverables/02_a
   `available` y 1 `needs_ocr`.
 - La prueba de idempotencia de bootstrap y el aprendizaje/olvido local pasan; G5 sigue
   pendiente de un documento externo en demo.
+
+## Corte integrador del 2026-08-09
+
+Las Specs 11 y 20-22 tienen runtime local integrado. Las Specs 13-19 tienen contratos,
+fallbacks y controles verificables, pero se mantienen `PARTIAL` mientras no exista un provider de
+embeddings/Chroma real evaluado, un benchmark semántico ejecutado y evidencia manual de navegador.
+La suite posterior a la integración registró `157 passed`; el detalle de batches, scopes, hashes y
+timestamps exactos está en la [bitácora de sesiones](../readme/06_bitacora_de_sesiones/2026-08-09_orquestacion_specs_paralelo.md).

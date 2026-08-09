@@ -10,7 +10,7 @@ import unicodedata
 from dataclasses import asdict, is_dataclass
 from typing import Any, Iterable, Mapping, Sequence
 
-from .messages import display_message, is_safe_voice_text, voice_message
+from .messages import is_safe_voice_text, voice_message
 from .metrics import DEFAULT_MODEL_VERSION
 from .rag import is_relevant
 from .triage import TriageResult, classify_triage, contains_prompt_injection
@@ -733,19 +733,6 @@ class AgentService:
             injection=injection,
             fallback_used=fallback_used,
         )
-        if triage.level == "red":
-            display_text = display_message("ALERT_RED_UI")
-        elif triage.level == "yellow":
-            display_text = display_message("ALERT_YELLOW_UI")
-        elif triage.needs_clarification or injection:
-            display_text = display_message("TRIAGE_UNKNOWN")
-        elif grounded:
-            display_text = voice_text
-        elif reason == "rag_unavailable":
-            display_text = display_message("RAG_UNAVAILABLE")
-        else:
-            display_text = display_message("NO_EVIDENCE")
-
         if output_tokens == 0:
             output_tokens = _estimate_tokens(text)
         latency_ms = round((time.perf_counter() - started) * 1000.0, 3)

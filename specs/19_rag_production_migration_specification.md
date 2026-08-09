@@ -2,7 +2,7 @@
 
 **ID:** `RAG-MIG-001`  
 **Legacy ID:** `RAG-DEEP-001` de la spec 12  
-**Estado:** `PROPOSED`; baseline FTS5 probado localmente, upgrade aun no implementado  
+**Estado:** `PARTIAL`; baseline y contratos de upgrade integrados localmente; migración semántica end-to-end y gates manuales pendientes
 **Version:** `1.0.0`  
 **Fecha:** `2026-08-08`  
 **Documento anterior:** `12_rag_deep_dive_specification.md` fue renombrado y absorbido aqui  

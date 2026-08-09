@@ -12,7 +12,7 @@ from typing import Any
 
 from ..config import DEFAULT_PATIENT_LISTEN_TIMEOUT_MS, validate_patient_listen_timeout_ms
 from ..database import Database, utc_now
-from .messages import display_message, voice_message
+from .messages import voice_message
 from .metrics import VOICE_EVENT_TYPES, MetricsService
 from .triage import TriageResult, highest_level, normalize_level
 
@@ -1349,13 +1349,6 @@ class CallService:
                 "TRIAGE_RED"
                 if triage.level == "red"
                 else "TRIAGE_YELLOW"
-                if triage.level == "yellow"
-                else "AGENT_ERROR"
-            )
-            safe_display = display_message(
-                "ALERT_RED_UI"
-                if triage.level == "red"
-                else "ALERT_YELLOW_UI"
                 if triage.level == "yellow"
                 else "AGENT_ERROR"
             )

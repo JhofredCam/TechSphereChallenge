@@ -1,7 +1,7 @@
 # Spec: Persistencia vectorial con ChromaDB y contrato de recuperacion
 
 **ID:** `RAG-PROD-001`  
-**Estado:** `PROPOSED`; arquitectura objetivo, FTS5 actual sigue operativo  
+**Estado:** `PARTIAL`; contrato versionado, reconciliación y fallback FTS5 integrados; adapter Chroma/embeddings reales pendientes
 **Version:** `0.1.0`  
 **Fecha:** `2026-08-08`  
 **Depende de:** [`13_rag_environment_configuration_specification.md`](13_rag_environment_configuration_specification.md), [`04_admin_document_lifecycle_specification.md`](04_admin_document_lifecycle_specification.md)

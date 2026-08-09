@@ -23,6 +23,9 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 Abrir:
 
+- `http://127.0.0.1:8000/` para la landing del producto.
+- `http://127.0.0.1:8000/patient` para el acceso demo del paciente.
+- `http://127.0.0.1:8000/admin/access` para el acceso demo de administración.
 - `http://127.0.0.1:8000/admin` para subir, listar y eliminar documentos.
 - `http://127.0.0.1:8000/call` para iniciar una llamada, hablar y escuchar al agente.
 - `http://127.0.0.1:8000/health` para comprobar backend RAG, indice, corpus, voz y modelo declarado.
@@ -52,6 +55,23 @@ secretos. La demo básica de navegador usa `SpeechRecognition` `es-CO` y `Speech
 por lo que mantiene entrada por micrófono y audio aun sin una clave. La disponibilidad del
 modelo exacto debe comprobarse antes de la demo; si Groq retira el ID, usa un sucesor vigente
 de la misma familia Meta Llama y actualiza el informe.
+
+## Corte de ejecución de specs
+
+El corte del 2026-08-09 integró el backlog en batches aislados por scope. Las specs 13-19
+quedan `PARTIAL` porque el contrato operativo local está listo, pero no se declara una migración
+semántica completa sin embeddings/Chroma reales, benchmark con providers y evidencia manual.
+Las specs 20-22 quedan `IMPLEMENTED` localmente; el smoke de navegador, micrófono y audio sigue
+siendo una compuerta manual.
+
+| Batch | Specs | Ejecución | Resultado |
+|---|---|---|---|
+| 1 | 11, 13 | paralelo por módulos | copy/VAD contract y configuración RAG |
+| 2 | 14, 20 | paralelo por módulos | contrato de índice y routing demo |
+| 3 | 15, 21 | paralelo por módulos | protocolo benchmark y portal de llamada |
+| 4 | 16, 22 | paralelo por módulos | chain grounded y VAD continuo |
+| 5-6 | 17, 18 | secuencial por dependencias | tracing redacted y rollout/rollback |
+| 7 | 19 | integrador secuencial | documentación, estados, bitácora y verificación final |
 
 ## Qué funciona
 
@@ -163,11 +183,11 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
   catálogo aplicado en backend y `/call`: copy `voice_text`/`display_text`, triaje sticky,
   errores seguros, preguntas de una intención y trazabilidad separada en `source_display`.
 - [`20_frontend_architecture_routing_demo_state_specification.md`](specs/20_frontend_architecture_routing_demo_state_specification.md):
-  landing, acceso demo por roles, rutas y contexto local de paciente; `PROPOSED`.
+  landing, acceso demo por roles, rutas y contexto local de paciente; `IMPLEMENTED` local.
 - [`21_patient_portal_call_ux_specification.md`](specs/21_patient_portal_call_ux_specification.md):
-  conversación dominante, rail visible de triaje/trazabilidad/cierre y responsive; `PROPOSED`.
+  conversación dominante, rail visible de triaje/trazabilidad/cierre y responsive; `IMPLEMENTED` local.
 - [`22_audio_engine_continuous_vad_specification.md`](specs/22_audio_engine_continuous_vad_specification.md):
-  llamada continua, VAD, silencio configurable y estados de audio; `PROPOSED`.
+  llamada continua, VAD, silencio configurable y estados de audio; `IMPLEMENTED` local.
 - [`13_rag_environment_configuration_specification.md`](specs/13_rag_environment_configuration_specification.md):
    variables, defaults, perfiles y secretos redacted del pipeline.
 - [`14_rag_vector_store_chromadb_specification.md`](specs/14_rag_vector_store_chromadb_specification.md):
@@ -198,10 +218,10 @@ por pagina de la ingestion. El endpoint de solo lectura es
 | STT opcional | `whisper-large-v3` vía Groq | La voz está abierta por la rúbrica; centraliza el camino de audio remoto. |
 | TTS principal | `SpeechSynthesis` del navegador, idioma `es-CO` | Cero descarga y audio real en la superficie browser. |
 | Fallback local | Extractivo FTS5 y reglas deterministas | Permite probar grounding, abstención y triaje sin credenciales ni modelo no autorizado. |
-| Vector store target | ChromaDB persistente y versionado | Especificado; implementacion/benchmark PENDIENTE. |
-| Embeddings | provider/modelo local configurable | Candidatos BGE-M3/E5; ganador PENDIENTE. |
-| Orquestacion | LangChain core/adaptadores controlados | Especificado; implementacion PENDIENTE. |
-| Observabilidad RAG | JSONL + LangSmith redacted opcional | JSONL existente; LangSmith PENDIENTE. |
+| Vector store target | ChromaDB persistente y versionado | Contrato, manifest y fallback local; adapter real PENDIENTE. |
+| Embeddings | provider/modelo local configurable | Superficie configurable; selección por benchmark PENDIENTE. |
+| Orquestacion | LangChain core/adaptadores controlados | Chain/prompt contract local; dependencia opcional PENDIENTE. |
+| Observabilidad RAG | JSONL + LangSmith redacted opcional | spans/redaction local; exporter remoto PENDIENTE. |
 
 La familia del modelo de razonamiento es la restricción cerrada del reto. No se usa ningún
 modelo alternativo fuera de `docs/stack-tecnico.md`. Los embeddings son una capa separada y se
@@ -243,12 +263,10 @@ node --check app/web/app.js
 python -m scripts.validate_dataset
 ```
 
-La suite baseline cubre SQLite/FTS5, extracción, PDF sin texto, validación XLSX,
-upload/preview/toggle/delete, abstención, prompt injection, triaje, llamadas, resumen, API,
-timeout, eventos e idempotencia. Las suites Chroma, benchmark, LangChain, LangSmith y rollback
-son entregables `PROPOSED` del upgrade y no se presentan como ejecutadas.
-La evidencia de la sincronización previa registró `24` pruebas enfocadas y `93` en la suite
-completa; Ruff no reportó hallazgos y `node --check app/web/app.js` fue válido.
+La suite completa del corte de ejecución registró `157 passed`; incluye contratos de configuración,
+vector store, benchmark, loader/prompt/chain, observabilidad, operaciones de índice, routing demo,
+rail de llamada y VAD. Los providers semánticos, Groq/Whisper real y el smoke de navegador siguen
+clasificados como pendientes manuales, no como mocks aprobados.
 
 La implementación ejecutable de la spec 07 agregó 31 casos; las regresiones de concurrencia dejan
 `96 passed` en la suite completa y `80.07%` de cobertura de `app` y `scripts` con ramas y umbral 80.
@@ -303,10 +321,11 @@ No se declara una compuerta aprobada solo por intención o por un mock.
 - [`GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md`](GUIA_AGENTE_PLANIFICADOR_Y_ESPECIFICACIONES.md): iniciar planificación y specs.
 - [`GUIA_AGENTE_EJECUTOR_DE_TAREAS.md`](GUIA_AGENTE_EJECUTOR_DE_TAREAS.md): iniciar ejecución y verificación.
 
-La estructura bajo `mvp/`, preview administrativa, publicación `enabled` y timeout de escucha
-están implementados y probados localmente. La migracion Chroma/LangChain/LangSmith esta
-especificada pero pendiente de implementacion y benchmark. La evidencia manual de voz, G2 y G5
-externo sigue pendiente; las métricas de voz y costo no se inventan.
+La estructura bajo `mvp/`, preview administrativa, publicación `enabled`, timeout de escucha,
+configuración RAG, contratos de índice, chain grounded, tracing redacted, operaciones de rollout,
+routing demo, portal y VAD están implementados o parcialmente integrados según la tabla anterior.
+La evidencia manual de voz, G2 y G5 externo sigue pendiente; las métricas de voz y costo no se
+inventan.
 
 Para registrar una nueva sesión, crea `readme/06_bitacora_de_sesiones/YYYY-MM-DD_nombre.md` con
 alcance, decisiones, comandos ejecutados, resultados y pendientes. Las decisiones sobre modelo exacto, OCR,

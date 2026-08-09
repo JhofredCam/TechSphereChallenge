@@ -1,7 +1,7 @@
 # Spec: Rediseño UI/UX del portal de atención del paciente
 
 **ID:** `PATIENT-PORTAL-UX-021`
-**Estado:** `PROPOSED`; especificación previa a implementación
+**Estado:** `IMPLEMENTED`; portal conversacional, rail operativo y cierre integrados; smoke browser pendiente
 **Versión:** 0.1.0
 **Fecha:** 2026-08-09
 **Propietario:** diseño visual y superficie `/call`
