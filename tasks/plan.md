@@ -9,7 +9,9 @@
 Migrar el recuperador FTS5 del MVP a un pipeline RAG configurable con ChromaDB, embeddings
 evaluados, LangChain como orquestador controlado y LangSmith como observabilidad opcional. La
 migracion debe preservar SQLite como autoridad, FTS5 como fallback, las citas, el triaje, la
-prueba de conocimiento vivo y el contrato de voz.
+prueba de conocimiento vivo y el contrato de voz. El cierre agrega un logger propio y una
+bateria fail-detect que permita conciliar errores, estados, metricas y pruebas sin depender de
+la consola ni de mocks que oculten regresiones.
 
 ## Decisiones de arquitectura
 
@@ -45,7 +47,11 @@ prueba de conocimiento vivo y el contrato de voz.
                                |
                                +--> 07 pruebas revisadas
                                            |
-                                           +--> README, mvp/CRISP-DM, informe y demo
+                                           +--> 23 logger propio y trazabilidad
+                                                       |
+                                                       +--> 24 suite fail-detect
+                                                                   |
+                                                                   +--> 06/07, README, mvp/CRISP-DM, informe y demo
 ```
 
 ## Orden de ejecucion
@@ -91,15 +97,23 @@ proveedor falso y el camino real conserva fallback.
 
 ### Fase E: observabilidad y operacion
 
-1. Instrumentar spans por nodo y eventos locales.
-2. Integrar LangSmith con redaccion, sample rate y fail-open.
-3. Crear manifest, promotion, canary, rollback y backup/restore.
-4. Actualizar diagrama, README, CRISP-DM, metricas e informe.
+1. Implementar el logger propio, contexto, schema, redaction y sinks JSONL/consola.
+2. Instrumentar spans por nodo, eventos locales, API, llamada, VAD, audio y RAG.
+3. Integrar LangSmith con redaccion, sample rate y fail-open sobre el logger propio.
+4. Crear manifest, promotion, canary, rollback y backup/restore.
+5. Actualizar diagrama, README, CRISP-DM, metricas e informe.
 
 **Checkpoint E:** rollback a FTS5/version anterior es ejecutable, las trazas no contienen contenido
 prohibido y las metricas se pueden contrastar con JSONL.
 
-### Fase F: evidencia de gates
+### Fase F: testing fail-detect
+
+1. Ejecutar unitarias de logger, transformadores, VAD, RAG, triaje, metricas y render contracts.
+2. Ejecutar integraciones de llamada, admin/RAG, audio/VAD, datos, logs y `/api/metrics`.
+3. Aplicar cobertura por ramas >=80%, Ruff, Node check y validacion del dataset.
+4. Registrar P0/P1, pendientes manuales y resultados reproducibles.
+
+### Fase G: evidencia de gates
 
 1. Ejecutar setup limpio y cronometrar G2.
 2. Verificar modelo LLM real y familia G3.
@@ -116,6 +130,8 @@ prohibido y las metricas se pueden contrastar con JSONL.
 | Dataset/qrels | limites 15 | corpus canonico o `docs/` |
 | LangChain/prompt | DTO estable y benchmark inicial | `agent.py` con otro cambio |
 | Redaction/LangSmith | nombres de spans 17 | `metrics.py` sin contrato |
+| Logger propio | contrato de `specs/23` | `app/services/logger.py`, `config.py` y sinks sin esquema |
+| Suite fail-detect | contrato de `specs/24` y logger estable | fixtures o archivos de servicios sin ownership |
 | Runbook/backup | manifest y promotion 18 | README operativo final |
 | Tests por frente | contrato de cada frente | fixtures compartidos sin acuerdo |
 
@@ -146,7 +162,8 @@ completa y es responsable de la evidencia final.
 | C | `scripts.benchmark_rag.py --gate` | reporte con calidad/latencia y decision |
 | D | tests chain/prompt/agent | grounded, abstencion, injection y triage seguros |
 | E | observability/ops + rollback | redaction, fail-open y rollback verificables |
-| F | setup, navegador y documento externo | estados G2-G5 honestos y artefactos guardados |
+| F | `pytest`, cobertura, Ruff y Node check | regresiones P0/P1 detectadas y evidencia local reproducible |
+| G | setup, navegador y documento externo | estados G2-G5 honestos y artefactos guardados |
 
 ## Criterio de cierre
 
@@ -157,6 +174,8 @@ La migracion no se considera terminada por instalar ChromaDB. Debe existir:
 - benchmark reproducible con decision justificada;
 - LangChain visible y prompt seguro;
 - LangSmith redacted y no bloqueante;
+- logger propio con JSONL, niveles, correlacion, stack traces redacted y fail-open;
 - rollback y FTS5 funcionales;
-- pruebas P0 y evidencia manual de los gates correspondientes;
+- suite fail-detect con cobertura, oraculos de estado y pruebas P0/P1 verdes, mas evidencia
+  manual de los gates correspondientes;
 - README, diagrama, CRISP-DM, metricas e informe sincronizados con el commit evaluado.

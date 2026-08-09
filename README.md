@@ -62,16 +62,19 @@ El corte del 2026-08-09 integró el backlog en batches aislados por scope. Las s
 quedan `PARTIAL` porque el contrato operativo local está listo, pero no se declara una migración
 semántica completa sin embeddings/Chroma reales, benchmark con providers y evidencia manual.
 Las specs 20-22 quedan `IMPLEMENTED` localmente; el smoke de navegador, micrófono y audio sigue
-siendo una compuerta manual.
+siendo una compuerta manual. Las specs 23-24 quedan `SPECIFIED`: agregan el logger propio y la
+suite fail-detect para el siguiente corte de implementación.
 
-| Batch | Specs | Ejecución | Resultado |
-|---|---|---|---|
-| 1 | 11, 13 | paralelo por módulos | copy/VAD contract y configuración RAG |
-| 2 | 14, 20 | paralelo por módulos | contrato de índice y routing demo |
-| 3 | 15, 21 | paralelo por módulos | protocolo benchmark y portal de llamada |
-| 4 | 16, 22 | paralelo por módulos | chain grounded y VAD continuo |
-| 5-6 | 17, 18 | secuencial por dependencias | tracing redacted y rollout/rollback |
-| 7 | 19 | integrador secuencial | documentación, estados, bitácora y verificación final |
+| Batch | Specs | Tipo | Subagente | Scopes / directorios | Resultado |
+|---|---|---|---|---|---|
+| 1 | 11, 13 | Paralelo por módulos | UX/RAG | `app/services/agent.py`, `messages.py`, config RAG | integrado |
+| 2 | 14, 20 | Paralelo por módulos | Vector/Frontend | `app/services/rag.py`, `app/web/`, rutas | integrado |
+| 3 | 15, 21 | Paralelo por módulos | Benchmark/Portal | `configs/`, `benchmarks/`, `/call` | integrado |
+| 4 | 16, 22 | Paralelo con dependencias | Chain/VAD | loaders, prompts, `voice-loop.js`, tests VAD | integrado |
+| 5-6 | 17, 18 | Secuencial por dependencias | Observabilidad/Operaciones | `observability.py`, métricas, rollout, backup | parcial/documentado |
+| 7 | 19 | Integrador secuencial | Integrador | README, arquitectura, estados, bitácora | integrado |
+| 8 | 23 | Paralelo / aislado | Subagente Logger | `app/services/logger.py`, `app/config.py`, `app/main.py`, `app/services/*` | especificado; pendiente |
+| 9 | 24 | Secuencial / validación | Subagente Tester | `tests/*`, `pyproject.toml`, contratos UI y datos | especificado; depende de Batch 8 |
 
 ## Qué funciona
 
@@ -188,6 +191,10 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
   conversación dominante, rail visible de triaje/trazabilidad/cierre y responsive; `IMPLEMENTED` local.
 - [`22_audio_engine_continuous_vad_specification.md`](specs/22_audio_engine_continuous_vad_specification.md):
   llamada continua, VAD, silencio configurable y estados de audio; `IMPLEMENTED` local.
+- [`23_custom_logging_system.md`](specs/23_custom_logging_system.md): logger propio por niveles,
+  JSONL local, correlación end-to-end, redacción y stack traces; `SPECIFIED`.
+- [`24_testing_suite.md`](specs/24_testing_suite.md): batería fail-detect unitaria e integración
+  para llamada, audio/VAD, render, datos, RAG y logger; `SPECIFIED` y secuencial tras 23.
 - [`13_rag_environment_configuration_specification.md`](specs/13_rag_environment_configuration_specification.md):
    variables, defaults, perfiles y secretos redacted del pipeline.
 - [`14_rag_vector_store_chromadb_specification.md`](specs/14_rag_vector_store_chromadb_specification.md):
