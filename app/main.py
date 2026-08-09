@@ -456,9 +456,13 @@ def create_app(
             ) from exc
 
         safe_name = _source_download_name(record.filename)
+        ascii_name = safe_name.encode("ascii", "ignore").decode("ascii") or "document"
         headers = {
             "Cache-Control": "no-store",
-            "Content-Disposition": f"inline; filename*=UTF-8''{quote(safe_name, safe='')}",
+            "Content-Disposition": (
+                f'inline; filename="{ascii_name}"; '
+                f"filename*=UTF-8''{quote(safe_name, safe='')}"
+            ),
             "Referrer-Policy": "no-referrer",
             "X-Content-Type-Options": "nosniff",
             "X-Frame-Options": "SAMEORIGIN",
