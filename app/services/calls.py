@@ -405,6 +405,8 @@ class CallService:
         implementation: str = "SpeechRecognition",
         error_code: str | None = None,
         configured_timeout_ms: int | None = None,
+        silence_timeout_ms: int | None = None,
+        sequence: int | None = None,
     ) -> SerializableRecord:
         """Persist one bounded listening event without creating a clinical turn."""
 
@@ -422,6 +424,12 @@ class CallService:
         self._validate_public_id(listen_id, "listen_id")
         self._validate_public_id(client_turn_id, "client_turn_id")
         elapsed = self._validate_elapsed_ms(elapsed_ms)
+        if silence_timeout_ms is not None and not 500 <= int(silence_timeout_ms) <= 10_000:
+            raise ListenEventError("invalid_silence_timeout_ms")
+        if sequence is not None and (
+            isinstance(sequence, bool) or not 0 <= int(sequence) <= 1_000_000
+        ):
+            raise ListenEventError("invalid_sequence")
         effective_timeout = self.configured_timeout_ms
         if configured_timeout_ms is not None:
             try:
@@ -470,6 +478,9 @@ class CallService:
             if row is None:
                 initial_status = {
                     "patient_listen_started": "LISTENING",
+                    "vad_speech_started": "LISTENING",
+                    "vad_silence_started": "LISTENING",
+                    "vad_segment_finalized": "PROCESSING",
                     "partial": "PARTIAL",
                     "final": "FINAL_RECEIVED",
                     "ended": "NO_RESPONSE",
@@ -517,7 +528,7 @@ class CallService:
                         next_status = "LISTEN_TIMEOUT"
                         late = True
                     elif current_status in {"FINAL_RECEIVED", "PROCESSING"}:
-                        pass
+                        should_log = current_status == "PROCESSING"
                     else:
                         next_status = "FINAL_RECEIVED"
                 elif event_type == "timeout":
@@ -551,6 +562,11 @@ class CallService:
                         "RETRY_REQUIRED",
                     }:
                         should_log = True
+                elif event_type in {"vad_speech_started", "vad_silence_started"}:
+                    should_log = current_status in _ACTIVE_LISTEN_STATUSES
+                elif event_type == "vad_segment_finalized":
+                    if current_status in _ACTIVE_LISTEN_STATUSES:
+                        next_status = "PROCESSING"
 
                 if late:
                     if next_status is not None:
@@ -601,6 +617,8 @@ class CallService:
                     implementation=str(payload["implementation"]),
                     status=str(payload["status"]),
                     error_code=payload.get("error_code"),
+                    silence_timeout_ms=silence_timeout_ms,
+                    sequence=sequence,
                 )
             except Exception:
                 pass

@@ -13,6 +13,9 @@ DEFAULT_MODEL_VERSION = "llama-3.1-8b-instant"
 VOICE_EVENT_TYPES = frozenset(
     {
         "patient_listen_started",
+        "vad_speech_started",
+        "vad_silence_started",
+        "vad_segment_finalized",
         "partial",
         "final",
         "ended",
@@ -260,6 +263,8 @@ class MetricsService:
         implementation: str,
         status: str,
         error_code: str | None = None,
+        silence_timeout_ms: int | None = None,
+        sequence: int | None = None,
         created_at: str | None = None,
     ) -> dict[str, Any]:
         """Record bounded listening telemetry without clinical payloads."""
@@ -280,6 +285,10 @@ class MetricsService:
         if error_code is not None:
             payload["error_code"] = str(error_code)
             payload["code"] = str(error_code)
+        if silence_timeout_ms is not None:
+            payload["silence_timeout_ms"] = int(silence_timeout_ms)
+        if sequence is not None:
+            payload["sequence"] = int(sequence)
         if created_at is not None:
             payload["created_at"] = created_at
         return self.log_event(event_type, payload)

@@ -18,6 +18,15 @@ MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 DEFAULT_PATIENT_LISTEN_TIMEOUT_MS = 30_000
 MIN_PATIENT_LISTEN_TIMEOUT_MS = 1_000
 MAX_PATIENT_LISTEN_TIMEOUT_MS = 300_000
+DEFAULT_VOICE_SILENCE_TIMEOUT_MS = 2_000
+MIN_VOICE_SILENCE_TIMEOUT_MS = 500
+MAX_VOICE_SILENCE_TIMEOUT_MS = 10_000
+DEFAULT_VOICE_VAD_RMS_THRESHOLD = 0.025
+MIN_VOICE_VAD_RMS_THRESHOLD = 0.001
+MAX_VOICE_VAD_RMS_THRESHOLD = 0.2
+DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS = 10_000
+MIN_VOICE_SPEECH_START_TIMEOUT_MS = 1_000
+MAX_VOICE_SPEECH_START_TIMEOUT_MS = 30_000
 
 RAG_PROFILES = frozenset({"challenge-local", "staging", "production"})
 RAG_BACKENDS = frozenset({"fts5", "chroma", "hybrid"})
@@ -353,6 +362,73 @@ def _configured_patient_listen_timeout(environ: Mapping[str, str]) -> int:
         raise ValueError(f"PATIENT_LISTEN_TIMEOUT_MS: {exc}") from exc
 
 
+def validate_voice_silence_timeout_ms(value: int) -> int:
+    valid = (
+        type(value) is int
+        and MIN_VOICE_SILENCE_TIMEOUT_MS <= value <= MAX_VOICE_SILENCE_TIMEOUT_MS
+    )
+    if not valid:
+        raise ValueError(
+            "voice_silence_timeout_ms must be between "
+            f"{MIN_VOICE_SILENCE_TIMEOUT_MS} and {MAX_VOICE_SILENCE_TIMEOUT_MS}"
+        )
+    return value
+
+
+def validate_voice_vad_rms_threshold(value: float) -> float:
+    valid = (
+        not isinstance(value, bool)
+        and MIN_VOICE_VAD_RMS_THRESHOLD <= float(value) <= MAX_VOICE_VAD_RMS_THRESHOLD
+    )
+    if not valid:
+        raise ValueError(
+            "voice_vad_rms_threshold must be between "
+            f"{MIN_VOICE_VAD_RMS_THRESHOLD} and {MAX_VOICE_VAD_RMS_THRESHOLD}"
+        )
+    return float(value)
+
+
+def validate_voice_speech_start_timeout_ms(value: int) -> int:
+    valid = (
+        type(value) is int
+        and MIN_VOICE_SPEECH_START_TIMEOUT_MS <= value <= MAX_VOICE_SPEECH_START_TIMEOUT_MS
+    )
+    if not valid:
+        raise ValueError(
+            "voice_speech_start_timeout_ms must be between "
+            f"{MIN_VOICE_SPEECH_START_TIMEOUT_MS} and {MAX_VOICE_SPEECH_START_TIMEOUT_MS}"
+        )
+    return value
+
+
+def _configured_vad_int(environ: Mapping[str, str], name: str, default: int, validator: Any) -> int:
+    raw = environ.get(name)
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        value = int(str(raw).strip())
+    except ValueError as exc:
+        raise ValueError(f"{name} must be an integer") from exc
+    try:
+        return validator(value)
+    except ValueError as exc:
+        raise ValueError(f"{name}: {exc}") from exc
+
+
+def _configured_vad_float(environ: Mapping[str, str], name: str, default: float) -> float:
+    raw = environ.get(name)
+    if raw is None or not str(raw).strip():
+        return default
+    try:
+        value = float(str(raw).strip())
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    try:
+        return validate_voice_vad_rms_threshold(value)
+    except ValueError as exc:
+        raise ValueError(f"{name}: {exc}") from exc
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Filesystem and ingestion settings for one local application instance."""
@@ -364,6 +440,9 @@ class Settings:
     chunk_overlap: int = 200
     max_upload_bytes: int = MAX_UPLOAD_BYTES
     patient_listen_timeout_ms: int = DEFAULT_PATIENT_LISTEN_TIMEOUT_MS
+    voice_silence_timeout_ms: int = DEFAULT_VOICE_SILENCE_TIMEOUT_MS
+    voice_vad_rms_threshold: float = DEFAULT_VOICE_VAD_RMS_THRESHOLD
+    voice_speech_start_timeout_ms: int = DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS
     rag: RagSettings = field(default_factory=RagSettings)
 
     def __post_init__(self) -> None:
@@ -388,6 +467,9 @@ class Settings:
         if self.max_upload_bytes <= 0 or self.max_upload_bytes > MAX_UPLOAD_BYTES:
             raise ValueError(f"max_upload_bytes must be between 1 and {MAX_UPLOAD_BYTES}")
         validate_patient_listen_timeout_ms(self.patient_listen_timeout_ms)
+        validate_voice_silence_timeout_ms(self.voice_silence_timeout_ms)
+        validate_voice_vad_rms_threshold(self.voice_vad_rms_threshold)
+        validate_voice_speech_start_timeout_ms(self.voice_speech_start_timeout_ms)
 
         object.__setattr__(self, "data_dir", data_dir)
         object.__setattr__(self, "database_path", database_path)
@@ -445,6 +527,23 @@ class Settings:
                 MAX_UPLOAD_BYTES,
             ),
             patient_listen_timeout_ms=_configured_patient_listen_timeout(values),
+            voice_silence_timeout_ms=_configured_vad_int(
+                values,
+                "VOICE_SILENCE_TIMEOUT_MS",
+                DEFAULT_VOICE_SILENCE_TIMEOUT_MS,
+                validate_voice_silence_timeout_ms,
+            ),
+            voice_vad_rms_threshold=_configured_vad_float(
+                values,
+                "VOICE_VAD_RMS_THRESHOLD",
+                DEFAULT_VOICE_VAD_RMS_THRESHOLD,
+            ),
+            voice_speech_start_timeout_ms=_configured_vad_int(
+                values,
+                "VOICE_SPEECH_START_TIMEOUT_MS",
+                DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS,
+                validate_voice_speech_start_timeout_ms,
+            ),
             rag=build_rag_settings(values, project_root=root, data_dir=data_dir),
         )
 
@@ -464,9 +563,18 @@ def get_settings(environ: Mapping[str, str] | None = None) -> Settings:
 __all__ = [
     "DEFAULT_DATA_DIR",
     "DEFAULT_PATIENT_LISTEN_TIMEOUT_MS",
+    "DEFAULT_VOICE_SILENCE_TIMEOUT_MS",
+    "DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS",
+    "DEFAULT_VOICE_VAD_RMS_THRESHOLD",
     "MAX_PATIENT_LISTEN_TIMEOUT_MS",
+    "MAX_VOICE_SILENCE_TIMEOUT_MS",
+    "MAX_VOICE_SPEECH_START_TIMEOUT_MS",
+    "MAX_VOICE_VAD_RMS_THRESHOLD",
     "MAX_UPLOAD_BYTES",
     "MIN_PATIENT_LISTEN_TIMEOUT_MS",
+    "MIN_VOICE_SILENCE_TIMEOUT_MS",
+    "MIN_VOICE_SPEECH_START_TIMEOUT_MS",
+    "MIN_VOICE_VAD_RMS_THRESHOLD",
     "PROJECT_ROOT",
     "RAG_PROFILES",
     "RAG_BACKENDS",
@@ -479,4 +587,7 @@ __all__ = [
     "build_rag_settings",
     "get_settings",
     "validate_patient_listen_timeout_ms",
+    "validate_voice_silence_timeout_ms",
+    "validate_voice_speech_start_timeout_ms",
+    "validate_voice_vad_rms_threshold",
 ]
