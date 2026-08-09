@@ -4,6 +4,10 @@ Esta vista es un artefacto derivado, no una segunda autoria del diagrama. La vis
 detallada es [`specs/06_system_flow_diagram_specification.md`](../../../specs/06_system_flow_diagram_specification.md);
 la vista publicada de implementacion es [`docs/arquitectura.md`](../../../docs/arquitectura.md).
 
+El explorador navegable derivado vive en
+[`docs/architecture_explorer.html`](../../../docs/architecture_explorer.html). Es un artefacto
+offline con catalogo embebido, busqueda y detalle; no agrega autoridad ni acceso al runtime.
+
 ## Procedencia
 
 | Campo | Valor |

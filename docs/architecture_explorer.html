@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Explorador offline de la arquitectura y trazabilidad del MVP.">
+    <title>Explorador de arquitectura | Tech Sphere Challenge</title>
+    <link rel="stylesheet" href="./architecture_explorer.css">
+    <script src="./architecture_explorer.data.js" defer></script>
+    <script src="./architecture_explorer.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header" id="top">
+      <div class="header-inner">
+        <div>
+          <p class="eyebrow">Documento local · Spec 06 v0.4.0</p>
+          <h1>Explorador de arquitectura</h1>
+          <p class="lede">Busca cómo se relacionan las superficies, etapas, módulos, estados, pruebas y gates del MVP.</p>
+        </div>
+        <div class="document-warning" role="note">
+          <strong>Vista documental offline</strong>
+          <span>No es una superficie clínica, no ejecuta llamadas y no consulta el runtime.</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="site-nav" aria-label="Navegacion del documento">
+      <a class="skip-link" href="#main-content">Saltar al contenido</a>
+      <div class="nav-inner">
+        <a href="#flow">Flujo</a>
+        <a href="#views">Vistas D1-D6</a>
+        <a href="#catalog">Catalogo</a>
+        <a href="#evidence">Evidencia</a>
+        <a href="#glossary">Glosario</a>
+      </div>
+    </nav>
+
+    <main id="main-content" class="page-shell">
+      <section class="provenance panel" aria-labelledby="provenance-title">
+        <div>
+          <p class="eyebrow">Procedencia</p>
+          <h2 id="provenance-title">Una vista derivada, no una segunda autoridad</h2>
+          <p>La precedencia es: specs canónicas → vista publicada → código → pruebas y evidencia. Las divergencias quedan visibles y una ficha pendiente nunca se presenta como gate aprobado.</p>
+        </div>
+        <dl class="provenance-list">
+          <div><dt>Spec normativa</dt><dd>06 · versión 0.4.0</dd></div>
+          <div><dt>Generado</dt><dd id="generated-at">2026-08-08</dd></div>
+          <div><dt>Commit del catálogo</dt><dd id="catalog-commit">working tree/no commit</dd></div>
+        </dl>
+      </section>
+
+      <section id="flow" class="panel" aria-labelledby="flow-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">De extremo a extremo</p>
+            <h2 id="flow-title">Las diez etapas del sistema</h2>
+          </div>
+          <p class="section-note">Selecciona una etapa para filtrar el catálogo.</p>
+        </div>
+        <ol id="stage-list" class="stage-list" aria-label="Etapas del flujo"></ol>
+      </section>
+
+      <section id="views" class="panel" aria-labelledby="views-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Mapas de lectura</p>
+            <h2 id="views-title">Vistas D1 a D6</h2>
+          </div>
+          <p class="section-note">Cada mapa tiene una pregunta y una lectura textual equivalente.</p>
+        </div>
+        <div id="view-list" class="view-grid"></div>
+      </section>
+
+      <section id="catalog" class="catalog-layout" aria-labelledby="catalog-title">
+        <div class="panel catalog-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Consulta trazable</p>
+              <h2 id="catalog-title">Catálogo de entidades</h2>
+            </div>
+            <button class="button button-quiet" id="clear-filters" type="button">Limpiar filtros</button>
+          </div>
+          <div class="filters" aria-label="Filtros del catalogo">
+            <label class="search-field" for="catalog-search">
+              <span>Buscar por ID, ruta, estado o descripción</span>
+              <input id="catalog-search" type="search" autocomplete="off" placeholder="Ej. late_transcript, G5 o app/services/agent.py">
+            </label>
+            <label for="kind-filter"><span>Tipo</span><select id="kind-filter"></select></label>
+            <label for="status-filter"><span>Estado</span><select id="status-filter"></select></label>
+            <label for="view-filter"><span>Vista</span><select id="view-filter"></select></label>
+            <label for="stage-filter"><span>Etapa</span><select id="stage-filter"></select></label>
+            <label for="surface-filter"><span>Superficie</span><select id="surface-filter"></select></label>
+            <label for="ownership-filter"><span>Ownership</span><select id="ownership-filter"></select></label>
+            <label for="gate-filter"><span>Gate</span><select id="gate-filter"></select></label>
+            <label class="check-field"><input id="tested-filter" type="checkbox"> Tiene prueba automatizada</label>
+            <label class="check-field"><input id="manual-filter" type="checkbox"> Tiene evidencia manual pendiente</label>
+            <label class="check-field"><input id="proposal-filter" type="checkbox"> Solo propuestas o fuera de alcance</label>
+          </div>
+          <div class="filter-summary" id="filter-summary" role="status" aria-live="polite"></div>
+          <div id="catalog-results" class="catalog-results" aria-live="polite"></div>
+        </div>
+
+        <aside class="panel legend-panel" aria-labelledby="legend-title">
+          <p class="eyebrow">Leyenda</p>
+          <h2 id="legend-title">Cómo leer el mapa</h2>
+          <p>La forma indica el tipo de entidad; el color indica ownership; el texto siempre repite el estado.</p>
+          <ul class="legend-list">
+            <li><span class="ownership-dot user"></span> Usuario</li>
+            <li><span class="ownership-dot admin"></span> Admin</li>
+            <li><span class="ownership-dot bot"></span> Bot</li>
+            <li><span class="ownership-dot rag"></span> RAG</li>
+            <li><span class="ownership-dot data"></span> Datos</li>
+            <li><span class="ownership-dot external"></span> Externo</li>
+            <li><span class="ownership-dot security"></span> Seguridad</li>
+            <li><span class="ownership-dot metrics"></span> Métricas</li>
+          </ul>
+          <p class="muted-copy">El explorador documenta evidencia; no cambia ningún estado ni gate.</p>
+        </aside>
+      </section>
+
+      <section id="evidence" class="panel evidence-panel" aria-labelledby="evidence-title">
+        <p class="eyebrow">Evidencia</p>
+        <h2 id="evidence-title">Qué significa cada estado</h2>
+        <div class="status-grid">
+          <div><strong class="status implemented">IMPLEMENTED</strong><p>Existe una ruta o contrato identificable.</p></div>
+          <div><strong class="status tested">TESTED</strong><p>Hay una verificación automatizada reproducible.</p></div>
+          <div><strong class="status pending">MANUAL_PENDING</strong><p>Falta observar navegador, audio, proveedor o documento externo.</p></div>
+          <div><strong class="status proposed">PROPOSED</strong><p>Está especificado, pero no existe en el runtime actual.</p></div>
+          <div><strong class="status out">OUT_OF_SCOPE</strong><p>Es un límite explícito del MVP local.</p></div>
+        </div>
+      </section>
+
+      <section id="glossary" class="panel glossary-panel" aria-labelledby="glossary-title">
+        <p class="eyebrow">Lenguaje común</p>
+        <h2 id="glossary-title">Glosario breve</h2>
+        <dl id="glossary-list" class="glossary-list"></dl>
+      </section>
+    </main>
+
+    <dialog id="entity-detail" class="detail-dialog" aria-labelledby="detail-title" aria-describedby="detail-summary">
+      <div class="detail-heading">
+        <div>
+          <p class="eyebrow" id="detail-kind"></p>
+          <h2 id="detail-title">Detalle de entidad</h2>
+        </div>
+        <button class="button button-quiet" id="detail-close" type="button">Cerrar</button>
+      </div>
+      <p id="detail-id" class="detail-id"></p>
+      <p id="detail-summary" class="detail-summary"></p>
+      <div id="detail-content" class="detail-content"></div>
+    </dialog>
+
+    <footer class="site-footer">
+      <p>Documento local derivado de Spec 06 v0.4.0 · generado el <span id="footer-date">2026-08-08</span>.</p>
+      <a href="#top">Volver al inicio</a>
+    </footer>
+  </body>
+</html>

@@ -156,7 +156,8 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
 - [`09_admin_source_preview_specification.md`](specs/09_admin_source_preview_specification.md):
   propuesta de modal para distinguir archivo original y texto extraido.
 - [`10_architecture_explorer_specification.md`](specs/10_architecture_explorer_specification.md):
-  propuesta de explorador HTML offline para buscar y profundizar en la arquitectura.
+  explorador HTML offline implementado en `docs/architecture_explorer.html`; verifica con
+  `python -m pytest tests/test_architecture_explorer.py -q --basetemp <temp>` y `node --check docs/architecture_explorer.js`.
 - [`11_conversational_ux_writing_specification.md`](specs/11_conversational_ux_writing_specification.md):
   catalogo propuesto para reescribir todos los mensajes del bot con UX Writing y VUI.
 - [`13_rag_environment_configuration_specification.md`](specs/13_rag_environment_configuration_specification.md):
