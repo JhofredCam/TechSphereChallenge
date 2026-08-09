@@ -20,7 +20,7 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 SCHEMA_STATEMENTS = (
@@ -170,6 +170,17 @@ SCHEMA_STATEMENTS = (
     CREATE TABLE IF NOT EXISTS meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS rag_indexes (
+        index_version TEXT PRIMARY KEY,
+        backend TEXT NOT NULL,
+        manifest_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        lag INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        activated_at TEXT
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status)",
@@ -394,6 +405,90 @@ class Database:
                 return int(value or 0)
             except ValueError as exc:
                 raise RuntimeError("corpus_revision metadata is not an integer") from exc
+
+    def upsert_rag_index(
+        self,
+        *,
+        index_version: str,
+        backend: str,
+        manifest: Mapping[str, Any],
+        status: str = "built",
+        lag: int = 0,
+        activated_at: str | None = None,
+    ) -> None:
+        if not index_version.strip():
+            raise ValueError("index_version is required")
+        if lag < 0:
+            raise ValueError("index lag cannot be negative")
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO rag_indexes(
+                    index_version, backend, manifest_json, status, lag, created_at, activated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(index_version) DO UPDATE SET
+                    backend = excluded.backend,
+                    manifest_json = excluded.manifest_json,
+                    status = excluded.status,
+                    lag = excluded.lag,
+                    activated_at = COALESCE(excluded.activated_at, rag_indexes.activated_at)
+                """,
+                (
+                    index_version,
+                    backend,
+                    json.dumps(dict(manifest), ensure_ascii=False, sort_keys=True),
+                    status,
+                    lag,
+                    utc_now(),
+                    activated_at,
+                ),
+            )
+
+    def get_rag_index(self, index_version: str) -> dict[str, Any] | None:
+        row = self.execute(
+            "SELECT * FROM rag_indexes WHERE index_version = ?", (index_version,)
+        ).fetchone()
+        if row is None:
+            return None
+        value = dict(row)
+        value["manifest"] = json.loads(value.pop("manifest_json"))
+        return value
+
+    def list_rag_indexes(self) -> list[dict[str, Any]]:
+        rows = self.execute(
+            "SELECT index_version FROM rag_indexes ORDER BY created_at DESC"
+        ).fetchall()
+        return [
+            item
+            for index in rows
+            if (item := self.get_rag_index(str(index["index_version"]))) is not None
+        ]
+
+    def get_eligible_chunk(self, chunk_id: str) -> sqlite3.Row | None:
+        return self.execute(
+            """
+            SELECT chunks.id, chunks.document_id, chunks.page_number, chunks.chunk_index,
+                   chunks.text, chunks.start_char, chunks.end_char, documents.filename,
+                   documents.sha256, documents.status, documents.enabled
+            FROM chunks
+            JOIN documents ON documents.id = chunks.document_id
+            WHERE chunks.id = ? AND documents.status = 'available' AND documents.enabled = 1
+            """,
+            (chunk_id,),
+        ).fetchone()
+
+    def list_eligible_chunks(self) -> list[sqlite3.Row]:
+        return self.execute(
+            """
+            SELECT chunks.id, chunks.document_id, chunks.page_number, chunks.chunk_index,
+                   chunks.text, chunks.start_char, chunks.end_char, documents.filename,
+                   documents.sha256
+            FROM chunks
+            JOIN documents ON documents.id = chunks.document_id
+            WHERE documents.status = 'available' AND documents.enabled = 1
+            ORDER BY documents.id, chunks.page_number, chunks.chunk_index
+            """
+        ).fetchall()
 
     def get_listening_attempt(self, listen_id: str) -> sqlite3.Row | None:
         with self._lock:

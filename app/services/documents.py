@@ -17,6 +17,7 @@ from .ingestion import (
     guess_mime_type,
     page_id_for,
 )
+from .vector_store import VectorRecord, VectorStore
 
 _INVALID_WINDOWS_FILENAME_CHARS = frozenset('<>:"/\\|?*')
 _WINDOWS_RESERVED_BASENAMES = frozenset(
@@ -128,6 +129,8 @@ class DocumentService:
         self,
         database: Database,
         settings: Settings | str | Path | None = None,
+        *,
+        vector_store: VectorStore | None = None,
     ) -> None:
         self.database = database
         if settings is None:
@@ -135,7 +138,62 @@ class DocumentService:
         elif not isinstance(settings, Settings):
             settings = Settings(data_dir=Path(settings))
         self.settings = settings
+        self.vector_store = vector_store
         self.settings.ensure_directories()
+
+    def _sync_document_vectors(self, document_id: str) -> None:
+        if self.vector_store is None:
+            return
+        manifest = self.vector_store.collection_manifest()
+        embed = getattr(self.vector_store, "embed_query", None)
+        if not callable(embed):
+            raise ValueError("vector store does not provide an embedding adapter")
+        rows = self.database.execute(
+            """
+            SELECT chunks.id, chunks.document_id, chunks.page_number, chunks.chunk_index,
+                   chunks.text, chunks.start_char, chunks.end_char, documents.filename,
+                   documents.sha256
+            FROM chunks JOIN documents ON documents.id = chunks.document_id
+            WHERE chunks.document_id = ? AND documents.status = 'available'
+            """,
+            (document_id,),
+        ).fetchall()
+        revision = self.database.get_corpus_revision()
+        records = [
+            VectorRecord(
+                id=str(row["id"]),
+                embedding=tuple(float(item) for item in embed(str(row["text"]))),
+                document_id=document_id,
+                metadata={
+                    "document_id": document_id,
+                    "page_id": f"{document_id}:{row['page_number']}",
+                    "page_number": int(row["page_number"]),
+                    "chunk_index": int(row["chunk_index"]),
+                    "start_char": int(row["start_char"]),
+                    "end_char": int(row["end_char"]),
+                    "filename": str(row["filename"]),
+                    "sha256": str(row["sha256"]),
+                    "corpus_revision": revision,
+                    "chunking_version": manifest.chunking_version,
+                    "embedding_provider": manifest.embedding_provider,
+                    "embedding_model_name": manifest.embedding_model_name,
+                    "embedding_model_revision": manifest.embedding_model_revision,
+                    "embedding_dimension": manifest.embedding_dimension,
+                    "distance_metric": manifest.distance_metric,
+                    "index_version": manifest.index_version,
+                    "published": True,
+                },
+            )
+            for row in rows
+        ]
+        self.vector_store.upsert(records)
+        self.database.upsert_rag_index(
+            index_version=manifest.index_version,
+            backend="chroma",
+            manifest=manifest.to_dict(),
+            status="ready",
+            lag=0,
+        )
 
     @staticmethod
     def _safe_filename(
@@ -341,6 +399,22 @@ class DocumentService:
         updated = self.database.get_document(document_id)
         if updated is None:
             raise RuntimeError("document disappeared after processing")
+        if (
+            self.vector_store is not None
+            and updated.status_value == DocumentStatus.AVAILABLE.value
+        ):
+            try:
+                self._sync_document_vectors(document_id)
+            except Exception as exc:
+                self.database.record_audit(
+                    entity_type="document",
+                    entity_id=document_id,
+                    action="index_error",
+                    details={
+                        "error": str(exc)[:1000],
+                        "index_version": self.vector_store.collection_manifest().index_version,
+                    },
+                )
         return updated
 
     def get(self, document_id: str) -> DocumentRecord | None:
@@ -479,9 +553,25 @@ class DocumentService:
         record = self.database.get_document(document_id)
         if record is None:
             return False
+        chunk_ids = [
+            str(row["id"])
+            for row in self.database.execute(
+                "SELECT id FROM chunks WHERE document_id = ?", (document_id,)
+            ).fetchall()
+        ]
         deleted = self.database.delete_document(document_id)
         if not deleted:
             return False
+        if self.vector_store is not None:
+            try:
+                self.vector_store.delete_by_ids(chunk_ids)
+            except Exception as exc:
+                self.database.record_audit(
+                    entity_type="document",
+                    entity_id=document_id,
+                    action="vector_delete_error",
+                    details={"error": str(exc)[:1000], "chunk_count": len(chunk_ids)},
+                )
         stored_path = Path(record.stored_path)
         cleanup_error: str | None = None
         try:

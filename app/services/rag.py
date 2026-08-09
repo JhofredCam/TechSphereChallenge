@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 
+from ..config import Settings
 from ..database import Database
 from ..schemas import SearchResult
 from .ingestion import normalize_for_search
+from .vector_store import VectorStore
 
 # Question words and function words do not provide enough evidence to ground a
 # clinical answer.  Keeping this list local to retrieval makes the guard
@@ -229,10 +231,24 @@ def search(
 class RagService:
     """Object-oriented facade used by API and call services."""
 
-    def __init__(self, database: Database) -> None:
+    def __init__(
+        self,
+        database: Database,
+        *,
+        vector_store: VectorStore | None = None,
+        settings: Settings | None = None,
+    ) -> None:
         self.database = database
+        self.vector_store = vector_store
+        self.settings = settings
 
     def search(self, query: str, *, limit: int = 5) -> list[SearchResult]:
+        if self.vector_store is not None:
+            try:
+                return self.semantic_search(query, limit=limit)
+            except Exception:
+                if self.settings is not None and not self.settings.rag.fallback_to_fts5:
+                    raise
         return search(self.database, query, limit=limit)
 
     def retrieve(self, query: str, *, limit: int = 5) -> list[SearchResult]:
@@ -245,6 +261,62 @@ class RagService:
         return "\n\n".join(
             f"[{result.citation}]\n{result.text}" for result in results
         )
+
+    def semantic_search(self, query: str, *, limit: int = 5) -> list[SearchResult]:
+        """Query a derived vector index and hydrate every hit from SQLite."""
+
+        if self.vector_store is None:
+            return []
+        if limit <= 0:
+            return []
+        embed_query = getattr(self.vector_store, "embed_query", None)
+        if not callable(embed_query):
+            raise ValueError("vector store does not provide an embedding query adapter")
+        vector = embed_query(query)
+        fetch_k = max(limit, getattr(getattr(self.settings, "rag", None), "vector_fetch_k", limit))
+        hits = self.vector_store.query(vector, limit=limit, fetch_k=fetch_k)
+        revision_before = self.database.get_corpus_revision()
+        manifest = self.vector_store.collection_manifest()
+        if manifest.corpus_revision and manifest.corpus_revision != revision_before:
+            return []
+        threshold = getattr(getattr(self.settings, "rag", None), "similarity_threshold", None)
+        results: list[SearchResult] = []
+        for hit in hits:
+            if threshold is not None and hit.similarity < threshold:
+                continue
+            row = self.database.get_eligible_chunk(hit.id)
+            if row is None:
+                continue
+            metadata_revision = hit.metadata.get("corpus_revision")
+            if metadata_revision not in (None, "") and int(metadata_revision) != revision_before:
+                continue
+            results.append(
+                SearchResult(
+                    document_id=str(row["document_id"]),
+                    filename=str(row["filename"]),
+                    page_number=int(row["page_number"]),
+                    chunk_id=str(row["id"]),
+                    text=str(row["text"]),
+                    score=float(hit.similarity),
+                    citation=f"{row['filename']} (p. {row['page_number']})",
+                    corpus_revision=revision_before,
+                    chunk_index=int(row["chunk_index"]),
+                )
+            )
+            if len(results) >= limit:
+                break
+        if self.database.get_corpus_revision() != revision_before:
+            return []
+        results.sort(
+            key=lambda item: (
+                -item.score,
+                item.document_id,
+                item.page_number,
+                item.chunk_index or 0,
+                item.chunk_id,
+            )
+        )
+        return results
 
 
 RAGService = RagService
