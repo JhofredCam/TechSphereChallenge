@@ -6,9 +6,10 @@ from dataclasses import asdict, is_dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Mapping
+from urllib.parse import quote
 
 from fastapi import Body, FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt, model_validator
 from starlette.concurrency import run_in_threadpool
@@ -22,6 +23,9 @@ from .services.documents import (
     DocumentNotSearchableError,
     DocumentProcessingError,
     DocumentService,
+    SourceFormatNotSupportedError,
+    SourceReadError,
+    SourceUnavailableError,
 )
 from .services.ingestion import SUPPORTED_SUFFIXES
 from .services.metrics import DEFAULT_MODEL_VERSION, MetricsService
@@ -181,9 +185,38 @@ def _document_payload(record: Any, corpus_revision: int = 0) -> dict[str, Any]:
         "page_count": int(record.page_count),
         "chunk_count": int(record.chunk_count),
         "preview_available": bool(record.preview_available),
+        "source_format": _source_format(record.filename),
+        "source_media_type": _source_media_type(record.filename),
+        "original_preview_available": status
+        not in {DocumentStatus.PROCESSING.value, DocumentStatus.ERROR.value},
         "corpus_revision": corpus_revision,
     }
     return _json_safe(payload)
+
+
+def _source_format(filename: str | None) -> str | None:
+    suffix = Path(str(filename or "")).suffix.casefold()
+    return {".pdf": "pdf", ".txt": "txt", ".md": "md"}.get(suffix)
+
+
+def _source_media_type(filename: str | None) -> str | None:
+    suffix = Path(str(filename or "")).suffix.casefold()
+    return {
+        ".pdf": "application/pdf",
+        ".txt": "text/plain",
+        ".md": "text/plain",
+    }.get(suffix)
+
+
+def _source_download_name(filename: str) -> str:
+    """Keep Content-Disposition free of path, quote, and control characters."""
+
+    name = Path(str(filename or "document").replace("\\", "/")).name
+    name = "".join(
+        character for character in name if ord(character) >= 32 and ord(character) != 127
+    )
+    name = name.replace('"', "'").replace("/", "_").replace("\\", "_").strip(" .")
+    return name or "document"
 
 
 def _fts5_available(database: Database) -> bool:
@@ -390,6 +423,48 @@ def create_app(
             if error_code not in {"invalid_preview_range", "offset_out_of_range"}:
                 error_code = "invalid_preview_range"
             raise _admin_error(422, error_code, str(exc)) from exc
+
+    @application.get("/api/admin/documents/{document_id}/source")
+    def source_document(document_id: str) -> Response:
+        try:
+            record, content, source_format, media_type = documents.source(document_id)
+        except KeyError as exc:
+            raise _admin_error(404, "document_not_found", "No encontramos esta fuente.") from exc
+        except DocumentProcessingError as exc:
+            raise _admin_error(
+                409,
+                "document_processing",
+                "La fuente aun se esta procesando.",
+            ) from exc
+        except SourceFormatNotSupportedError as exc:
+            raise _admin_error(
+                415,
+                "source_format_not_supported",
+                "Este formato no se puede previsualizar aqui.",
+            ) from exc
+        except SourceUnavailableError as exc:
+            raise _admin_error(
+                409,
+                "source_unavailable",
+                "No pudimos abrir el archivo original.",
+            ) from exc
+        except SourceReadError as exc:
+            raise _admin_error(
+                503,
+                "source_read_error",
+                "No pudimos abrir esta fuente. Intentalo de nuevo.",
+            ) from exc
+
+        safe_name = _source_download_name(record.filename)
+        headers = {
+            "Cache-Control": "no-store",
+            "Content-Disposition": f"inline; filename*=UTF-8''{quote(safe_name, safe='')}",
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "SAMEORIGIN",
+            "X-Source-Format": source_format,
+        }
+        return Response(content=content, media_type=media_type, headers=headers)
 
     @application.patch("/api/admin/documents/{document_id}")
     def update_document(document_id: str, payload: Any = Body(default=None)) -> dict[str, Any]:

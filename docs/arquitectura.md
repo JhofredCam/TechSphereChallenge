@@ -201,7 +201,12 @@ sustituye el smoke manual de microfono y audio.
 
 ## Superficies y rutas implementadas
 
-- `/admin`: consola estatica para subir, listar, previsualizar texto, habilitar/deshabilitar y
+La preview administrativa distingue el archivo original de la extraccion. El original se
+resuelve desde la raiz privada de uploads, se valida contra su hash y se sirve como PDF/TXT/MD
+con MIME canonico y `Cache-Control: no-store`; nunca se acepta una ruta del navegador. La vista
+original es de solo lectura y no cambia `enabled`, `corpus_revision` ni la elegibilidad RAG.
+
+- `/admin`: consola estatica para subir, listar, previsualizar original o texto extraido, habilitar/deshabilitar y
   eliminar documentos. El inventario usa todo el ancho cuando el preview esta cerrado, se divide
   en dos zonas solo al abrirlo y se convierte en fichas sin scroll horizontal en pantallas
   estrechas; el SHA, IDs, rutas y codigos internos permanecen fuera de la UI visible.
@@ -209,8 +214,9 @@ sustituye el smoke manual de microfono y audio.
   y guardar el resumen.
 - `GET /health`: estado del modelo configurado, FTS5, documentos, revision del corpus y modo
   de voz; publica `patient_listen_timeout_ms` sin secretos.
-- `GET/POST/PATCH/DELETE /api/admin/documents` y
-  `GET /api/admin/documents/{id}/preview`: ciclo documental sin reiniciar el proceso.
+- `GET/POST/PATCH/DELETE /api/admin/documents`,
+  `GET /api/admin/documents/{id}/preview` y `GET /api/admin/documents/{id}/source`: ciclo
+  documental sin reiniciar el proceso.
 - `POST /api/calls`, `GET /api/calls/{call_id}`, `POST /api/calls/{call_id}/turns`,
   `POST /api/calls/{call_id}/audio`, `POST /api/calls/{call_id}/voice-events`,
   `POST /api/calls/{call_id}/turns/{turn_id}/voice-timing` y

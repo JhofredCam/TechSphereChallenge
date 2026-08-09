@@ -48,6 +48,25 @@ class DocumentProcessingError(RuntimeError):
     """Raised when a document is still being processed."""
 
 
+class SourceUnavailableError(RuntimeError):
+    """Raised when the stored original cannot be safely served."""
+
+
+class SourceFormatNotSupportedError(ValueError):
+    """Raised when an original has no canonical preview representation."""
+
+
+class SourceReadError(OSError):
+    """Raised when the stored original cannot be read or no longer matches."""
+
+
+SOURCE_FORMATS = {
+    ".pdf": ("pdf", "application/pdf"),
+    ".txt": ("txt", "text/plain; charset=utf-8"),
+    ".md": ("md", "text/plain; charset=utf-8"),
+}
+
+
 def _is_windows_reserved_name(filename: str) -> bool:
     basename = filename.split(".", 1)[0]
     return basename.upper() in _WINDOWS_RESERVED_BASENAMES
@@ -418,6 +437,43 @@ class DocumentService:
             "text": text[offset:end],
         }
         return base_payload
+
+    def source(self, document_id: str) -> tuple[DocumentRecord, bytes, str, str]:
+        """Return the validated original bytes and canonical response metadata.
+
+        The caller receives bytes instead of a client-controlled path.  Reading and
+        hashing here makes missing, replaced, symlinked, or out-of-root files fail
+        before an HTTP response is created.
+        """
+
+        record = self.database.get_document(document_id)
+        if record is None:
+            raise KeyError(document_id)
+        if record.status_value == DocumentStatus.PROCESSING.value:
+            raise DocumentProcessingError("document_processing")
+        if record.status_value == DocumentStatus.ERROR.value:
+            raise SourceUnavailableError("source_unavailable")
+
+        suffix = Path(record.filename).suffix.casefold()
+        format_info = SOURCE_FORMATS.get(suffix)
+        if format_info is None:
+            raise SourceFormatNotSupportedError("source_format_not_supported")
+        stored_path = Path(record.stored_path)
+        try:
+            root = self.settings.documents_dir.resolve(strict=True)
+            resolved = stored_path.resolve(strict=True)
+            resolved.relative_to(root)
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise SourceUnavailableError("source_unavailable") from exc
+        if stored_path.is_symlink() or not resolved.is_file():
+            raise SourceUnavailableError("source_unavailable")
+        try:
+            content = resolved.read_bytes()
+        except (OSError, ValueError) as exc:
+            raise SourceReadError("source_read_error") from exc
+        if hashlib.sha256(content).hexdigest() != record.sha256:
+            raise SourceUnavailableError("source_unavailable")
+        return record, content, format_info[0], format_info[1]
 
     def delete(self, document_id: str) -> bool:
         record = self.database.get_document(document_id)
