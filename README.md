@@ -174,6 +174,13 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
 - [`19_rag_production_migration_specification.md`](specs/19_rag_production_migration_specification.md):
    contrato integrador de la migracion RAG y su operacion de produccion.
 
+## Previsualizacion de fuentes en `/admin`
+
+`Previsualizar` abre una ventana accesible con dos modos: `Archivo original`, que sirve el
+PDF/TXT/MD recibido como contenido no ejecutable, y `Texto extraido`, que conserva la preview
+por pagina de la ingestion. El endpoint de solo lectura es
+`GET /api/admin/documents/{id}/source`; usa MIME canonico, `no-store` y nunca expone rutas.
+
 ## Modelo permitido
 
 | Componente | Selección | Justificación |

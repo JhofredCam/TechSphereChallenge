@@ -87,24 +87,38 @@
           <p id="documents-status" class="form-status" role="status" aria-live="polite"></p>
         </section>
 
-        <aside class="panel preview-panel" id="preview-panel" aria-labelledby="preview-title" tabindex="-1" hidden>
+        <dialog class="panel preview-panel" id="preview-panel" aria-labelledby="preview-title" aria-describedby="preview-description" aria-modal="true" tabindex="-1">
           <div class="panel-heading compact-heading">
             <div>
               <p class="eyebrow">Inspeccion segura</p>
-              <h2 id="preview-title">Texto extraido</h2>
+              <h2 id="preview-title">Previsualizacion de la fuente</h2>
             </div>
             <button class="button button-quiet" id="preview-close" type="button">Cerrar</button>
           </div>
           <p id="preview-document" class="preview-document"></p>
-          <div class="preview-controls">
+          <p id="preview-description" class="preview-help">Vista administrativa local. El archivo original puede ser guardado por el navegador.</p>
+          <div class="preview-tabs" role="tablist" aria-label="Modo de previsualizacion">
+            <button class="button button-secondary preview-tab" id="preview-source-tab" type="button" role="tab" aria-selected="true" aria-controls="preview-source-view">Archivo original</button>
+            <button class="button button-quiet preview-tab" id="preview-extracted-tab" type="button" role="tab" aria-selected="false" aria-controls="preview-extracted-view">Texto extraido</button>
+          </div>
+          <p id="preview-source-help" class="preview-help">Archivo original: asi fue recibido. No es el texto indexado.</p>
+          <section id="preview-source-view" role="tabpanel" aria-labelledby="preview-source-tab">
+            <iframe id="preview-source-frame" class="preview-source-frame" title="Archivo original de la fuente" sandbox="allow-same-origin" hidden></iframe>
+            <pre id="preview-source-text" class="preview-text preview-source-text" hidden></pre>
+            <p id="preview-source-fallback" class="preview-help">Si el visor no abre el PDF, revisa el texto extraido o abre el archivo con un lector PDF local.</p>
+          </section>
+          <section id="preview-extracted-view" role="tabpanel" aria-labelledby="preview-extracted-tab" hidden>
+            <p id="preview-extracted-help" class="preview-help">Texto extraido: resultado de la ingestion. Puede diferir del archivo visual.</p>
+            <div class="preview-controls">
             <label for="preview-page">Pagina</label>
             <input id="preview-page" type="number" min="1" value="1">
             <button class="button button-secondary" id="preview-load" type="button">Cargar</button>
-          </div>
-          <p id="preview-meta" class="preview-meta"></p>
-          <pre id="preview-text" class="preview-text"></pre>
+            </div>
+            <p id="preview-meta" class="preview-meta"></p>
+            <pre id="preview-text" class="preview-text"></pre>
+          </section>
           <p id="preview-status" class="form-status" role="status" aria-live="polite"></p>
-        </aside>
+        </dialog>
       </div>
     </main>
 

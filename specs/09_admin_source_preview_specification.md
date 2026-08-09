@@ -1,7 +1,7 @@
 # Spec: Previsualizacion del archivo original en `/admin`
 
 **ID:** `ADMIN-SOURCE-PREVIEW-001`
-**Estado:** `PROPOSED`; no implementada en este checkout
+**Estado:** `IMPLEMENTED`; endpoint, modal y pruebas locales aplicados en `spec/09-admin-source-preview`
 **Version:** 0.1.0
 **Fecha:** 2026-08-08
 **Propietario:** consola `/admin`

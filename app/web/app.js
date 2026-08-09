@@ -80,6 +80,16 @@
     return messages[error.code] || `No pudimos ${action} la fuente. Inténtalo de nuevo.`;
   }
 
+  function sourceErrorMessage(error) {
+    const messages = {
+      source_unavailable: "No pudimos abrir el archivo original.",
+      source_format_not_supported: "Este formato no se puede previsualizar aqui.",
+      source_read_error: "No pudimos abrir esta fuente. Intentalo de nuevo.",
+      document_processing: "La fuente aun se esta procesando. Intentalo de nuevo en un momento.",
+    };
+    return messages[error?.code] || "No pudimos abrir el archivo original.";
+  }
+
   function adminStatusInfo(status) {
     return ADMIN_COPY.status[status] || {
       label: "Estado no disponible",
@@ -129,12 +139,46 @@
     return node;
   }
 
-  const adminPreviewState = { documentRecord: null, page: 1, opener: null };
+  const adminPreviewState = {
+    documentRecord: null,
+    page: 1,
+    opener: null,
+    mode: "source",
+    requestToken: 0,
+    sourceObjectUrl: null,
+  };
+
+  function clearSourceObjectUrl() {
+    if (adminPreviewState.sourceObjectUrl) {
+      URL.revokeObjectURL(adminPreviewState.sourceObjectUrl);
+      adminPreviewState.sourceObjectUrl = null;
+    }
+  }
+
+  function setPreviewMode(mode) {
+    const isSource = mode === "source";
+    adminPreviewState.mode = isSource ? "source" : "extracted";
+    const sourceTab = $("#preview-source-tab");
+    const extractedTab = $("#preview-extracted-tab");
+    sourceTab?.setAttribute("aria-selected", String(isSource));
+    extractedTab?.setAttribute("aria-selected", String(!isSource));
+    sourceTab?.classList.toggle("button-secondary", isSource);
+    sourceTab?.classList.toggle("button-quiet", !isSource);
+    extractedTab?.classList.toggle("button-secondary", !isSource);
+    extractedTab?.classList.toggle("button-quiet", isSource);
+    $("#preview-source-view")?.toggleAttribute("hidden", !isSource);
+    $("#preview-extracted-view")?.toggleAttribute("hidden", isSource);
+  }
 
   function closeAdminPreview(restoreFocus = true) {
     const panel = $("#preview-panel");
     const workspace = $(".admin-workspace");
-    if (panel) panel.hidden = true;
+    adminPreviewState.requestToken += 1;
+    clearSourceObjectUrl();
+    const sourceFrame = $("#preview-source-frame");
+    if (sourceFrame) sourceFrame.removeAttribute("src");
+    if (panel?.open && typeof panel.close === "function") panel.close();
+    if (panel) panel.hidden = false;
     workspace?.classList.remove("preview-open");
     const opener = adminPreviewState.opener;
     adminPreviewState.documentRecord = null;
@@ -142,19 +186,13 @@
     if (restoreFocus && opener && document.contains(opener)) opener.focus();
   }
 
-  async function loadAdminPreview(documentRecord, page = 1, opener = null) {
+  async function loadAdminExtractedPreview(documentRecord, page = 1, requestToken = adminPreviewState.requestToken) {
     const panel = $("#preview-panel");
     const pageInput = $("#preview-page");
     const documentLabel = $("#preview-document");
     const meta = $("#preview-meta");
     const text = $("#preview-text");
     if (!panel || !pageInput || !documentLabel || !meta || !text) return;
-    adminPreviewState.documentRecord = documentRecord;
-    adminPreviewState.page = page;
-    adminPreviewState.opener = opener || adminPreviewState.opener;
-    panel.hidden = false;
-    $(".admin-workspace")?.classList.add("preview-open");
-    documentLabel.textContent = documentRecord.filename;
     pageInput.value = String(page);
     text.textContent = "";
     meta.textContent = "";
@@ -164,6 +202,7 @@
       const data = await adminApi(
         `/api/admin/documents/${encodeURIComponent(documentRecord.id)}/preview?page=${encodeURIComponent(page)}&offset=0&limit=8000`,
       );
+      if (requestToken !== adminPreviewState.requestToken) return;
       const preview = data.preview || {};
       if (preview.available) {
         text.textContent = preview.text || "";
@@ -180,6 +219,67 @@
       meta.textContent = "";
       setStatus($("#preview-status"), adminErrorMessage(error, "consultar"), "error");
     }
+  }
+
+  async function loadAdminSource(documentRecord, requestToken) {
+    const sourceFrame = $("#preview-source-frame");
+    const sourceText = $("#preview-source-text");
+    const fallback = $("#preview-source-fallback");
+    if (!sourceFrame || !sourceText || !fallback) return;
+    clearSourceObjectUrl();
+    sourceFrame.hidden = true;
+    sourceText.hidden = true;
+    setStatus($("#preview-status"), "Estamos cargando el archivo original...");
+    try {
+      const response = await fetch(
+        `/api/admin/documents/${encodeURIComponent(documentRecord.id)}/source`,
+      );
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok) {
+        const data = contentType.includes("application/json")
+          ? await response.json()
+          : await response.text();
+        throw new AdminApiError(response.status, adminErrorCode(data));
+      }
+      const blob = await response.blob();
+      if (requestToken !== adminPreviewState.requestToken) return;
+      adminPreviewState.sourceObjectUrl = URL.createObjectURL(blob);
+      if (documentRecord.source_format === "pdf" || /application\/pdf/i.test(contentType)) {
+        sourceFrame.src = adminPreviewState.sourceObjectUrl;
+        sourceFrame.hidden = false;
+        fallback.hidden = false;
+      } else {
+        sourceText.textContent = await blob.text();
+        sourceText.hidden = false;
+        fallback.hidden = true;
+      }
+      setStatus($("#preview-status"), "Archivo original cargado. Se muestra como contenido no ejecutable.", "success");
+    } catch (error) {
+      if (requestToken !== adminPreviewState.requestToken) return;
+      sourceFrame.removeAttribute("src");
+      sourceText.textContent = "";
+      setStatus($("#preview-status"), sourceErrorMessage(error), "error");
+    }
+  }
+
+  async function loadAdminPreview(documentRecord, page = 1, opener = null) {
+    const panel = $("#preview-panel");
+    const documentLabel = $("#preview-document");
+    if (!panel || !documentLabel) return;
+    adminPreviewState.documentRecord = documentRecord;
+    adminPreviewState.page = page;
+    adminPreviewState.opener = opener || adminPreviewState.opener;
+    adminPreviewState.requestToken += 1;
+    const requestToken = adminPreviewState.requestToken;
+    documentLabel.textContent = documentRecord.filename;
+    setPreviewMode("source");
+    $("#preview-source-help").textContent = "Archivo original: asi fue recibido. No es el texto indexado.";
+    $("#preview-extracted-help").textContent = "Texto extraido: resultado de la ingestion. Puede diferir del archivo visual.";
+    $(".admin-workspace")?.classList.add("preview-open");
+    if (typeof panel.showModal === "function" && !panel.open) panel.showModal();
+    else panel.hidden = false;
+    $("#preview-close")?.focus();
+    void loadAdminSource(documentRecord, requestToken);
   }
 
   function adminActionButton({ className = "admin-action", label, accessibleLabel, onClick }) {
@@ -234,7 +334,7 @@
     actionCell.dataset.label = "Acciones";
     actionCell.className = "document-actions";
 
-    if (documentRecord.preview_available === true) {
+    if (documentRecord.original_preview_available === true || documentRecord.preview_available === true) {
       actionCell.appendChild(adminActionButton({
         label: "Previsualizar",
         accessibleLabel: `Previsualizar ${documentRecord.filename}`,
@@ -357,10 +457,35 @@
     });
     $("#refresh-documents")?.addEventListener("click", loadAdminDocuments);
     $("#preview-close")?.addEventListener("click", () => closeAdminPreview());
+    $("#preview-source-tab")?.addEventListener("click", () => {
+      if (!adminPreviewState.documentRecord) return;
+      setPreviewMode("source");
+      void loadAdminSource(adminPreviewState.documentRecord, adminPreviewState.requestToken);
+    });
+    $("#preview-extracted-tab")?.addEventListener("click", () => {
+      if (!adminPreviewState.documentRecord) return;
+      setPreviewMode("extracted");
+      void loadAdminExtractedPreview(
+        adminPreviewState.documentRecord,
+        adminPreviewState.page,
+        adminPreviewState.requestToken,
+      );
+    });
+    $("#preview-panel")?.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closeAdminPreview();
+    });
     $("#preview-load")?.addEventListener("click", () => {
       if (!adminPreviewState.documentRecord) return;
       const page = Number($("#preview-page")?.value || 1);
-      if (Number.isInteger(page) && page > 0) void loadAdminPreview(adminPreviewState.documentRecord, page);
+      if (Number.isInteger(page) && page > 0) {
+        adminPreviewState.page = page;
+        void loadAdminExtractedPreview(
+          adminPreviewState.documentRecord,
+          page,
+          adminPreviewState.requestToken,
+        );
+      }
       else setStatus($("#preview-status"), "Indica una página válida para consultar la fuente.", "error");
     });
     loadAdminDocuments();
