@@ -49,6 +49,8 @@ implementados:
    piramide, fixtures, contratos, cobertura y frontera entre automatizacion y evidencia manual.
 6. [UX Writing y VUI](11_conversational_ux_writing_specification.md): define el catalogo de
    mensajes, contencion, preguntas si/no, separacion de voz/UI y validacion de copy.
+7. [RAG profundo](12_rag_deep_dive_specification.md): documenta ingestion, chunking, FTS5,
+   relevancia, citas, revision, abstencion, conocimiento vivo y evolucion semantica.
 
 El orden obligatorio es estructura, admin, timeout y finalmente diagrama. Las mejoras de UX,
 exploracion documental y RAG deben actualizar sus specs antes de tocar runtime. Un cambio en
