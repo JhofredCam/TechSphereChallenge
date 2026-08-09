@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import PROJECT_ROOT, Settings
+from app.database import init_database
+from app.services.index_manager import IndexManager, manifest_from_database
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -40,23 +42,29 @@ def build_manifest(
         values["APP_DATA_DIR"] = str(data_dir)
     settings = Settings.from_env(values, project_root=PROJECT_ROOT)
     settings.ensure_directories()
-    manifest_dir = settings.data_dir / "rag" / "manifests"
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = manifest_dir / f"{settings.rag.index_version}.json"
-    manifest: dict[str, object] = {
-        "manifest_version": 1,
-        "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "profile": settings.rag.profile,
-        "index_version": settings.rag.index_version,
-        "index_name": settings.rag.rag_index_name,
-        "backend": settings.rag.backend,
-        "vector_store_type": settings.rag.vector_store_type,
-        "corpus_revision": 0,
-        "config": settings.rag.effective_dict(redact_secrets=True),
-    }
-    manifest_path.write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    database = init_database(settings)
+    try:
+        manifest_dir = settings.data_dir / "rag" / "manifests"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = manifest_dir / f"{settings.rag.index_version}.json"
+        index_manifest = manifest_from_database(database, settings, settings.rag.index_version)
+        manifest: dict[str, object] = {
+            "manifest_version": 1,
+            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "profile": settings.rag.profile,
+            "index_name": settings.rag.rag_index_name,
+            "backend": settings.rag.backend,
+            "vector_store_type": settings.rag.vector_store_type,
+            "corpus_revision": database.get_corpus_revision(),
+            "config": settings.rag.effective_dict(redact_secrets=True),
+            **index_manifest.to_dict(),
+        }
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        IndexManager(database).register(index_manifest, status="building")
+    finally:
+        database.close()
     return manifest, manifest_path
 
 
