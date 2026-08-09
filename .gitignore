@@ -25,6 +25,7 @@ logs/
 htmlcov/
 
 # Agent-local configuration, sessions and caches
+skills-lock.json
 .agents/
 .agent/
 .agent-state/
