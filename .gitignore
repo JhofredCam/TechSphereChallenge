@@ -6,6 +6,25 @@
 __pycache__/
 *.pyc
 
+# Python tooling caches, test artifacts and local environments
+.pytest-tmp/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.pytype/
+.hypothesis/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+ENV/
+
+# Python build artifacts
+*.egg-info/
+build/
+dist/
+
 # Local application state and secrets
 .env
 .env.*
@@ -22,6 +41,8 @@ data-verification/
 logs/
 .pytest_cache/
 .coverage
+*.cover
+coverage.xml
 htmlcov/
 
 # Agent-local configuration, sessions and caches
