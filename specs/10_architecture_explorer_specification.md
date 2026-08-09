@@ -375,7 +375,9 @@ relativa. No se debe depender de `fetch('catalog.json')`, porque puede fallar al
 El explorador debe explicar, con lenguaje no tecnico primero y detalle bajo demanda:
 
 - `available`, `enabled`, `rag_eligible` y `needs_ocr`;
-- FTS5, chunk, score BM25 y cita;
+- FTS5, ChromaDB, chunk, embedding, score BM25/distancia cosine y cita;
+- `index_version`, manifest, `index_pending`, stale vector y reconciliacion;
+- LangChain, LangSmith, trace, span, redaction y fallback;
 - `corpus_revision` y snapshot historico;
 - `listen_id`, `client_turn_id` y `late_transcript`;
 - grounding, abstencion, fallback y prompt injection;

@@ -15,6 +15,8 @@ reproducible, no telefonia ni despliegue hospitalario.
 - [Diagrama de arquitectura](../../../docs/arquitectura.md).
 - [Diagrama normativo del siguiente corte](../../../specs/06_system_flow_diagram_specification.md).
 - [Timeout configurable de escucha](../../../specs/05_patient_listening_timeout_specification.md).
+- [Configuracion RAG](../../../specs/13_rag_environment_configuration_specification.md).
+- [Operacion, rollout y rollback](../../../specs/18_rag_production_operations_specification.md).
 
 ## Salidas
 
@@ -26,6 +28,8 @@ reproducible, no telefonia ni despliegue hospitalario.
 - `/call` para llamada browser/API con microfono, transcripcion, timeout total por turno,
   respuesta, audio y fallback textual.
 - Instrucciones de permisos, fallback textual, variables de entorno y limpieza segura.
+- Perfiles `challenge-local`, `staging` y `production`, con Chroma/embeddings precargados cuando
+  corresponda y sin descarga oculta en el perfil local.
 - `PATIENT_LISTEN_TIMEOUT_MS=30000` se valida en `app.config`, llega por `/health` y controla
   cada intento de escucha; es independiente de Groq, Whisper y SQLite.
 - Registro del tiempo real de setup y resultado de cada recorrido de demo.
@@ -43,6 +47,7 @@ reproducible, no telefonia ni despliegue hospitalario.
    de texto. Un timeout ofrece reintento/texto y no crea un turno.
 7. Ejecutar el recorrido de conocimiento vivo y guardar capturas/logs.
 8. Documentar como detener el servidor y separar datos locales de las fuentes canonicas.
+9. Probar `health`, lag de indice, fallback FTS5, promotion y rollback antes de una demo RAG.
 
 ## Criterios de aceptacion
 
@@ -54,6 +59,8 @@ reproducible, no telefonia ni despliegue hospitalario.
 - [x] Una fuente cargada se usa antes del delete y se olvida despues, sin reinicio, en la
   prueba automatizada y la integracion local.
 - [x] Las URLs, permisos, credenciales opcionales y fallbacks estan explicados.
+- [ ] Chroma, embeddings y LangSmith se levantan con configuracion externa, redaction y rollback;
+  pendiente de implementacion y evidencia.
 - [x] La demo y el diagrama describen el comportamiento implementado; la ejecucion manual
   de voz aun no esta capturada.
 

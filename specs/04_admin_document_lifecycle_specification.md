@@ -17,8 +17,9 @@ contenido extraido y no debe ejecutar HTML, Markdown ni instrucciones encontrada
 ## Tech Stack
 
 Se conserva FastAPI/Uvicorn, SQLite con FTS5, PyMuPDF, HTML/CSS/JavaScript sin bundler y los
-servicios actuales de documentos/RAG. La ampliacion debe evitar una dependencia nueva para
-preview o un segundo indice; `pages.text` y FTS5 siguen siendo las fuentes locales.
+servicios actuales de documentos/RAG. La preview sigue siendo independiente de cualquier indice.
+La migracion RAG de Specs 13-19 agrega ChromaDB como indice derivado, pero `pages.text`, `chunks`
+y SQLite siguen siendo la fuente de verdad para citas y estado.
 
 ## Project Structure
 
@@ -26,6 +27,8 @@ preview o un segundo indice; `pages.text` y FTS5 siguen siendo las fuentes local
 - `app/services/documents.py`: estados, `enabled`, revision y delete.
 - `app/services/ingestion.py`: extraccion por pagina y chunks.
 - `app/services/rag.py`: filtro `status='available' AND enabled=1`.
+- `app/services/vector_store.py`: indice Chroma/FTS5 y metadata versionada durante la migracion.
+- `app/services/index_manager.py`: estados `index_pending`, reconciliacion y delete vectorial.
 - `app/web/admin.html` y `app/web/app.js`: tabla, badges, panel y confirmaciones.
 - `app/database.py`: migracion, indice, auditoria y snapshot historico.
 - `tests/`: migracion, API, preview, RAG y recorrido de conocimiento vivo.
@@ -43,8 +46,11 @@ tambien rechaza un limite de upload superior a 25 MB para conservar el limite de
   contenido como texto no ejecutable en API y UI.
 - `PATCH` cambia solo la publicacion de documentos `available`; el cambio efectivo incrementa
   una vez `corpus_revision` y el no-op no la modifica.
-- Delete limpia paginas, chunks, FTS5 y archivo despues del commit; las fuentes conservan una
-  instantanea minima y nunca se usan como evidencia RAG nueva.
+- Delete limpia paginas, chunks, FTS5 y archivo despues del commit; durante la migracion tambien
+  debe limpiar o invalidar Chroma. Si la limpieza vectorial falla, SQLite invalida primero el
+  documento, FTS5 puede seguir sirviendo fuentes seguras y el estado queda `degraded` para
+  reconciliacion. Las fuentes conservan una instantanea minima y nunca se usan como evidencia RAG
+  nueva.
 - Pruebas automatizadas locales: `tests/test_admin_lifecycle.py` (7), regresion API/live (8),
   base/ingestion (9) y suite completa (45). La evidencia manual externa de G5 permanece
   pendiente y no se considera aprobada por estos tests.
@@ -67,10 +73,12 @@ para tres conceptos. Las respuestas JSON usan nombres estables en `snake_case`, 
 - Identidad: SHA-256 de los bytes originales.
 - Procesamiento: sincronico durante el upload.
 - Estados tecnicos: `processing`, `available`, `needs_ocr` y `error`.
-- Persistencia: SQLite, paginas, chunks y FTS5.
+- Persistencia: SQLite, paginas, chunks y FTS5; Chroma es un indice derivado versionado.
 - Revision: `corpus_revision`.
 - RAG implementado: consulta documentos `available` con `enabled=1`.
-- Delete: elimina paginas, chunks y filas FTS5 sin reiniciar.
+- Delete: elimina paginas, chunks, filas FTS5 y vectores por `document_id` sin reiniciar; si la
+  limpieza vectorial falla, SQLite bloquea ese documento, permite fallback FTS5 para documentos
+  elegibles y el reconciliador lo reporta.
 - G5: upload, uso, delete y olvido sin reinicio.
 
 La ampliacion agrega una bandera `enabled`; no convierte `disabled` en un estado tecnico de
@@ -325,9 +333,9 @@ del RAG. El endpoint binario, si se aprueba, debe validar formato y ruta en serv
 
 ## Invariantes de RAG y concurrencia
 
-1. Toda consulta RAG aplica `status='available' AND enabled=1` en la misma consulta que lee los
-   chunks.
-2. Nadie consulta `chunks_fts` sin el filtro de elegibilidad.
+1. Toda consulta RAG, lexical o vectorial, aplica `status='available' AND enabled=1` antes de
+   devolver evidencia.
+2. Nadie consulta `chunks_fts` ni acepta un hit Chroma sin el filtro de elegibilidad autoritativo.
 3. Una pregunta cuya unica evidencia esta deshabilitada retorna abstencion y `sources=[]`.
 4. Rehabilitar vuelve a permitir recuperacion sin reprocesar.
 5. Delete retira el contenido indexable, no solo la fila visual.
@@ -339,6 +347,8 @@ del RAG. El endpoint binario, si se aprueba, debe validar formato y ruta en serv
 9. Si el corpus cambia mientras se prepara una respuesta, el turno debe revalidar la revision
    antes de persistir la cita; la alternativa segura es abstenerse.
 10. Un turno iniciado despues del commit de disable o delete observa la nueva revision.
+11. Un vector sin fila SQLite elegible se descarta como `stale_vector` y nunca llega al prompt.
+12. `index_version`, dimension, metrica y `corpus_revision` se validan antes de usar Chroma.
 
 ## Seguridad y limites
 
@@ -389,12 +399,12 @@ externo al corpus.
 ## Limites
 
 - **Siempre:** separar `status` de `enabled`, filtrar RAG por `rag_eligible`, preservar citas
-  historicas, validar contenido no confiable y mantener delete disponible.
+  historicas, validar contenido no confiable, mantener delete disponible y reconciliar Chroma.
 - **Preguntar antes:** cambiar el esquema persistido, introducir autenticacion, agregar OCR,
   renderizar PDF visual, cambiar la politica de cuarentena o exponer el admin publicamente.
 - **Nunca:** presentar un documento deshabilitado como activo, borrar silenciosamente al
-  deshabilitar, ejecutar contenido de preview, usar una cita historica como evidencia nueva o
-  declarar G5 verificado solo por la UI.
+  deshabilitar, ejecutar contenido de preview, usar una cita historica como evidencia nueva,
+  citar un vector stale o declarar G5 verificado solo por la UI.
 
 ## Criterios de exito
 
@@ -405,14 +415,18 @@ externo al corpus.
 - **ADM-AC-04:** deshabilitar conserva el documento y lo excluye de consultas nuevas.
 - **ADM-AC-05:** habilitar recupera el documento sin reingesta.
 - **ADM-AC-06:** toggle efectivo incrementa una sola vez `corpus_revision`; el no-op no lo hace.
-- **ADM-AC-07:** delete mantiene su contrato, limpia FTS5 y hace que consultas nuevas olviden
-  la fuente sin reiniciar.
+- **ADM-AC-07:** delete mantiene su contrato, limpia FTS5 y Chroma (o invalida Chroma de forma
+  verificable) y hace que consultas nuevas olviden la fuente sin reiniciar.
 - **ADM-AC-08:** la UI distingue preview, habilitar, deshabilitar y eliminar.
 - **ADM-AC-09:** las pruebas cubren concurrencia de revision, duplicados y estados no publicables.
 - **ADM-AC-10:** G5 conserva un recorrido con material externo al corpus.
 - **ADM-AC-11:** una base existente migra de forma idempotente y solo publica documentos
   `available`.
-- **ADM-AC-12:** preview, toggle y delete devuelven contratos `200/404/409/422` definidos y
+- **ADM-AC-12:** disable/enable no requieren re-embedding cuando el vector es compatible, pero
+  `index_pending` nunca se presenta como evidencia disponible.
+- **ADM-AC-13:** los fallos parciales SQLite-Chroma son observables, reconciliables y no permiten
+  una cita de contenido eliminado o deshabilitado; el fallback solo usa documentos elegibles.
+- **ADM-AC-14:** preview, toggle y delete devuelven contratos `200/404/409/422` definidos y
   nunca exponen `stored_path`.
 
 ## Dependencias y preguntas abiertas

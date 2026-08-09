@@ -15,19 +15,29 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [Timeout configurable de escucha](../../../specs/05_patient_listening_timeout_specification.md).
 - [Diagrama normativo del flujo](../../../specs/06_system_flow_diagram_specification.md).
 - [UX Writing y VUI](../../../specs/11_conversational_ux_writing_specification.md).
-- [RAG profundo](../../../specs/12_rag_deep_dive_specification.md).
+- [Configuracion RAG](../../../specs/13_rag_environment_configuration_specification.md).
+- [ChromaDB y vector store](../../../specs/14_rag_vector_store_chromadb_specification.md).
+- [Benchmark de chunking y embeddings](../../../specs/15_rag_chunking_embedding_benchmark_specification.md).
+- [Orquestacion LangChain](../../../specs/16_rag_langchain_orchestration_specification.md).
+- [Observabilidad LangSmith](../../../specs/17_rag_observability_langsmith_specification.md).
+- [Operacion y rollback](../../../specs/18_rag_production_operations_specification.md).
+- [Migracion RAG integradora](../../../specs/19_rag_production_migration_specification.md).
 
 ## Salidas
 
 - Adaptador de razonamiento configurado para `llama-3.1-8b-instant` via Groq, familia Meta
   Llama permitida; sin clave se usa el camino extractivo local.
 - Modo extractivo determinista con SQLite FTS5 si `GROQ_API_KEY` no esta disponible.
+- ChromaDB como target vectorial, con FTS5 baseline/fallback y SQLite como autoridad de elegibilidad.
+- Chunking, embeddings, top-k, threshold, metrica, collection y observabilidad configurables por
+  entorno y versionados en un manifest.
+- LangChain como ensamblador visible de loader/retriever/prompt; no decide triage ni seguridad.
 - Prompt y contrato que delimitan el contexto clinico como datos no ejecutables y exigen
   citas, respuesta breve, empatia y abstencion.
 - Catalogo de mensajes patient-facing separado en `voice_text`, `display_text`, trazabilidad y
   diagnostico interno; la reescritura integral sigue propuesta hasta aplicar el catalogo.
-- Documento pedagogico del RAG con diagramas micro/macro, contrato FTS5, elegibilidad, citas,
-  revision, snapshots, abstencion, seguridad y evolucion a embeddings sin modelo impuesto.
+- Benchmark pendiente de chunkers/providers/modelos con recall, context precision, citas, abstencion
+  y latencia; no se declara ganador sin resultados.
 - Triaje determinista: `rojo` no baja, `amarillo` persiste alerta y `unknown` pide aclaracion.
 - Turnos, resumen de llamada, logs de latencia/tokens y respuesta hablada en el navegador.
 - STT remoto opcional `whisper-large-v3`; no es el modelo de razonamiento.
@@ -36,7 +46,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 
 ## Tareas concretas
 
-1. Implementar recuperacion FTS5 y pasar al agente solo chunks activos con fuente y pagina.
+1. Mantener recuperacion FTS5 y agregar Chroma detras del contrato `RagService`, pasando al agente
+   solo chunks activos con fuente y pagina.
 2. Separar la normalizacion y las reglas de triaje de la salida generativa.
 3. Configurar el adaptador OpenAI-compatible de Groq, el timeout y el manejo de cuota o
    modelo no disponible.
@@ -52,7 +63,7 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 10. Aplicar una sola pregunta por turno, copy de contencion, preguntas si/no para alarmas y
     traduccion de errores internos antes de enviar texto a `SpeechSynthesis`.
 11. Mantener la explicacion RAG sincronizada con `app/services/rag.py`, ingestion, base, agente,
-    Specs 04/06 y pruebas de conocimiento vivo.
+   vector store, Specs 04/06/13-19 y pruebas de conocimiento vivo.
 
 ## Criterios de aceptacion
 
@@ -68,8 +79,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
   ofrece reintento/fallback seguro y rechaza transcript tardio; el smoke browser sigue pendiente.
 - [ ] Todos los mensajes patient-facing cumplen el catalogo de UX Writing, maximo dos oraciones,
   una pregunta por turno y copy de alerta/contencion; requiere reescritura y smoke de voz.
-- [ ] La vista/documento RAG refleja el contrato real, las limitaciones de FTS5 y las fronteras de
-  evidencia; requiere verificar cambios futuros contra la Spec 12.
+- [ ] La vista/documento RAG refleja el contrato real, las limitaciones de FTS5, Chroma, benchmark,
+  LangChain, LangSmith y las fronteras de evidencia; requiere implementar y verificar Specs 13-19.
 
 ## Verificacion y evidencia
 

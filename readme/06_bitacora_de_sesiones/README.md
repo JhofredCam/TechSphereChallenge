@@ -12,6 +12,7 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 - [2026-08-08 | Refactor y MVP CRISP-DM](2026-08-08_refactor_mvp.md)
 - [2026-08-08 | Specs de estructura, diagrama, admin y timeout](2026-08-08_specs_reestructura_diagrama_admin_timeout.md)
 - [2026-08-08 | Spec de pruebas unitarias e integracion](2026-08-08_specs_testing_unit_integration.md)
+- [2026-08-08 | Specs de migracion RAG de produccion](2026-08-08_rag_production_migration_specs.md)
 
 Usa nombres `YYYY-MM-DD_nombre_auto_explicativo.md` y no registres secretos, tokens ni datos
 locales generados bajo `data/`.

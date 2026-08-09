@@ -10,7 +10,7 @@ la vista publicada de implementacion es [`docs/arquitectura.md`](../../../docs/a
 |---|---|
 | `artifact` | Vista formal derivada de arquitectura y flujo |
 | `source` | [`specs/06_system_flow_diagram_specification.md`](../../../specs/06_system_flow_diagram_specification.md) |
-| `spec_version` | `0.3.0` |
+| `spec_version` | `0.4.0` |
 | `generated_at` | `2026-08-08` |
 | `commit` | `working tree/no commit` |
 | `published_view` | [`docs/arquitectura.md`](../../../docs/arquitectura.md) |
@@ -18,19 +18,25 @@ la vista publicada de implementacion es [`docs/arquitectura.md`](../../../docs/a
 
 ## Alcance de la vista
 
-El runtime es un monolito FastAPI/Uvicorn con SQLite/FTS5, archivos locales y dos superficies
-browser. El flujo detallado, IDs estables, relaciones y matriz `TRZ-*` no se duplican aqui. Este
-artefacto resume contratos y procedencia para el entregable formal.
+El runtime actual es un monolito FastAPI/Uvicorn con SQLite/FTS5, archivos locales y dos
+superficies browser. El flujo detallado, IDs estables, relaciones y matriz `TRZ-*` no se duplican
+aqui. El target de migracion agrega ChromaDB, embeddings, LangChain y LangSmith redacted sin
+retirar FTS5. Este artefacto resume contratos y procedencia para el entregable formal.
 
 ```text
 Administrador -> /admin -> DocumentService -> ingestion -> SQLite/FTS5
                                   | preview / enabled / delete + snapshots
 Paciente -> /call -> CallService -> triaje -> RAG(available AND enabled=1)
-                                      |                 |
-                                      +-> AgentService -+-> respuesta/abstencion
-                                             | fallback FTS5 / Groq opcional
-                                      browser SpeechSynthesis es-CO
-                                      SQLite + events.jsonl + /api/metrics
+                                       |                 |
+                                       +-> AgentService -+-> respuesta/abstencion
+                                              | fallback FTS5 / Groq opcional
+                                       browser SpeechSynthesis es-CO
+                                       SQLite + events.jsonl + /api/metrics
+
+Target de migracion:
+  ingestion -> splitter/version -> embeddings -> Chroma versionado
+  consulta -> Chroma/FTS5 -> filtro SQLite -> fusion -> LangChain prompt
+  -> validacion -> LLM/fallback -> eventos locales + LangSmith redacted
 ```
 
 Contratos relacionados: `GET/POST/PATCH/DELETE /api/admin/documents`,
@@ -55,6 +61,10 @@ y tambien sigue `PROPOSED`; no es una segunda autoridad del flujo.
 | STT opcional | `whisper-large-v3` via Groq | contrato y fallback `TESTED`; Whisper real `MANUAL_PENDING` |
 | TTS | `SpeechSynthesis`, locale `es-CO` | `IMPLEMENTED`; audio real `MANUAL_PENDING` |
 | Recuperacion | SQLite FTS5 lexical | `TESTED`; filtro `status='available' AND enabled=1` |
+| Vector store target | ChromaDB versionado | `PROPOSED`; metadata, dimension, cosine, reconciliacion |
+| Embeddings | provider/modelo local | `PROPOSED`; ganador por benchmark |
+| Orquestacion | LangChain core/adaptadores | `PROPOSED`; triaje/seguridad fuera del framework |
+| Tracing RAG | LangSmith redacted opcional | `PROPOSED`; JSONL local sigue baseline |
 
 ## Estado de capacidades
 

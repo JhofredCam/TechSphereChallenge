@@ -2,13 +2,14 @@
 
 ## Orden tecnico
 
-1. Crear configuracion, esquema SQLite y contratos de API.
-2. Implementar ingestion recursiva, validacion XLSX y ciclo de vida de documentos.
-3. Implementar FTS5, fuentes, revision del corpus y prueba de aprender/olvidar.
-4. Implementar triaje determinista, llamadas, turnos, resumen y metricas.
-5. Integrar el adaptador Groq opcional y la abstencion segura.
-6. Servir consola admin e interfaz de voz sin bundler.
-7. Agregar bootstrap, pruebas de compuertas, README, diagrama e informe inicial.
+1. Crear configuracion tipada y mantener el baseline FTS5 sin cambios de comportamiento.
+2. Extraer contratos de loader, embeddings, vector store y manifest de indice.
+3. Implementar ChromaDB derivado, dual-write, hydration SQLite y reconciliacion.
+4. Preparar benchmark de chunkers/providers/modelos y seleccionar candidato por gates objetivos.
+5. Integrar LangChain, prompt versionado y validacion de salida sobre el agente actual.
+6. Integrar LangSmith redacted, metricas por nodo, health seguro y eventos locales.
+7. Implementar promotion, canary, rollback, backup y prueba de reinicio.
+8. Mantener triaje, llamadas, admin, voz, README, diagrama e informe sincronizados.
 
 ## Extensiones planificadas por dependencia
 
@@ -23,6 +24,13 @@ Antes de implementar cambios nuevos, se deben revisar las specs en este orden:
    trazabilidad y reflejo de las tres specs anteriores.
 5. `specs/07_testing_unit_integration_specification.md`: pruebas unitarias/integracion,
    fixtures, cobertura y evidencia manual asociada a los contratos.
+6. `specs/13_rag_environment_configuration_specification.md`: nombres y defaults de entorno.
+7. `specs/14_rag_vector_store_chromadb_specification.md`: Chroma, metadata, revision y delete.
+8. `specs/15_rag_chunking_embedding_benchmark_specification.md`: matriz y decision experimental.
+9. `specs/16_rag_langchain_orchestration_specification.md`: loader, prompt y runnables.
+10. `specs/17_rag_observability_langsmith_specification.md`: spans, redaction y SLOs.
+11. `specs/18_rag_production_operations_specification.md`: rollout, rollback y backup.
+12. `specs/19_rag_production_migration_specification.md`: contrato integrador antes del codigo.
 
 La cuarta spec es un checkpoint de arquitectura: no se debe comenzar la implementacion de una
 extension si el diagrama no muestra su bloque, transiciones, estado y verificacion. La quinta
@@ -33,7 +41,9 @@ spec debe revisarse antes de implementar cada contrato para evitar pruebas desco
 | Componente | Depende de | Riesgo | Mitigacion |
 |---|---|---|---|
 | Configuracion | Ninguno | Rutas distintas por SO | `pathlib`, `.env.example`, valores locales |
-| SQLite/FTS5 | Python | Build sin FTS5 | Health check y prueba de preflight |
+| SQLite/FTS5 | Python | Build sin FTS5 | Mantener baseline y rollback probado |
+| ChromaDB | configuracion y volumen | version/dimension incompatibles | manifest, preflight y reconciliacion |
+| Embeddings | modelo precargado | cold start, RAM, dimension | benchmark, cache y no-download |
 | Ingestion | PyMuPDF | PDF sin capa de texto | Estado `needs_ocr`, no fingir disponibilidad |
 | Dataset | openpyxl | XLSX sin dimensiones declaradas | Iterar filas y validar encabezados |
 | LLM | httpx, API key | Cuota/modelo retirado | Modelo en entorno, fallback extractivo auditable |
@@ -41,25 +51,32 @@ spec debe revisarse antes de implementar cada contrato para evitar pruebas desco
 | Frontend | API | permiso de microfono | instrucciones visibles y estado de error |
 | Admin documental | documentos procesados | toggle y preview pueden divergir del RAG | bandera `enabled`, filtro activo y pruebas de revision |
 | Escucha paciente | navegador | no existe timer propio en el baseline | variable de entorno, estados y fallback textual |
+| LangChain | contratos RAG | cadena opaca u overhead | runnables visibles, timeouts y DTO estable |
+| LangSmith | callback opcional | fuga PII o dependencia de red | redaction, sample rate y fail-open |
+| Rollout | indice versionado | regresion o rollback tardio | shadow, canary, puntero y FTS5 |
 
 ## Paralelismo
 
-- La documentacion CRISP-DM, el frontend estatico y los tests de contratos pueden avanzar en
-  paralelo una vez fijado este plan.
-- Ingestion/RAG y base de datos deben coordinar sus nombres de tablas antes de integrarse.
-- Voz y triaje pueden desarrollarse en paralelo sobre el contrato `POST /api/calls/{id}/turns`.
-- README y el informe deben cerrarse despues de ejecutar los comandos reales, no antes.
+- Configuracion, qrels/benchmark, redaction de observabilidad y loaders pueden avanzar en
+  paralelo despues de fijar interfaces.
+- Chroma y base de datos deben coordinar IDs, revision, estado de indice y orden de delete.
+- LangChain/prompt y operaciones pueden avanzar en paralelo despues de estabilizar `SearchResult`.
+- README, diagrama e informe se cierran despues del benchmark, rollback y comandos reales.
 
 ## Checkpoints
 
-1. `pytest` pasa para base, chunking y triaje sin credenciales.
-2. Bootstrap procesa un directorio fixture y marca un PDF sin texto como `needs_ocr`.
-3. Upload/delete pasa con el servidor real y la busqueda cambia sin reinicio.
-4. `/call` funciona con texto y con `SpeechRecognition` en navegador compatible.
-5. `python -m pytest -q` y la prueba de preflight quedan documentados en README.
-6. La migracion documental no inicia hasta que los enlaces y el ownership de `mvp/` esten
+1. `pytest` pasa para base, FTS5, configuracion, chunking y triaje sin credenciales.
+2. Bootstrap procesa un fixture y marca un PDF sin texto como `needs_ocr` sin descargar modelos.
+3. Chroma backfill es idempotente y el manifest valida dimension/metrica/version.
+4. Upload/disable/enable/delete pasa con SQLite authority y Chroma sin reinicio.
+5. Benchmark reporta calidad, latencia y memoria contra FTS5; el candidato queda justificado.
+6. LangChain conserva grounding, abstencion, cita, triage y fallback.
+7. LangSmith redacted no bloquea cuando esta caido o desactivado.
+8. `/call` conserva texto y voz manual pendiente/validada segun evidencia real.
+9. `python -m pytest -q`, preflight y rollback quedan documentados en README.
+10. La migracion documental no inicia hasta que los enlaces y el ownership de `mvp/` esten
    verificados.
-7. El admin y el timeout se prueban de forma independiente antes de actualizar el diagrama
+11. El admin y el timeout se prueban de forma independiente antes de actualizar el diagrama
    publicado.
-8. Las pruebas unitarias y de integracion deben aislar proveedores, datos y estado generado antes
+12. Las pruebas unitarias y de integracion deben aislar proveedores, datos y estado generado antes
    de servir como evidencia de los gates.

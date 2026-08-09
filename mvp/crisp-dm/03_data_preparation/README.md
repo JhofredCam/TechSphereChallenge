@@ -15,6 +15,10 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
 - Restriccion de [no mover `dataset/` ni `docs/`](../../../specs/00_mvp_specification.md#supuestos-explicitos).
 - [Ciclo documental de `/admin`](../../../specs/04_admin_document_lifecycle_specification.md),
   que separa disponibilidad tecnica de publicacion activa.
+- [Configuracion RAG](../../../specs/13_rag_environment_configuration_specification.md),
+  que versiona chunking, embeddings y vector store.
+- [ChromaDB](../../../specs/14_rag_vector_store_chromadb_specification.md), que conserva SQLite
+  como autoridad y exige reconciliacion.
 
 ## Salidas
 
@@ -23,6 +27,8 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
 - Publicacion separada mediante `enabled` y `rag_eligible`; preview textual por pagina.
 - Chunks por pagina con documento, pagina, chunk, cita y puntuacion recuperable.
 - Indices SQLite FTS5 para consultas lexicales y borrado atomico.
+- Indice ChromaDB versionado como artefacto derivado, con metadata de modelo, dimension, metrica,
+  chunker y revision; FTS5 continua como fallback.
 - Flujo de `preview -> disable -> enable -> delete`, con snapshots minimos de fuentes historicas.
 - Contratos de casos preparados sin mezclar `capa1_limpia` con `capa2_ruidosa`.
 - Registro de rutas, duplicados y fallas de extraction para auditoria.
@@ -40,6 +46,9 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
    resultados futuros sin reiniciar el servidor.
 7. Validar los cuatro XLSX y dejar disponible la relacion de casos para pruebas, sin usar
    `label_ground_truth` como contexto del paciente.
+8. Construir manifest y backfill Chroma de forma idempotente sin modificar `dataset/` ni `docs/`.
+9. Separar ingestion, embedding, escritura vectorial y reconciliacion para medir latencia y
+   detectar documentos `index_pending`.
 
 ## Criterios de aceptacion
 
@@ -53,6 +62,8 @@ estado de disponibilidad y contratos de casos; no entrena un modelo clinico.
 - [x] `enabled` conserva chunks y excluye documentos deshabilitados del RAG; `enable` recupera
   sin reingesta y `delete` limpia el indice con snapshots historicos.
 - [x] La preview lee `pages.text`, limita a 8.000 caracteres y trata contenido como texto literal.
+- [ ] El backfill Chroma sobrevive reinicio, valida manifest y no permite vectores stale como
+  evidencia; requiere ejecutar las pruebas de la migracion.
 
 ## Verificacion y evidencia
 

@@ -37,7 +37,8 @@ delete estan implementadas en la [spec de admin](../specs/04_admin_document_life
    abstenerse.
 6. Habilitarlo de nuevo, repetir la pregunta y mostrar recuperacion sin reingesta.
 7. Eliminar el documento desde la consola y repetir la pregunta sin reiniciar; debe abstenerse
-   y no mostrar esa fuente. Esto prueba que el agente olvida en caliente.
+   y no mostrar esa fuente. Esto prueba que SQLite, FTS5 y, cuando el upgrade este activo, Chroma
+   olvidan en caliente.
 
 ## Recorrido de llamada
 
@@ -71,6 +72,10 @@ delete estan implementadas en la [spec de admin](../specs/04_admin_document_life
 
 No declarar una compuerta aprobada solo porque el recorrido esta escrito. La matriz de estado
 esta en [metricas y evidencia](04_metricas_y_evidencia.md).
+
+El recorrido semantico adicional (benchmark, version de indice, backend, latencias y rollback)
+esta especificado en `specs/15_*`, `specs/17_*` y `specs/18_*`; permanece pendiente hasta que
+exista runtime y evidencia fechada.
 
 ## Estado de las compuertas
 
