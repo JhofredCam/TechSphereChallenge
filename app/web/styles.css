@@ -158,7 +158,8 @@ h2 { margin-bottom: 0; font-size: 1.12rem; letter-spacing: -.035em; }
 
 .panel + .panel { margin-top: 20px; }
 
-.admin-workspace { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, .6fr); gap: 20px; align-items: start; }
+.admin-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.admin-workspace.preview-open { grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr); }
 .admin-workspace > .panel { margin: 0; }
 .preview-panel { position: sticky; top: 18px; }
 
@@ -190,13 +191,13 @@ h2 { margin-bottom: 0; font-size: 1.12rem; letter-spacing: -.035em; }
 .form-status.error { color: var(--red); }
 .form-status.success { color: var(--green); }
 
-.table-wrap { overflow-x: auto; }
+.table-wrap { min-width: 0; }
 .documents-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
 .documents-table th { padding: 0 12px 11px; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .09em; text-align: left; text-transform: uppercase; }
 .documents-table td { padding: 15px 12px; border-top: 1px solid #eeeae2; vertical-align: middle; }
 .documents-table th:first-child, .documents-table td:first-child { padding-left: 0; }
 .documents-table th:last-child, .documents-table td:last-child { padding-right: 0; text-align: right; }
-.document-name { max-width: 440px; overflow: hidden; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.document-name { max-width: 440px; overflow: hidden; font-weight: 750; text-overflow: ellipsis; overflow-wrap: anywhere; }
 .document-meta { margin-top: 4px; color: var(--muted); font-size: .7rem; }
 .status-badge, .triage-badge { display: inline-flex; align-items: center; padding: 6px 9px; border-radius: 999px; font-size: .68rem; font-weight: 800; white-space: nowrap; }
 .status-available { color: #276b4a; background: #e6f2e9; }
@@ -206,7 +207,7 @@ h2 { margin-bottom: 0; font-size: 1.12rem; letter-spacing: -.035em; }
 .publication-enabled { color: #276b4a; background: #e6f2e9; }
 .publication-disabled { color: #687276; background: #edf0ee; }
 .publication-unavailable { color: #8b5c0d; background: #fff1cc; }
-.document-content { color: var(--muted); font-size: .73rem; line-height: 1.45; white-space: nowrap; }
+.document-content { color: var(--muted); font-size: .73rem; line-height: 1.45; overflow-wrap: anywhere; }
 .document-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px; }
 .admin-action { padding: 7px 8px; border: 0; border-radius: 7px; color: var(--teal-dark); background: transparent; font-size: .72rem; font-weight: 800; }
 .admin-action:hover { background: rgba(13, 113, 108, .09); }
@@ -280,7 +281,7 @@ input:hover { border-color: #afb9b5; }
   .intro-grid, .call-hero { grid-template-columns: 1fr; gap: 25px; }
   .call-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .conversation-grid { grid-template-columns: 1fr; }
-  .admin-workspace { grid-template-columns: 1fr; }
+  .admin-workspace, .admin-workspace.preview-open { grid-template-columns: 1fr; }
   .preview-panel { position: static; }
   .transcript-panel { min-height: 480px; }
 }
@@ -306,4 +307,18 @@ input:hover { border-color: #afb9b5; }
   .voice-controls { align-items: flex-start; flex-direction: column; gap: 9px; }
   .voice-feedback { width: 100%; }
   .control-hint { font-size: .68rem; }
+}
+
+@media (max-width: 700px) {
+  .documents-table, .documents-table thead, .documents-table tbody, .documents-table tr, .documents-table th, .documents-table td { display: block; }
+  .documents-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .documents-table tr:not(.empty-state) { margin-bottom: 14px; padding: 13px; border: 1px solid #eeeae2; border-radius: 12px; }
+  .documents-table td { display: grid; grid-template-columns: minmax(92px, 34%) minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 0; text-align: left; }
+  .documents-table td::before { content: attr(data-label); color: var(--muted); font-size: .66rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .documents-table td:first-child { display: block; padding-top: 0; }
+  .documents-table td:first-child::before { display: none; }
+  .document-name { max-width: none; }
+  .document-meta { overflow-wrap: anywhere; }
+  .document-actions { justify-content: flex-start; gap: 7px; }
+  .admin-action, .delete-button { min-height: 44px; padding: 8px 10px; }
 }

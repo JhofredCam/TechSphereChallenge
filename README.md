@@ -149,6 +149,8 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
   diagrama integrador sincronizado con codigo, contratos y pruebas.
 - [`07_testing_unit_integration_specification.md`](specs/07_testing_unit_integration_specification.md):
   estrategia de pruebas unitarias, integracion, cobertura y evidencia manual.
+- [`08_admin_inventory_ux_specification.md`](specs/08_admin_inventory_ux_specification.md):
+  inventario `/admin` full-width, responsive y sin SHA visible; implementado localmente.
 
 ## Modelo permitido
 

@@ -748,6 +748,7 @@ real.
 | `TRZ-SURFACES-001` | `/admin` y `/call` accesibles | D1, D2 | 00 | `GET /admin`, `GET /call` | rutas en `app/main.py`; smoke de browser pendiente | IMPLEMENTED |
 | `TRZ-STRUCTURE-001` | fases bajo `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/` | D1 | 03 | indices y manifiestos | comprobacion Python de rutas y copias prohibidas | TESTED |
 | `TRZ-ADMIN-PREVIEW-001` | texto extraido visible, acotado y literal | D3, D4 | 04 | `DocumentService.preview`, `GET .../preview`, `textContent` | `tests/test_admin_lifecycle.py` | TESTED |
+| `TRZ-ADMIN-UX-001` | inventario full-width, responsive, sin scroll horizontal ni SHA visible | D1, D3 | 08 | `app/web/admin.html`, `app/web/styles.css`, `app/web/app.js` | `node --check`; smoke responsive DOM | IMPLEMENTED; MANUAL_PENDING |
 | `TRZ-ADMIN-TOGGLE-001` | disable excluye RAG y enable recupera sin reingesta | D3, D4 | 04 | `enabled`, `rag_eligible`, `PATCH`, revision | `tests/test_admin_lifecycle.py` | TESTED |
 | `TRZ-ADMIN-DELETE-001` | delete limpia conocimiento futuro y conserva snapshot | D3, D4, D6 | 00, 04, G5 | `DocumentService.delete`, `sources` | `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED local; G5 externo MANUAL_PENDING |
 | `TRZ-RAG-ACTIVE-001` | RAG usa solo `available + enabled` | D1, D3, D4 | 04 | `RagService.search` SQL con ambos filtros | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py` | TESTED |

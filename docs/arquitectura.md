@@ -26,6 +26,8 @@ upstream:
   preview, `enabled`, `rag_eligible`, enable, disable y delete.
 - [`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md):
   `PATIENT_LISTEN_TIMEOUT_MS` y estados de escucha.
+- [`specs/08_admin_inventory_ux_specification.md`](../specs/08_admin_inventory_ux_specification.md):
+  inventario `/admin` de ancho completo, responsive y sin identidad tecnica visible.
 
 Preview, enable/disable, snapshots, el filtro de corpus activo y el timer configurable ya tienen
 runtime y pruebas locales. La vista no convierte esas pruebas en evidencia manual de navegador,
