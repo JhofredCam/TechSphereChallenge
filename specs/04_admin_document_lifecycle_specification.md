@@ -310,6 +310,19 @@ horizontal, accesibilidad y uso correcto del identificador completo en las accio
 previsualizacion del archivo original pertenece a la spec 09 y no se considera incluida en este
 fix.
 
+### Previsualizacion futura del archivo original
+
+La propuesta [`09_admin_source_preview_specification.md`](09_admin_source_preview_specification.md)
+separa el archivo original de `pages.text` mediante una ventana emergente. Su objetivo es que el
+administrador reconozca el PDF, TXT o MD que subio, sin convertirlo en HTML ejecutable ni usarlo
+como contexto nuevo del RAG. Mientras la propuesta este `PROPOSED`, el contrato implementado de
+preview sigue siendo exclusivamente textual, acotado a 8.000 caracteres y basado en `pages.text`.
+
+La futura vista original debe conservar `status`, `enabled`, `rag_eligible`, `corpus_revision`,
+snapshots y delete. Un PDF `needs_ocr` puede ser visible como archivo original, pero continua fuera
+del RAG. El endpoint binario, si se aprueba, debe validar formato y ruta en servidor, no exponer
+`stored_path` y advertir que el visor del navegador puede permitir guardar una copia.
+
 ## Invariantes de RAG y concurrencia
 
 1. Toda consulta RAG aplica `status='available' AND enabled=1` en la misma consulta que lee los
