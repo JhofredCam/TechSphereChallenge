@@ -162,3 +162,24 @@ metricas y ausencia de `stored_path`/secretos tienen evidencia automatizada. La 
 de forma independiente; esta brecha permanece documentada. La cobertura no cambia el estado
 `MANUAL_PENDING` de navegador, microfono, TTS, Groq/Whisper real, G2 ni G5 externo. La sesion se
 registro como `working tree/no commit`, sin inventar fecha de commit ni metricas de voz reales.
+
+## Observabilidad RAG y trazabilidad
+
+La fuente durable local de observabilidad es `data/events.jsonl`, SQLite y `GET /api/metrics`.
+Las trazas externas son opcionales: `LANGCHAIN_TRACING_V2=false` por defecto, y el exporter
+best-effort nunca bloquea una respuesta, cambia el triaje ni sustituye la evidencia de voz.
+
+Los spans usan nombres estables (`rag.retrieve`, `rag.hydrate_sqlite`, `prompt.compose`,
+`llm.generate`, `response.validate`, `voice.stt`, `voice.tts`) y registran estado, duración,
+revisión de índice, backend, conteos, razón de fallback y hashes truncados. El exporter externo
+redacta nombres, IDs, procedimientos, transcripts, audio, prompts, chunks, secrets y rutas.
+
+```text
+python -m scripts.check_observability --redacted --offline
+python -m scripts.export_rag_metrics --input <temp>/events.jsonl --output <temp>/rag-metrics.json
+```
+
+Los P50/P95 de voz se calculan solo desde `speech_ended_at` hasta `audio_started_at`; una traza
+de servidor no prueba G4. Las consultas sin evidencia, fallback, mismatch de revisión y lag de
+índice se reportan por separado. No se declaran resultados clínicos ni cumplimiento legal a partir
+de estas métricas.

@@ -364,6 +364,15 @@ def create_app(
             "voice_silence_timeout_ms": effective_settings.voice_silence_timeout_ms,
             "voice_vad_rms_threshold": effective_settings.voice_vad_rms_threshold,
             "voice_speech_start_timeout_ms": effective_settings.voice_speech_start_timeout_ms,
+            "rag_backend": effective_settings.rag.backend,
+            "rag_index_version": effective_settings.rag.index_version,
+            "embedding_model_name": effective_settings.rag.embedding_model_name,
+            "embedding_dimension": effective_settings.rag.embedding_dimension,
+            "distance_metric": effective_settings.rag.distance_metric,
+            "fallback_available": effective_settings.rag.fallback_to_fts5,
+            "langsmith_enabled": effective_settings.rag.langchain_tracing,
+            "llm_family": "Meta Llama",
+            "llm_model_version": model_id,
         }
 
     @application.get("/api/admin/documents")
