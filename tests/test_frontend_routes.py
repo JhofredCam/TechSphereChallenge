@@ -48,3 +48,21 @@ def test_landing_links_to_both_entries_and_call_has_no_registration_form(tmp_pat
             assert 'src="/static/session.js"' in call
     finally:
         database.close()
+
+
+def test_frontend_pages_and_assets_are_not_cached(tmp_path):
+    settings = Settings(data_dir=tmp_path)
+    database = init_database(settings)
+    application = create_app(settings=settings, database=database)
+    try:
+        with TestClient(application) as client:
+            for path in ("/call", "/static/app.js", "/static/voice-loop.js"):
+                response = client.get(path)
+                assert response.status_code == 200
+                assert response.headers["cache-control"] == "no-store, max-age=0"
+                assert response.headers["pragma"] == "no-cache"
+            call = client.get("/call")
+            assert "/static/app.js?v=20260809-voice-timeout" in call.text
+            assert "/static/voice-loop.js?v=20260809-voice-timeout" in call.text
+    finally:
+        database.close()

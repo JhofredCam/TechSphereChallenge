@@ -35,6 +35,17 @@ from .services.voice import VoiceService, VoiceUnavailable
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """Serve local HTML assets without letting browser sessions pin old code."""
+
+    async def get_response(self, path: str, scope: dict[str, Any]) -> Response:
+        response = await super().get_response(path, scope)
+        if response.status_code == 200:
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
 class StartCallRequest(BaseModel):
     """Input accepted by the browser call form."""
 
@@ -292,7 +303,7 @@ def create_app(
         description="Agente local en espanol con conocimiento clinico trazable.",
         version="1.0.0",
     )
-    application.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+    application.mount("/static", NoCacheStaticFiles(directory=WEB_DIR), name="static")
     application.state.settings = effective_settings
     application.state.database = effective_database
     application.state.db = effective_database
@@ -311,7 +322,11 @@ def create_app(
     application.state.call_contexts: dict[str, dict[str, Any]] = {}
 
     def page(filename: str) -> FileResponse:
-        return FileResponse(WEB_DIR / filename, media_type="text/html")
+        return FileResponse(
+            WEB_DIR / filename,
+            media_type="text/html",
+            headers={"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"},
+        )
 
     def call_context(call_id: str) -> dict[str, Any]:
         return dict(application.state.call_contexts.get(call_id, {}))
