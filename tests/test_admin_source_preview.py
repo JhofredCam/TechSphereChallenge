@@ -59,6 +59,10 @@ def test_source_endpoint_serves_original_pdf_bytes_and_canonical_mime(source_con
     assert response.status_code == 200
     assert response.content == content
     assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-disposition"].startswith('inline; filename="guia.pdf"')
+    assert "attachment" not in response.headers["content-disposition"].lower()
+    assert response.headers["x-frame-options"] == "SAMEORIGIN"
+    assert "DENY" not in response.headers.get("content-security-policy", "").upper()
 
 
 def test_source_states_do_not_leak_content_or_paths(source_context):
@@ -111,8 +115,12 @@ def test_admin_preview_surface_distinguishes_original_and_extracted_content():
     assert '<dialog class="panel preview-panel"' in html
     assert 'role="tab"' in html
     assert 'id="preview-source-frame"' in html
-    assert 'sandbox="allow-same-origin"' in html
+    assert 'referrerpolicy="no-referrer"' in html
+    assert 'sandbox="' not in html
     assert 'id="preview-source-text"' in html
     assert "/api/admin/documents/${encodeURIComponent(documentRecord.id)}/source" in javascript
+    assert "await response.blob()" in javascript
+    assert "URL.createObjectURL(blob)" in javascript
+    assert "sourceFrame.src = adminPreviewState.sourceObjectUrl" in javascript
     assert "sourceText.textContent" in javascript
     assert "dialog.preview-panel::backdrop" in styles

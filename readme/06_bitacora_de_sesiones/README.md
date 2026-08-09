@@ -14,6 +14,8 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 - [2026-08-08 | Spec de pruebas unitarias e integracion](2026-08-08_specs_testing_unit_integration.md)
 - [2026-08-08 | Specs de migracion RAG de produccion](2026-08-08_rag_production_migration_specs.md)
 - [2026-08-09 | Correcciones de preview PDF y UX conversacional](2026-08-09_correcciones_specs_09_11.md)
+- [2026-08-09 | Ajuste de headers y Blob URL para PDF en Chrome](2026-08-09_admin_pdf_chrome_headers.md)
+- [2026-08-09 | Corrección del modal PDF en `/admin`](2026-08-09_admin_pdf_modal_runtime_fix.md)
 
 Usa nombres `YYYY-MM-DD_nombre_auto_explicativo.md` y no registres secretos, tokens ni datos
 locales generados bajo `data/`.

@@ -209,14 +209,14 @@
 
   function closeAdminPreview(restoreFocus = true) {
     const panel = $("#preview-panel");
-    const workspace = $(".admin-workspace");
     adminPreviewState.requestToken += 1;
     clearSourceObjectUrl();
     const sourceFrame = $("#preview-source-frame");
     if (sourceFrame) sourceFrame.removeAttribute("src");
     if (panel?.open && typeof panel.close === "function") panel.close();
+    panel?.classList.remove("is-polyfill-open");
     if (panel) panel.hidden = false;
-    workspace?.classList.remove("preview-open");
+    document.body.classList.remove("preview-modal-open");
     const opener = adminPreviewState.opener;
     adminPreviewState.documentRecord = null;
     adminPreviewState.opener = null;
@@ -312,9 +312,12 @@
     setPreviewMode("source");
     $("#preview-source-help").textContent = "Archivo original: asi fue recibido. No es el texto indexado.";
     $("#preview-extracted-help").textContent = "Texto extraido: resultado de la ingestion. Puede diferir del archivo visual.";
-    $(".admin-workspace")?.classList.add("preview-open");
     if (typeof panel.showModal === "function" && !panel.open) panel.showModal();
-    else panel.hidden = false;
+    else {
+      panel.hidden = false;
+      panel.classList.add("is-polyfill-open");
+      document.body.classList.add("preview-modal-open");
+    }
     $("#preview-close")?.focus();
     void loadAdminSource(documentRecord, requestToken);
   }

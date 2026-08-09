@@ -138,8 +138,13 @@ equivalente. No se debe diferenciar solo por color.
   bytes, pero debe representar el PDF original directamente.
 - No usar una página HTML intermedia, una URL externa, una nueva pestaña ni una descarga como
   sustituto del visor modal.
-- Aislar el visor con `sandbox` sin scripts, formularios ni navegacion superior cuando el
-  navegador lo permita.
+- Cargar el endpoint con `fetch`, convertir la respuesta a `Blob` y asignar una `URL.createObjectURL`
+  temporal al visor. Esto evita que el visor dependa de una navegación directa bloqueada por
+  políticas del navegador.
+- No aplicar un `sandbox` que impida al visor PDF nativo de Chrome cargar el documento. Para PDF,
+  el iframe puede permanecer sin `sandbox` y con `referrerpolicy="no-referrer"`; el servidor ya
+  valida los bytes, el formato, la ruta y el hash. TXT/MD siguen aislados como `textContent` y no
+  se renderizan en el visor PDF.
 - Mantener zoom, paginas e imagenes del archivo original.
 - Ofrecer una alternativa visible: `Si el visor no abre el PDF, revisa el texto extraido o abre
   el archivo con un lector PDF local.`
@@ -198,15 +203,20 @@ El endpoint no recibe `path`, `filename` ni una URL externa como parametro.
 Headers minimos:
 
 ```text
+Content-Type: application/pdf
+Content-Disposition: inline; filename="documento.pdf"; filename*=UTF-8''<nombre-saneado>
 X-Content-Type-Options: nosniff
 Cache-Control: no-store
 Referrer-Policy: no-referrer
-Content-Disposition: inline; filename*=UTF-8''<nombre-saneado>
+X-Frame-Options: SAMEORIGIN
 ```
 
-`X-Frame-Options: SAMEORIGIN` o una politica CSP equivalente debe ser compatible con el visor
-embebido. No se acepta un MIME tomado directamente de `UploadFile.content_type`; el servidor debe
-usar una tabla canonica por extension/formato validado.
+La respuesta no debe incluir `X-Frame-Options: DENY`. Si existe `Content-Security-Policy`, su
+`frame-ancestors` debe permitir `'self'` y no puede bloquear el iframe del mismo origen ni la
+`blob:` URL creada por el frontend. No se debe aplicar una política agresiva que impida al visor
+PDF del navegador cargar el documento. No se acepta un MIME tomado directamente de
+`UploadFile.content_type`; el servidor debe usar una tabla canónica por extensión/formato
+validado.
 
 El nombre de `Content-Disposition` se sanea y no puede contener salto de linea, comillas sin
 escapar, ruta, control characters ni un nombre enviado para escapar del directorio.
@@ -335,13 +345,16 @@ Vista administrativa local. El archivo original puede ser guardado por el navega
 El contrato de rendering debe mantener los datos como datos:
 
 ```text
-sourceFrame.src = `/api/admin/documents/${encodeURIComponent(documentId)}/source`
+const response = await fetch(`/api/admin/documents/${encodeURIComponent(documentId)}/source`)
+const blob = await response.blob()
+sourceFrame.src = URL.createObjectURL(blob)
 sourceText.textContent = originalText
 previewTitle.textContent = `Previsualizacion de ${filename}`
 ```
 
 La ilustracion no prescribe implementacion concreta. Prohibe formar HTML con el contenido del
-archivo, aceptar una ruta del cliente o convertir un nombre no saneado en una URL sin codificar.
+archivo, aceptar una ruta del cliente, convertir un nombre no saneado en una URL sin codificar o
+mantener una `blob:` URL después de cerrar el modal.
 
 ## Estrategia de pruebas
 
@@ -357,7 +370,8 @@ Agregar pruebas de contrato para:
 6. documento `available` deshabilitado: original visible, RAG excluido.
 7. documento `processing`, `error` y eliminado: `409/404` correctos sin contenido residual.
 8. path traversal, symlink, ruta ausente y nombre con saltos de linea: rechazo seguro.
-9. headers `nosniff`, `no-store`, `inline` y nombre saneado.
+9. headers `application/pdf`, `nosniff`, `no-store`, `inline`, `SAMEORIGIN` y nombre saneado;
+   confirmar ausencia de `DENY` y de CSP que bloquee `'self'`/`blob:`.
 10. abrir la preview no altera `corpus_revision`, auditoria, paginas, chunks ni FTS5.
 
 ### Frontend y manual
@@ -366,8 +380,9 @@ El checkout no tiene runner browser. Antes de implementar automatizacion, el smo
 recorrer Chrome y Edge:
 
 1. subir PDF textual, PDF escaneado, TXT y MD;
-2. abrir el modal desde cada fila sin ver SHA o ruta y confirmar que el PDF aparece dentro del
-   modal, sin abrir una pestaña nueva;
+2. abrir el modal desde cada fila sin ver SHA o ruta, confirmar que el PDF aparece dentro del
+   modal y revisar Network: `fetch` debe recibir `application/pdf`, `inline` y `SAMEORIGIN`, sin
+   `DENY` ni CSP bloqueante;
 3. cambiar entre original y texto extraido;
 4. comprobar que el PDF conserva apariencia y que TXT/MD no renderizan HTML/Markdown;
 5. probar cierre con boton, Escape y click fuera solo si la politica lo permite;
@@ -413,6 +428,11 @@ git diff --check
   permite guardar o copiar mediante el navegador.
 - **ADMIN-SOURCE-AC-12:** la nueva vista no cambia los gates G2, G4 o G5 ni se presenta como
   evidencia de conocimiento vivo por si sola.
+- **ADMIN-SOURCE-AC-13:** la respuesta PDF entrega `application/pdf`, `Content-Disposition:
+  inline`, `X-Frame-Options: SAMEORIGIN` y no entrega `DENY`; si existe CSP, permite el mismo
+  origen y no bloquea la `blob:` URL del visor.
+- **ADMIN-SOURCE-AC-14:** el frontend obtiene el PDF como `Blob`, asigna una URL temporal al
+  iframe y la revoca al cerrar o cambiar de fuente; no abre una pestaña nueva.
 
 ## Trazabilidad y sincronizacion
 

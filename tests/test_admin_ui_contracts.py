@@ -22,17 +22,17 @@ def test_admin_markup_keeps_semantic_inventory_and_closed_preview_contract():
     assert 'aria-live="polite"' in html
 
 
-def test_admin_layout_uses_stateful_grid_and_mobile_cards_without_horizontal_hack():
+def test_admin_layout_keeps_preview_as_a_modal_and_mobile_cards_without_horizontal_hack():
     css = read_web_file("styles.css")
 
     assert re.search(
         r"\.admin-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)",
         css,
     )
-    assert re.search(
-        r"\.admin-workspace\.preview-open\s*\{[^}]*grid-template-columns:",
-        css,
-    )
+    assert ".admin-workspace.preview-open" not in css
+    assert re.search(r"\.preview-panel\s*\{[^}]*position:\s*fixed", css, re.S)
+    assert "dialog.preview-panel.is-polyfill-open { display: block; }" in css
+    assert "body.preview-modal-open::before" in css
     assert "overflow-x: hidden" not in css
     assert "overflow-x: auto" not in css
     assert ".documents-table tr.document-row" in css
