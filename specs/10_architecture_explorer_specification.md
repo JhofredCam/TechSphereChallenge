@@ -1,7 +1,7 @@
 # Spec: Explorador HTML de arquitectura y flujo del sistema
 
 **ID:** `ARCH-EXPLORER-001`
-**Estado:** `PROPOSED`; el HTML, CSS y JavaScript aun no se generan
+**Estado:** `IMPLEMENTED`; artefacto offline, catalogo estatico y pruebas locales aplicados en `spec/10-architecture-explorer`
 **Version:** 0.1.0
 **Fecha:** 2026-08-08
 **Fuente normativa:** [`06_system_flow_diagram_specification.md`](06_system_flow_diagram_specification.md)

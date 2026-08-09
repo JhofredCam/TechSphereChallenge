@@ -40,7 +40,7 @@ con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06
 - [`specs/09_admin_source_preview_specification.md`](../specs/09_admin_source_preview_specification.md):
   propuesta de archivo original en modal, separada de `pages.text`.
 - [`specs/10_architecture_explorer_specification.md`](../specs/10_architecture_explorer_specification.md):
-  propuesta de vista navegable derivada, sin autoridad adicional.
+  explorador offline implementado en `docs/architecture_explorer.html`, sin autoridad adicional.
 - [`specs/13_rag_environment_configuration_specification.md`](../specs/13_rag_environment_configuration_specification.md):
   configuracion externa y perfiles.
 - [`specs/14_rag_vector_store_chromadb_specification.md`](../specs/14_rag_vector_store_chromadb_specification.md):
@@ -59,6 +59,10 @@ con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06
 Preview, enable/disable, snapshots, el filtro de corpus activo y el timer configurable ya tienen
 runtime y pruebas locales. La vista no convierte esas pruebas en evidencia manual de navegador,
 G2 o G5 externo.
+
+El explorador de arquitectura es un documento local separado de las superficies operativas. Se
+abre directamente desde `docs/architecture_explorer.html`, embebe su catalogo, conserva el estado
+de busqueda en el fragmento URL y no hace solicitudes de red ni lee el estado runtime.
 
 | Cambio dependiente | Reflejo requerido en el diagrama | Estado del baseline |
 |---|---|---|

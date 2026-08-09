@@ -19,6 +19,17 @@ separa el tiempo de escucha del paciente de la latencia oficial de respuesta; el
 La migracion RAG añade configuracion, Chroma, benchmark y LangSmith en las Specs 13-19, pero sus
 valores siguen `PENDIENTES` hasta ejecutar el runtime y conservar artefactos fechados.
 
+## Explorador offline de arquitectura
+
+La vista documental [`docs/architecture_explorer.html`](../docs/architecture_explorer.html) se
+abre con `file://` y no cuenta como evidencia de G2, G3, G4 o G5. Su catalogo conserva la
+procedencia de Spec 06, estados honestos y comandos locales verificables:
+
+```text
+node --check docs/architecture_explorer.js
+python -m pytest tests/test_architecture_explorer.py -q --basetemp <temp>/architecture-explorer
+```
+
 ## Metricas obligatorias
 
 | Metrica | Definicion | Fuente esperada | Resultado |
