@@ -77,6 +77,22 @@ El recorrido semantico adicional (benchmark, version de indice, backend, latenci
 esta especificado en `specs/15_*`, `specs/17_*` y `specs/18_*`; permanece pendiente hasta que
 exista runtime y evidencia fechada.
 
+## Rollout y rollback del conocimiento
+
+Antes de promover una variante se valida su manifest, se ejecuta el benchmark y se comprueba la
+reconciliación en modo lectura. La promoción registra actor, versión anterior/nueva, commit y
+razón. Ante una cita inválida, revisión obsoleta, fuga de documento disabled/deleted o degradación
+de latencia, se vuelve al índice anterior o a FTS5 sin borrar el candidato ni reiniciar llamadas
+activas:
+
+```text
+python -m scripts.validate_rag_index --index-version <version> --strict
+python -m scripts.promote_rag_index --index-version <previous-version> --rollback --reason <incident-code>
+python -m scripts.rag_status --json --redact-secrets
+```
+
+Estas operaciones no sustituyen la prueba manual G4/G5 ni autorizan un despliegue público.
+
 ## Estado de las compuertas
 
 - G2: `MANUAL_PENDING` de cronometraje desde entorno limpio.

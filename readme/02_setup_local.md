@@ -65,6 +65,25 @@ desarrollo declaradas en `requirements-dev.txt`:
 python -m pip install -r requirements-dev.txt
 ```
 
+## Operación de índices RAG
+
+El perfil `challenge-local` usa FTS5 y no descarga modelos ni servicios externos. Para validar
+un índice versionado en un entorno operativo se usan manifests inmutables, reconciliación y un
+puntero activo; las versiones anteriores nunca se borran durante rollback:
+
+```text
+python -m scripts.check_rag_config --profile staging --show-effective --redact-secrets
+python -m scripts.build_rag_index --index-version <new-version> --profile staging --data-dir <temp>/rag-index
+python -m scripts.validate_rag_index --index-version <new-version> --strict --data-dir <temp>/rag-index
+python -m scripts.reconcile_rag_index --index-version <new-version> --dry-run --data-dir <temp>/rag-index
+python -m scripts.promote_rag_index --index-version <new-version> --reason "canary aprobado" --data-dir <temp>/rag-index
+python -m scripts.rag_status --json --redact-secrets --data-dir <temp>/rag-index
+```
+
+El build ocurre fuera de la ruta de voz. SQLite sigue siendo la autoridad de elegibilidad y FTS5
+es el fallback; Chroma server, múltiples workers y exposición pública requieren controles de
+seguridad y operación adicionales.
+
 ## Arranque
 
 ```text
