@@ -154,11 +154,13 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
   implementado localmente. El contrato estatico se verifica con
   `tests/test_admin_ui_contracts.py`; el smoke visual sigue siendo manual.
 - [`09_admin_source_preview_specification.md`](specs/09_admin_source_preview_specification.md):
-  propuesta de modal para distinguir archivo original y texto extraido.
+  modal implementado para distinguir archivo original y texto extraído; el smoke de navegador
+  sigue pendiente de evidencia manual.
 - [`10_architecture_explorer_specification.md`](specs/10_architecture_explorer_specification.md):
-  propuesta de explorador HTML offline para buscar y profundizar en la arquitectura.
+  explorador HTML offline implementado con catálogo navegable, búsqueda, filtros y procedencia.
 - [`11_conversational_ux_writing_specification.md`](specs/11_conversational_ux_writing_specification.md):
-  catalogo propuesto para reescribir todos los mensajes del bot con UX Writing y VUI.
+  catálogo aplicado en backend y `/call`: copy `voice_text`/`display_text`, triaje sticky,
+  errores seguros, preguntas de una intención y trazabilidad separada en `source_display`.
 - [`13_rag_environment_configuration_specification.md`](specs/13_rag_environment_configuration_specification.md):
    variables, defaults, perfiles y secretos redacted del pipeline.
 - [`14_rag_vector_store_chromadb_specification.md`](specs/14_rag_vector_store_chromadb_specification.md):

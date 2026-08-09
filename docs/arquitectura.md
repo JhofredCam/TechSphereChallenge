@@ -41,6 +41,8 @@ con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06
   propuesta de archivo original en modal, separada de `pages.text`.
 - [`specs/10_architecture_explorer_specification.md`](../specs/10_architecture_explorer_specification.md):
   propuesta de vista navegable derivada, sin autoridad adicional.
+- [`specs/11_conversational_ux_writing_specification.md`](../specs/11_conversational_ux_writing_specification.md):
+  catálogo aplicado de copy, canales de voz/UI, triaje sticky y errores seguros.
 - [`specs/13_rag_environment_configuration_specification.md`](../specs/13_rag_environment_configuration_specification.md):
   configuracion externa y perfiles.
 - [`specs/14_rag_vector_store_chromadb_specification.md`](../specs/14_rag_vector_store_chromadb_specification.md):
@@ -317,15 +319,15 @@ ademas material externo.
 | LangChain | `app/services/rag_chain.py`, `prompts.py` | loader, retriever, contexto y prompt; PROPOSED |
 | Index ops | `app/services/index_manager.py`, `scripts/` | manifest, reconciliacion, promotion y rollback; PROPOSED |
 | Observabilidad | `app/services/observability.py` | spans, redaction y LangSmith; JSONL baseline TESTED, target PROPOSED |
-| Agente | `app/services/agent.py` | Groq opcional, fallback, abstencion y seguridad de salida; TESTED local |
+| Agente | `app/services/agent.py`, `app/services/messages.py` | Groq opcional, fallback, abstencion, copy `voice_text`/`display_text` y seguridad de salida; TESTED local |
 | Seguridad | `app/services/triage.py` | Nivel conservador, alertas y aclaraciones; TESTED |
-| Llamadas | `app/services/calls.py` | Turnos, fuentes, alertas, resumen, IDs y `late_transcript`; TESTED |
+| Llamadas | `app/services/calls.py` | Turnos, fuentes, alertas, resumen, IDs, `late_transcript` y errores seguros; TESTED |
 | Metricas | `app/services/metrics.py` | JSONL, voice-events y agregacion P50/P95; TESTED local |
-| Voz | `app/services/voice.py`, `app/web/app.js` | Whisper opcional, estados, SpeechRecognition y SpeechSynthesis; manual pendiente |
-| Web | `app/main.py`, `app/web/` | API, `/admin` y `/call`; IMPLEMENTED; voz MANUAL_PENDING |
+| Voz | `app/services/voice.py`, `app/web/app.js`, `app/web/messages.js` | Whisper opcional, estados humanizados, SpeechRecognition y SpeechSynthesis; manual pendiente |
+| Web | `app/main.py`, `app/web/` | API, `/admin` y `/call`; canales de voz/UI implementados; voz MANUAL_PENDING |
 
 La correspondencia del diagrama con el codigo esta cubierta por la suite automatizada y por
-la verificacion local del bootstrap. `node --check` solo valida la sintaxis de `app.js`; la
+la verificacion local del bootstrap. `node --check` valida la sintaxis de `app.js` y `messages.js`; la
 presencia del microfono, el transcript, el audio y el proveedor remoto en un navegador compatible
 aun debe comprobarse manualmente. La vista formal con procedencia, estados y divergencias esta
 en [`mvp/deliverables/02_architecture/architecture.md`](../mvp/deliverables/02_architecture/architecture.md).

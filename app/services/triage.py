@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable, Mapping
 
+from .messages import voice_message
+
 
 class TriageLevel(str, Enum):
     """The four decisions used by the call workflow."""
@@ -115,9 +117,7 @@ def _match_text(value: str) -> str:
     """Return a case/diacritic-insensitive representation for the rules."""
 
     decomposed = unicodedata.normalize("NFKD", value.casefold())
-    without_marks = "".join(
-        char for char in decomposed if not unicodedata.combining(char)
-    )
+    without_marks = "".join(char for char in decomposed if not unicodedata.combining(char))
     # Keep letters and numbers, but turn punctuation into spaces so phrase
     # boundaries remain deterministic across speech-to-text providers.
     return re.sub(r"[^\w]+", " ", without_marks, flags=re.UNICODE).strip()
@@ -460,19 +460,18 @@ def _is_general_care_question(text: str) -> bool:
 
 def _questions_for(text: str) -> tuple[str, ...]:
     if re.search(r"\b(?:dolor|duele)\w*\b", text):
-        return (
-            "\u00bfEn que parte siente el dolor, que intensidad tiene de 0 a 10 y desde "
-            "cuando empezo?",
-        )
+        return (voice_message("ASK_SEVERE_PAIN"),)
     if re.search(r"\b(?:fiebre|calentura|temperatura|escalofrio)\w*\b", text):
-        return ("\u00bfQue temperatura exacta tiene y desde cuando?",)
+        return (voice_message("ASK_FEVER"),)
+    if re.search(r"\b(?:sangre|sangrado|manchado)\w*\b", text):
+        return (voice_message("ASK_BLEEDING"),)
     if re.search(r"\b(?:herida|incision|punto)\w*\b", text):
-        return ("\u00bfLa herida esta abierta, sangra o tiene secrecion?",)
+        return (voice_message("ASK_WOUND_OPEN"),)
     if re.search(r"\b(?:vomit|nausea|diarrea)\w*\b", text):
-        return ("\u00bfCuantas veces ha ocurrido y puede retener agua?",)
-    return (
-        "\u00bfQue sintoma tiene exactamente, donde lo siente y desde cuando?",
-    )
+        return (voice_message("ASK_FLUIDS"),)
+    if re.search(r"\b(?:orin|orinar|urin)\w*\b", text):
+        return (voice_message("ASK_URINARY"),)
+    return (voice_message("ASK_GENERIC_SYMPTOM"),)
 
 
 def classify_triage(
