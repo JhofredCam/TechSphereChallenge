@@ -29,6 +29,9 @@ rutas canonicas; aqui se enlazan, no se duplican.
 - [Spec de timeout de escucha](../specs/05_patient_listening_timeout_specification.md).
 - [Spec de diagrama normativo](../specs/06_system_flow_diagram_specification.md).
 - [Spec de pruebas unitarias e integracion](../specs/07_testing_unit_integration_specification.md).
+- [Spec de inventario admin responsive y sin SHA visible](../specs/08_admin_inventory_ux_specification.md).
+- [Spec de previsualizacion del archivo original](../specs/09_admin_source_preview_specification.md).
+- [Spec de explorador HTML de arquitectura](../specs/10_architecture_explorer_specification.md).
 
 ## Estado de evidencia
 

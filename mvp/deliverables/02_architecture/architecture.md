@@ -43,6 +43,8 @@ datos, externos, seguridad y metricas. Las propuestas de inventario responsive s
 de archivo original en modal estan en [spec 08](../../../specs/08_admin_inventory_ux_specification.md)
 y [spec 09](../../../specs/09_admin_source_preview_specification.md); ambas siguen
 `PROPOSED` y no alteran el estado del runtime resumido aqui.
+La futura vista navegable de esa arquitectura esta especificada en [spec 10](../../../specs/10_architecture_explorer_specification.md)
+y tambien sigue `PROPOSED`; no es una segunda autoridad del flujo.
 
 ## Modelo y proveedor
 

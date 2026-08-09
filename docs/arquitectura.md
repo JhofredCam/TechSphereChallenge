@@ -31,6 +31,12 @@ con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06
   preview, `enabled`, `rag_eligible`, enable, disable y delete.
 - [`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md):
   `PATIENT_LISTEN_TIMEOUT_MS` y estados de escucha.
+- [`specs/08_admin_inventory_ux_specification.md`](../specs/08_admin_inventory_ux_specification.md):
+  propuesta de layout responsive y ocultamiento del SHA en la vista de cliente.
+- [`specs/09_admin_source_preview_specification.md`](../specs/09_admin_source_preview_specification.md):
+  propuesta de archivo original en modal, separada de `pages.text`.
+- [`specs/10_architecture_explorer_specification.md`](../specs/10_architecture_explorer_specification.md):
+  propuesta de vista navegable derivada, sin autoridad adicional.
 
 Preview, enable/disable, snapshots, el filtro de corpus activo y el timer configurable ya tienen
 runtime y pruebas locales. La vista no convierte esas pruebas en evidencia manual de navegador,

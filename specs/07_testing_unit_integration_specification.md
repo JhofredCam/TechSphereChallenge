@@ -463,6 +463,21 @@ comando o recorrido y estado. La existencia de un diagrama no es evidencia de ej
 conserva `MANUAL_PENDING` hasta comprobar microfono/audio y G5 conserva el requisito de documento
 externo.
 
+### Specs 08-10: documentacion y superficies derivadas
+
+- **Spec 08:** el layout responsive, la ausencia de scroll horizontal, el ocultamiento de SHA y
+  el foco requieren smoke en Chrome/Edge; `node --check` no prueba el DOM.
+- **Spec 09:** el endpoint de archivo original requiere pruebas de bytes, MIME canonico, headers,
+  path traversal, PDF/TXT/MD, `needs_ocr` y modal accesible. El visor PDF no puede prometer
+  impedir copias hechas desde el navegador.
+- **Spec 10:** el explorador HTML debe abrir con `file://`, no hacer solicitudes de red, mantener
+  procedencia y pasar validacion estatica de IDs, estados, relaciones, enlaces locales y ausencia
+  de secretos. Este smoke documental no aprueba G4 ni G5.
+
+La UI de `/admin` y el explorador de arquitectura tienen fronteras distintas. No se reutiliza el
+estado de una llamada, el catalogo del explorador no consulta el API y los datos de preview nunca
+se convierten en evidencia RAG.
+
 ## Criterios de aceptacion
 
 - **TST-AC-01:** `requirements-dev.txt` permite ejecutar pytest, pytest-cov y Ruff desde la raiz.
@@ -488,6 +503,8 @@ externo.
   evidencia externa permanecen `MANUAL_PENDING`. La spec 06 esta integrada.
 - **TST-AC-14:** cada resultado publicado conserva fecha, commit, entorno y evidencia; no se
   inventan metricas de voz.
+- **TST-AC-15:** el flujo de validacion documental de specs 08-10 separa DOM/viewport, archivo
+  original/MIME y explorador offline; una prueba estatica no se presenta como un gate real.
 
 ## Limites
 
