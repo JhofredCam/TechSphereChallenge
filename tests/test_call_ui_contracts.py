@@ -30,3 +30,14 @@ def test_call_state_projection_and_safe_source_copy_are_explicit():
     assert "source.score" not in javascript
     assert "prefers-reduced-motion" in styles
     assert ".call-rail::before" in styles
+
+
+def test_continuous_voice_refreshes_attempts_and_drops_late_transcripts():
+    javascript = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+
+    assert "const isNewAttempt = Boolean(" in javascript
+    assert "previousAttempt.listenId !== identifiers.listenId" in javascript
+    assert "function markContinuousAttemptTimeout(attempt, elapsedMs)" in javascript
+    assert "markContinuousAttemptTimeout(attempt, elapsed);" in javascript
+    assert 'registerVoiceEvent(attempt, "timeout", { elapsed_ms: elapsed })' in javascript
+    assert 'void sendTurn(' in javascript

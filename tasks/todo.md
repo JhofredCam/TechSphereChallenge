@@ -1,5 +1,22 @@
 # Tareas: Migracion RAG de produccion
 
+## Addendum: CALL-VOICE-026
+
+- [x] **CALL-VOICE-T01 Contrato de timeout continuo**
+  - Aceptacion: la spec define la carrera tardia y conserva `409 late_transcript` del backend.
+  - Verificar: revisar `specs/26_voice_timeout_final_race_specification.md`.
+  - Archivos: `specs/26_voice_timeout_final_race_specification.md`, `tasks/plan.md`.
+- [x] **CALL-VOICE-T02 Guarda frontend**
+  - Aceptacion: resultado posterior al limite registra solo `timeout`, no registra `final` y no
+    llama `/turns`.
+  - Verificar: `python -m pytest tests/test_call_ui_contracts.py -q --basetemp .pytest-tmp/voice-ui`.
+  - Archivos: `app/web/app.js`, `tests/test_call_ui_contracts.py`.
+- [x] **CALL-VOICE-T03 Regresion y cierre**
+  - Aceptacion: camino dentro de plazo y backend tardio conservan su contrato; suite completa y
+    checks pasan; bitacora sincronizada.
+  - Verificar: `python -m pytest -q --basetemp .pytest-tmp/voice-timeout-race-full`.
+  - Archivos: `tests/test_timeout.py`, `tests/test_voice_events.py`, `readme/06_bitacora_de_sesiones/`.
+
 ## Addendum: AGENT-RECOVERY-025
 
 - [x] **AGENT-RECOVERY-T01 Configuracion LLM local**

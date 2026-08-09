@@ -1,5 +1,33 @@
 # Plan: Migracion RAG de produccion
 
+## Addendum: prevencion de 409 por timeout de voz (`CALL-VOICE-026`)
+
+Este addendum pertenece a la rama `spec/voice-timeout-final-race`. El diagnostico confirma que
+un callback final continuo despues de 30000 ms enviaba `final` y `/turns` en paralelo; el backend
+marcaba el intento como `LISTEN_TIMEOUT` y ambos requests devolvian `409`.
+
+### Orden de implementacion
+
+1. **Contrato:** documentar que el backend mantiene `late_transcript` para clientes tardios y
+   que el cliente continuo debe cortar antes de emitir `final`.
+2. **Guarda frontend:** agregar una transicion idempotente a timeout en el callback `onFinal` del
+   modo continuo; registrar solo `timeout`, mostrar reintento y no llamar `/turns`.
+3. **Regresion:** cubrir el contrato JavaScript y mantener las pruebas de timeout/backend.
+4. **Verificacion:** ejecutar pruebas enfocadas, suite completa, Node, Ruff y diff check; anotar
+   el smoke manual pendiente en la bitacora.
+5. **Cierre:** actualizar spec/tareas/bitacora, commit, push de rama, merge y push de `main`.
+
+### Riesgos y checkpoints
+
+- Riesgo: duplicar la logica de timeout entre `voice-loop.js` y `app.js`; mitigacion: la guarda
+  vive en el limite que recibe `onFinal` y delega el registro a `registerVoiceEvent`.
+- Riesgo: aceptar inadvertidamente resultados tardios; mitigacion: no cambiar `CallService` ni
+  sus pruebas `409 late_transcript`.
+- Checkpoint: el contrato estatico debe confirmar que `sendTurn` aparece despues de la guarda.
+
+Estado del addendum `CALL-VOICE-026`: implementado; falta ejecutar el cierre de verificacion
+completa y la integracion de la rama segun la politica de la bitacora.
+
 Estado del addendum `AGENT-RECOVERY-025`: implementado; queda ejecutar el cierre de
 verificacion completa y la integracion de la rama segun la politica de la bitacora.
 
