@@ -12,6 +12,7 @@ from typing import Any
 
 from ..config import DEFAULT_PATIENT_LISTEN_TIMEOUT_MS, validate_patient_listen_timeout_ms
 from ..database import Database, utc_now
+from .messages import display_message, voice_message
 from .metrics import VOICE_EVENT_TYPES, MetricsService
 from .triage import TriageResult, highest_level, normalize_level
 
@@ -243,9 +244,7 @@ class CallService:
         if not citation:
             filename = value.get("filename") or document_id or "fuente"
             citation = (
-                f"{filename} (p. {page_number})"
-                if page_number is not None
-                else str(filename)
+                f"{filename} (p. {page_number})" if page_number is not None else str(filename)
             )
         revision = value.get("corpus_revision", corpus_revision)
         try:
@@ -416,9 +415,8 @@ class CallService:
         if implementation not in _VOICE_IMPLEMENTATIONS:
             raise ListenEventError("invalid_implementation")
         if error_code is not None:
-            if (
-                not isinstance(error_code, str)
-                or not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", error_code)
+            if not isinstance(error_code, str) or not re.fullmatch(
+                r"[A-Za-z0-9_.-]{1,64}", error_code
             ):
                 raise ListenEventError("invalid_error_code")
         self._validate_public_id(listen_id, "listen_id")
@@ -857,8 +855,7 @@ class CallService:
                             or document_snapshot["filename"]
                         )
                         source_value["document_sha256_snapshot"] = (
-                            source_value["document_sha256_snapshot"]
-                            or document_snapshot["sha256"]
+                            source_value["document_sha256_snapshot"] or document_snapshot["sha256"]
                         )
                 if source_value["chunk_id"] is not None:
                     chunk_snapshot = connection.execute(
@@ -1025,9 +1022,7 @@ class CallService:
                 (call_id,),
             ).fetchall()
         else:
-            rows = self.database.execute(
-                "SELECT * FROM sources ORDER BY created_at, id"
-            ).fetchall()
+            rows = self.database.execute("SELECT * FROM sources ORDER BY created_at, id").fetchall()
         return [
             SerializableRecord(
                 {
@@ -1215,9 +1210,22 @@ class CallService:
             "El conocimiento disponible cambio durante la consulta. "
             "No puedo responder con seguridad; intente de nuevo."
         )
+        voice_code = {
+            "red": "TRIAGE_RED",
+            "yellow": "TRIAGE_YELLOW",
+        }.get(triage.level, "CORPUS_CHANGED")
+        display_code = {
+            "red": "ALERT_RED_UI",
+            "yellow": "ALERT_YELLOW_UI",
+        }.get(triage.level, "CORPUS_CHANGED")
         return {
             "text": text,
             "answer": text,
+            "response": text,
+            "voice_text": voice_message(voice_code),
+            "display_text": display_message(display_code),
+            "source_display": [],
+            "internal_reason": "corpus_changed",
             "grounded": False,
             "abstained": True,
             "reason": "corpus_changed",
@@ -1322,9 +1330,27 @@ class CallService:
                 response = responder(text)
         except Exception as exc:
             # Keep the patient turn persisted, but do not fabricate an answer.
+            safe_voice = voice_message(
+                "TRIAGE_RED"
+                if triage.level == "red"
+                else "TRIAGE_YELLOW"
+                if triage.level == "yellow"
+                else "AGENT_ERROR"
+            )
+            safe_display = display_message(
+                "ALERT_RED_UI"
+                if triage.level == "red"
+                else "ALERT_YELLOW_UI"
+                if triage.level == "yellow"
+                else "AGENT_ERROR"
+            )
             response = {
                 "text": "No pude generar una respuesta segura. Contacte a su equipo clinico.",
                 "answer": "No pude generar una respuesta segura. Contacte a su equipo clinico.",
+                "voice_text": safe_voice,
+                "display_text": safe_display,
+                "source_display": [],
+                "internal_reason": "agent_error",
                 "abstained": True,
                 "alert": triage.alert,
                 "level": triage.level,

@@ -3,6 +3,37 @@
 
   const page = document.body.dataset.page;
   const $ = (selector) => document.querySelector(selector);
+  const CALL_MESSAGES = window.CALL_MESSAGES || null;
+
+  function callCopy(code, channel = "display_text", values = {}) {
+    if (CALL_MESSAGES?.render) return CALL_MESSAGES.render(code, channel, values);
+    return channel === "voice_text" ? "No pude completar este paso." : "Puedes reintentar.";
+  }
+
+  function callVoice(code, values = {}) {
+    if (CALL_MESSAGES?.voice) return CALL_MESSAGES.voice(code, values);
+    return "No pude completar este paso. ¿Quieres intentarlo de nuevo?";
+  }
+
+  function callErrorCode(error) {
+    const raw = String(error?.code || "").toLowerCase();
+    const known = new Set([
+      "call_not_found",
+      "call_closed",
+      "invalid_message",
+      "audio_transcription_error",
+      "rag_unavailable",
+      "empty_response",
+      "unsafe_answer",
+    ]);
+    if (known.has(raw)) return raw.toUpperCase();
+    return "BACKEND_UNAVAILABLE";
+  }
+
+  function safeCallError(error, fallback = "BACKEND_UNAVAILABLE") {
+    const code = callErrorCode(error);
+    return callCopy(code === "BACKEND_UNAVAILABLE" ? fallback : code);
+  }
 
   function messageFrom(value) {
     if (!value) return "Error desconocido";
@@ -17,7 +48,13 @@
     const response = await fetch(path, options);
     const contentType = response.headers.get("content-type") || "";
     const data = contentType.includes("application/json") ? await response.json() : await response.text();
-    if (!response.ok) throw new Error(messageFrom(data));
+    if (!response.ok) {
+      const error = new Error(messageFrom(data));
+      error.code = data && typeof data === "object" && !Array.isArray(data)
+        ? data.error_code || data.detail?.error_code || ""
+        : "";
+      throw error;
+    }
     return data;
   }
 
@@ -553,14 +590,27 @@
     if (!LISTEN_STATES.includes(state)) return;
     if (attempt) attempt.state = state;
     const node = $("#voice-state");
-    if (node) node.textContent = `Estado: ${state}`;
+    const labels = {
+      LISTENING: "Escuchando",
+      PARTIAL: "Borrador de escucha",
+      PROCESSING: "Procesando tu mensaje",
+      NO_RESPONSE: "No recibimos un mensaje",
+      LISTEN_TIMEOUT: "Puedes reintentar la escucha",
+      RECOGNITION_ERROR: "Puedes reintentar la escucha",
+      RETRY_REQUIRED: "Listo para reintentar",
+    };
+    if (node) node.textContent = labels[state] || "Puedes reintentar";
   }
 
   function updateListenTimer(attempt, elapsed = null) {
     const node = $("#listen-timer");
     if (!node || !attempt?.startedAt || !Number.isFinite(callState.patientListenTimeoutMs)) return;
     const duration = Number.isFinite(elapsed) ? elapsed : Math.max(0, monotonicNow() - attempt.startedAt);
-    node.textContent = `Escucha ${Math.round(duration)} ms de ${callState.patientListenTimeoutMs} ms`;
+    const remainingSeconds = Math.max(
+      0,
+      Math.ceil((callState.patientListenTimeoutMs - duration) / 1000),
+    );
+    node.textContent = `Escucha en curso · ${remainingSeconds} segundos disponibles`;
   }
 
   function clearListenTimer(attempt) {
@@ -580,7 +630,7 @@
   function showPartial(text) {
     const node = $("#partial-transcript");
     if (!node) return;
-    node.textContent = text ? `Borrador no clinico: ${text}` : "";
+    node.textContent = text ? callCopy("LISTEN_PARTIAL", "display_text", { texto: text }) : "";
     node.hidden = !text;
   }
 
@@ -604,7 +654,7 @@
       });
     } catch (error) {
       if (attempt.state !== "PROCESSING" && !attempt.terminal) {
-        setStatus($("#call-status"), `No se pudo registrar el estado de voz: ${error.message}`, "error");
+        setStatus($("#call-status"), callCopy("GENERIC_RETRY"), "error");
       }
       return null;
     }
@@ -625,7 +675,9 @@
       callState.healthPromise = api("/health").then((health) => {
         const timeout = Number(health.patient_listen_timeout_ms);
         if (!Number.isInteger(timeout) || timeout < 1000 || timeout > 300000) {
-          throw new Error("/health no devolvio un timeout de escucha valido");
+          const timeoutError = new Error("invalid_listen_configuration");
+          timeoutError.code = "LISTEN_CONFIG_ERROR";
+          throw timeoutError;
         }
         callState.patientListenTimeoutMs = timeout;
       }).catch((error) => {
@@ -643,15 +695,23 @@
     const badge = $("#triage-badge");
     if (badge) {
       badge.className = `triage-badge triage-${level}`;
-      badge.textContent = ({ red: "Rojo", yellow: "Amarillo", green: "Verde", unknown: "Aclarar" })[level] || level;
+      const badgeCopy = {
+        red: callCopy("TRIAGE_RED"),
+        yellow: callCopy("TRIAGE_YELLOW"),
+        green: callCopy("TRIAGE_GREEN"),
+        unknown: callCopy("TRIAGE_UNKNOWN"),
+      };
+      badge.textContent = badgeCopy[level] || callCopy("TRIAGE_UNKNOWN");
     }
     const rationale = $("#triage-rationale");
-    if (rationale) rationale.textContent = triage.rationale || "Se actualizo la señal de seguridad.";
+    if (rationale) {
+      rationale.textContent = triage.rationale || callCopy("TRIAGE_UNKNOWN");
+    }
     const alert = $("#triage-alert");
     if (alert) {
       alert.hidden = !triage.alert;
       alert.textContent = triage.alert
-        ? (level === "red" ? "Alerta inmediata: busque urgencias o contacte ahora al equipo clinico." : "Alerta: contacte oportunamente al equipo clinico.")
+        ? callCopy(level === "red" ? "ALERT_RED_UI" : "ALERT_YELLOW_UI")
         : "";
     }
   }
@@ -736,7 +796,7 @@
         }),
       });
     } catch (error) {
-      setStatus($("#call-status"), `Turno registrado; no se pudo guardar la latencia de voz: ${error.message}`, "error");
+      setStatus($("#call-status"), callCopy("LATENCY_NOT_SAVED"), "error");
     }
   }
 
@@ -757,7 +817,7 @@
     const sendButton = $("#send-text");
     if (sendButton) sendButton.disabled = true;
     if (!inputTiming?.duplicate) renderTurn("patient", normalized);
-    setStatus($("#call-status"), "El agente esta consultando el conocimiento disponible...");
+    setStatus($("#call-status"), callCopy("KNOWLEDGE_LOOKUP"));
     try {
       const response = await api(`/api/calls/${encodeURIComponent(callState.id)}/turns`, {
         method: "POST",
@@ -769,19 +829,24 @@
           elapsed_ms: inputTiming?.elapsed_ms ?? null,
         }),
       });
-      const answer = response.text || response.answer || response.response || "No hay respuesta disponible.";
+      const voiceAnswer = response.voice_text || callVoice("GENERIC_RETRY");
+      const displayAnswer = response.display_text || voiceAnswer;
       if (!response.duplicate) {
-        renderTurn("agent", answer, response.sources || []);
+        renderTurn("agent", displayAnswer, response.sources || []);
         renderTriage(response);
         renderSources(response.sources || []);
+        const voiceInput = inputTiming?.mode === "voice" ? inputTiming : null;
+        speak(voiceAnswer, (audioStartedAt) => {
+          void recordVoiceTiming(callId, response.agent_turn_id, voiceInput, audioStartedAt);
+        });
       }
-      const voiceInput = inputTiming?.mode === "voice" ? inputTiming : null;
-      speak(answer, (audioStartedAt) => {
-        void recordVoiceTiming(callId, response.agent_turn_id, voiceInput, audioStartedAt);
-      });
-      setStatus($("#call-status"), response.duplicate ? "Turno ya registrado; se reutilizo la respuesta." : "Turno registrado.", "success");
+      setStatus(
+        $("#call-status"),
+        callCopy(response.duplicate ? "TURN_DUPLICATE" : "TURN_REGISTERED"),
+        "success",
+      );
     } catch (error) {
-      setStatus($("#call-status"), error.message, "error");
+      setStatus($("#call-status"), safeCallError(error), "error");
     } finally {
       if (sendButton) sendButton.disabled = false;
       setTurnBusy(false);
@@ -794,13 +859,13 @@
     const support = $("#voice-support");
     if (!Recognition) {
       callState.voiceSupported = false;
-      if (support) support.textContent = "SpeechRecognition no esta disponible; usa el texto de respaldo.";
+      if (support) support.textContent = callCopy("MIC_UNAVAILABLE");
       if (micButton) micButton.disabled = true;
       setVoiceState("RECOGNITION_ERROR");
       return;
     }
     callState.voiceSupported = true;
-    if (support) support.textContent = "Microfono listo · SpeechRecognition es-CO";
+    if (support) support.textContent = "Micrófono listo · idioma es-CO";
     micButton?.addEventListener("click", async () => {
       if (callState.listening) {
         callState.recognition?.stop();
@@ -815,7 +880,7 @@
         await requireListenTimeout();
       } catch (error) {
         setVoiceState("RECOGNITION_ERROR");
-        setStatus($("#call-status"), `No se pudo obtener la configuracion de escucha: ${error.message}. Usa el texto de respaldo.`, "error");
+        setStatus($("#call-status"), callCopy("LISTEN_CONFIG_ERROR"), "error");
         return;
       }
       const recognition = new Recognition();
@@ -848,7 +913,12 @@
         updateListenTimer(attempt, 0);
         attempt.timerId = window.setTimeout(() => expireAttempt(), callState.patientListenTimeoutMs);
         void registerVoiceEvent(attempt, "patient_listen_started", { elapsed_ms: 0 });
-        setStatus($("#call-status"), `Hable ahora. Tiene ${callState.patientListenTimeoutMs} ms para este turno.`);
+        setStatus(
+          $("#call-status"),
+          callCopy("LISTEN_START", "display_text", {
+            segundos: Math.ceil(callState.patientListenTimeoutMs / 1000),
+          }),
+        );
       };
       recognition.onresult = (event) => {
         if (
@@ -903,7 +973,13 @@
         finishAttemptControls(attempt, "Reintentar");
         const errorCode = String(event.error || "recognition_error").slice(0, 64).replace(/[^A-Za-z0-9_.-]/g, "_");
         void registerVoiceEvent(attempt, "error", { error_code: errorCode });
-        setStatus($("#call-status"), `No se pudo escuchar: ${event.error || "error de microfono"}. Usa el texto de respaldo.`, "error");
+        setStatus(
+          $("#call-status"),
+          event.error === "not-allowed" || event.error === "service-not-allowed"
+            ? callCopy("MIC_PERMISSION_DENIED")
+            : callCopy("LISTEN_ERROR"),
+          "error",
+        );
       };
       recognition.onend = () => {
         if (callState.currentAttempt !== attempt || attempt.terminal || attempt.finalSubmitted) return;
@@ -911,7 +987,7 @@
           attempt.terminal = true;
           setVoiceState("RECOGNITION_ERROR", attempt);
           finishAttemptControls(attempt, "Reintentar");
-          setStatus($("#call-status"), "El microfono termino antes de iniciar. Usa el texto de respaldo.", "error");
+          setStatus($("#call-status"), callCopy("MIC_ENDED_EARLY"), "error");
           return;
         }
         const elapsed = Math.max(0, monotonicNow() - attempt.startedAt);
@@ -926,7 +1002,7 @@
         finishAttemptControls(attempt, "Reintentar");
         void registerVoiceEvent(attempt, "ended", { elapsed_ms: elapsed });
         void registerVoiceEvent(attempt, "no_response", { elapsed_ms: elapsed });
-        setStatus($("#call-status"), "No se recibio una respuesta. Puede reintentar o escribir el mensaje.", "error");
+        setStatus($("#call-status"), callCopy("LISTEN_NO_RESPONSE"), "error");
       };
 
       function expireAttempt() {
@@ -954,7 +1030,7 @@
             setVoiceState("RETRY_REQUIRED", attempt);
           }
         });
-        setStatus($("#call-status"), "LISTEN_TIMEOUT: no se recibio una respuesta. Reintente o use el texto.", "error");
+        setStatus($("#call-status"), callCopy("LISTEN_TIMEOUT"), "error");
       }
 
       try {
@@ -964,7 +1040,7 @@
         setVoiceState("RECOGNITION_ERROR", attempt);
         finishAttemptControls(attempt, "Reintentar");
         void registerVoiceEvent(attempt, "error", { error_code: "start_failed" });
-        setStatus($("#call-status"), "El microfono no pudo iniciar. Usa el texto de respaldo.", "error");
+        setStatus($("#call-status"), callCopy("LISTEN_ERROR"), "error");
       }
     });
   }
@@ -1023,7 +1099,14 @@
       appendSummaryField(box, "Dia postoperatorio", day);
     }
     appendSummaryField(box, "Sintomas", summaryList(summary.symptoms));
-    appendSummaryField(box, "Decision", summary.decision || summary.triage_level || "desconocida");
+    const decision = String(summary.decision || summary.triage_level || "unknown").toLowerCase();
+    const decisionCopy = {
+      red: callCopy("TRIAGE_RED"),
+      yellow: callCopy("TRIAGE_YELLOW"),
+      green: callCopy("TRIAGE_GREEN"),
+      unknown: callCopy("TRIAGE_UNKNOWN"),
+    };
+    appendSummaryField(box, "Decision", decisionCopy[decision] || callCopy("SUMMARY_UNKNOWN"));
     appendSummaryField(box, "Alerta", summary.alert ? "Si" : "No");
     appendSummaryField(box, "Proximos pasos", summaryList(summary.next_steps));
     const sources = summaryList(summary.sources).map((source) => (
@@ -1038,6 +1121,7 @@
     initRecognition();
     void requireListenTimeout().catch(() => {});
     setCallEnabled(false);
+    setStatus($("#call-status"), callCopy("CALL_READY"));
     $("#call-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       const startButton = $("#start-call");
@@ -1062,17 +1146,17 @@
          callState.currentAttempt = null;
         callState.listening = false;
         clearPartial();
-        setVoiceState("LISTENING");
+        $("#voice-state").textContent = "Listo para escuchar";
         $("#call-id-label").textContent = call.id;
         $("#turn-list").replaceChildren();
         const empty = document.createElement("div");
         empty.className = "empty-state empty-conversation";
-        empty.textContent = "La llamada esta abierta. Habla o escribe el primer turno.";
+        empty.textContent = callCopy("CALL_OPEN");
         $("#turn-list").appendChild(empty);
         setCallEnabled(true);
-        setStatus($("#call-status"), "Llamada abierta. Pulsa Hablar para solicitar el microfono.", "success");
+        setStatus($("#call-status"), callCopy("CALL_OPEN"), "success");
       } catch (error) {
-        setStatus($("#call-status"), error.message, "error");
+        setStatus($("#call-status"), safeCallError(error), "error");
       } finally {
         startButton.disabled = false;
       }
@@ -1099,13 +1183,13 @@
         });
         callState.closed = true;
         if (call.summary) renderSummary(call.summary);
-        setStatus($("#call-status"), "Llamada cerrada y resumen guardado.", "success");
+        setStatus($("#call-status"), callCopy("CALL_FINISHED"), "success");
         $("#mic-button").disabled = true;
         $("#turn-text").disabled = true;
         $("#send-text").disabled = true;
       } catch (error) {
         button.disabled = false;
-        setStatus($("#call-status"), error.message, "error");
+        setStatus($("#call-status"), safeCallError(error, "SUMMARY_UNAVAILABLE"), "error");
       } finally {
         setTurnBusy(false);
       }

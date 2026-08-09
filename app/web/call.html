@@ -6,6 +6,7 @@
     <meta name="description" content="Interfaz browser de seguimiento postoperatorio por voz.">
     <title>Llamada | Seguimiento por voz</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/messages.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body data-page="call">
@@ -23,9 +24,9 @@
     <main class="page-shell call-shell">
       <section class="call-hero">
         <div>
-          <p class="eyebrow">Turn-taking por navegador · es-CO</p>
+          <p class="eyebrow">Seguimiento por navegador · es-CO</p>
           <h1>Una escucha cuidadosa, un turno a la vez.</h1>
-          <p class="lede">Inicia una llamada, habla con el microfono o usa el texto. El agente responde desde el conocimiento disponible y muestra la señal que guia el triaje.</p>
+          <p class="lede">Inicia una llamada, habla con el micrófono o usa el texto. El agente responde desde la información disponible y muestra la señal que guía la seguridad.</p>
         </div>
         <div class="hero-note">
           <span class="hero-note-number">01</span>
@@ -63,7 +64,7 @@
         <p id="call-status" class="form-status" role="status" aria-live="polite"></p>
       </section>
 
-      <section id="conversation-panel" class="conversation-grid is-disabled" aria-labelledby="conversation-title" aria-live="polite">
+      <section id="conversation-panel" class="conversation-grid is-disabled" aria-labelledby="conversation-title">
         <div class="panel transcript-panel">
           <div class="panel-heading compact-heading">
             <div>
@@ -73,7 +74,7 @@
             <span id="call-id-label" class="call-id-label">Sin llamada</span>
           </div>
           <div id="turn-list" class="turn-list">
-            <div class="empty-state empty-conversation">Los turnos apareceran aqui.</div>
+            <div class="empty-state empty-conversation">Aquí aparecerán los turnos.</div>
           </div>
           <div class="voice-controls" aria-label="Controles de voz">
             <button class="voice-button" id="mic-button" type="button" disabled>
@@ -86,7 +87,7 @@
               <span id="listen-timer" class="listen-timer" aria-live="off"></span>
             </div>
           </div>
-          <p id="partial-transcript" class="partial-transcript" role="status" aria-live="polite" hidden></p>
+          <p id="partial-transcript" class="partial-transcript" aria-live="off" hidden></p>
           <form id="text-form" class="text-fallback">
             <label class="visually-hidden" for="turn-text">Escribir un mensaje</label>
             <input id="turn-text" name="text" type="text" maxlength="5000" placeholder="Escribe aqui si no puedes usar el microfono" disabled>
@@ -98,12 +99,12 @@
           <section class="panel triage-panel" aria-labelledby="triage-title">
             <div class="panel-heading compact-heading">
               <div>
-                <p class="eyebrow">Decision</p>
-                <h2 id="triage-title">Triage visible</h2>
+                <p class="eyebrow">Seguridad</p>
+                <h2 id="triage-title">Señal de seguridad</h2>
               </div>
               <span id="triage-badge" class="triage-badge triage-unknown">Sin evaluar</span>
             </div>
-            <p id="triage-rationale" class="muted-copy">La señal de seguridad aparecera despues del primer turno.</p>
+            <p id="triage-rationale" class="muted-copy">Necesitamos un primer mensaje para orientarte.</p>
             <div id="triage-alert" class="alert-box" hidden></div>
           </section>
 

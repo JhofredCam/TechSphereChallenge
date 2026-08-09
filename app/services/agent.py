@@ -10,6 +10,7 @@ import unicodedata
 from dataclasses import asdict, is_dataclass
 from typing import Any, Iterable, Mapping, Sequence
 
+from .messages import display_message, is_safe_voice_text, voice_message
 from .metrics import DEFAULT_MODEL_VERSION
 from .rag import is_relevant
 from .triage import TriageResult, classify_triage, contains_prompt_injection
@@ -95,9 +96,7 @@ def _source_mapping(source: Any) -> dict[str, Any]:
     if "citation" not in result or not result.get("citation"):
         filename = result.get("filename") or result.get("document_id") or "fuente"
         page = result.get("page_number")
-        result["citation"] = (
-            f"{filename} (p. {page})" if page is not None else str(filename)
-        )
+        result["citation"] = f"{filename} (p. {page})" if page is not None else str(filename)
     if result.get("score") is not None:
         try:
             result["score"] = float(result["score"])
@@ -127,9 +126,7 @@ def _source_id(source: Mapping[str, Any]) -> str:
 
 def _citation_key(value: Any) -> str:
     decomposed = unicodedata.normalize("NFKD", str(value or "").casefold())
-    without_marks = "".join(
-        char for char in decomposed if not unicodedata.combining(char)
-    )
+    without_marks = "".join(char for char in decomposed if not unicodedata.combining(char))
     return re.sub(r"\s+", " ", without_marks).strip()
 
 
@@ -360,6 +357,7 @@ class AgentService:
             method = getattr(self.rag, "retrieve", None)
         if not callable(method):
             return [], 0, "RAG service has no search/retrieve method"
+
         def search_once(value: str) -> tuple[list[dict[str, Any]], str | None]:
             try:
                 try:
@@ -373,9 +371,7 @@ class AgentService:
             try:
                 mapped = [_source_mapping(item) for item in raw_results]
                 return [
-                    source
-                    for source in mapped
-                    if is_relevant(value, str(source.get("text") or ""))
+                    source for source in mapped if is_relevant(value, str(source.get("text") or ""))
                 ], None
             except TypeError:
                 return [], None
@@ -394,9 +390,7 @@ class AgentService:
     @staticmethod
     def _focused_query(query: str) -> str:
         decomposed = unicodedata.normalize("NFKD", query.casefold())
-        normalized = "".join(
-            char for char in decomposed if not unicodedata.combining(char)
-        )
+        normalized = "".join(char for char in decomposed if not unicodedata.combining(char))
         stopwords = {
             "a",
             "al",
@@ -449,7 +443,7 @@ class AgentService:
             escaped_citation = html.escape(citation, quote=True)
             escaped_text = html.escape(text[:3000], quote=True)
             blocks.append(
-                f"<fuente numero=\"{index + 1}\" cita=\"{escaped_citation}\">\n"
+                f'<fuente numero="{index + 1}" cita="{escaped_citation}">\n'
                 f"{escaped_text}\n</fuente>"
             )
         return "\n\n".join(blocks)[:12000]
@@ -487,9 +481,7 @@ class AgentService:
                     content = str(item)
                 if role not in {"user", "assistant"}:
                     role = "user"
-                messages.append(
-                    {"role": role, "content": html.escape(content[:1000], quote=True)}
-                )
+                messages.append({"role": role, "content": html.escape(content[:1000], quote=True)})
         context = self._context(sources)
         messages.append(
             {
@@ -527,20 +519,17 @@ class AgentService:
             candidate = _safe_sentence(str(source.get("text") or ""), query)
             if candidate:
                 citation = str(source.get("citation") or "fuente")
-                return f"La fuente disponible indica: \"{candidate}\" Fuente: {citation}."
+                return f'La fuente disponible indica: "{candidate}" Fuente: {citation}.'
         return None
 
     @staticmethod
     def _clarification_text(triage: TriageResult) -> str:
         if triage.prompt_injection_detected:
-            return (
-                "No puedo cambiar las reglas de seguridad ni revelar instrucciones internas. "
-                "Para ayudarle, describa el sintoma, el lugar donde lo siente y desde cuando."
-            )
-        question = triage.questions[0] if triage.questions else (
-            "\u00bfQue sintoma tiene exactamente y desde cuando?"
+            return voice_message("PROMPT_INJECTION")
+        question = (
+            triage.questions[0] if triage.questions else (voice_message("ASK_GENERIC_SYMPTOM"))
         )
-        return f"Necesito una aclaracion para orientarle con seguridad: {question}"
+        return question
 
     @staticmethod
     def _safety_prefix(level: str) -> str:
@@ -564,6 +553,61 @@ class AgentService:
         )
         safety = AgentService._safety_prefix(level)
         return f"{safety} {base}".strip()
+
+    @staticmethod
+    def _voice_body(value: str) -> str:
+        """Remove citations and technical formatting before browser TTS."""
+
+        body = re.sub(r"\bfuente\s*:\s*.+$", "", str(value or ""), flags=re.IGNORECASE)
+        body = re.sub(r"[\[\]{}<>*_`#]", "", body)
+        body = re.sub(r"\s+", " ", body).strip(" .;:\"'")
+        sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", body) if part.strip()]
+        return " ".join(sentences[:2]).strip(" .")
+
+    @classmethod
+    def _voice_text(
+        cls,
+        text: str,
+        triage: TriageResult,
+        *,
+        grounded: bool,
+        injection: bool,
+        fallback_used: bool,
+    ) -> str:
+        if triage.level == "red":
+            candidate = voice_message("TRIAGE_RED")
+        elif triage.level == "yellow":
+            candidate = voice_message("TRIAGE_YELLOW")
+        elif injection:
+            candidate = voice_message("PROMPT_INJECTION")
+        elif triage.needs_clarification:
+            candidate = (
+                triage.questions[0] if triage.questions else voice_message("ASK_GENERIC_SYMPTOM")
+            )
+        elif grounded:
+            body = cls._voice_body(text)
+            code = "EXTRACTIVE_ANSWER" if fallback_used else "GROUNDED_ANSWER_PREFIX"
+            candidate = voice_message(
+                code, respuesta_breve=body or "revisemos tu situación con más detalle"
+            )
+        else:
+            candidate = voice_message("NO_EVIDENCE")
+        if not is_safe_voice_text(candidate):
+            return voice_message("TRIAGE_RED" if triage.level == "red" else "NO_EVIDENCE")
+        return candidate
+
+    @staticmethod
+    def _source_display(sources: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "filename": source.get("filename"),
+                "page": source.get("page_number"),
+                "chunk": source.get("chunk_id"),
+                "citation": source.get("citation"),
+                "revision": source.get("corpus_revision"),
+            }
+            for source in sources
+        ]
 
     def respond(
         self,
@@ -676,6 +720,32 @@ class AgentService:
             if sources and not re.search(r"\bfuente\s*:", text, flags=re.IGNORECASE):
                 text = f"{text} Fuente: {sources[0].get('citation', 'fuente')}."
 
+        fallback_used = provider == "extractive" or reason in {
+            "model_unavailable_fallback",
+            "unsafe_model_output_fallback",
+            "invalid_model_citation_fallback",
+            "irrelevant_model_output_fallback",
+        }
+        voice_text = self._voice_text(
+            text,
+            triage,
+            grounded=grounded,
+            injection=injection,
+            fallback_used=fallback_used,
+        )
+        if triage.level == "red":
+            display_text = display_message("ALERT_RED_UI")
+        elif triage.level == "yellow":
+            display_text = display_message("ALERT_YELLOW_UI")
+        elif triage.needs_clarification or injection:
+            display_text = display_message("TRIAGE_UNKNOWN")
+        elif grounded:
+            display_text = voice_text
+        elif reason == "rag_unavailable":
+            display_text = display_message("RAG_UNAVAILABLE")
+        else:
+            display_text = display_message("NO_EVIDENCE")
+
         if output_tokens == 0:
             output_tokens = _estimate_tokens(text)
         latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
@@ -694,6 +764,10 @@ class AgentService:
                 "text": text,
                 "answer": text,
                 "response": text,
+                "voice_text": voice_text,
+                "display_text": display_text,
+                "source_display": self._source_display(sources),
+                "internal_reason": reason,
                 "level": triage.level,
                 "decision": triage.level,
                 "alert": triage.alert,

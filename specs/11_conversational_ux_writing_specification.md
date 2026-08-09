@@ -1,9 +1,9 @@
 # Spec: Reescritura integral de mensajes del bot y UX Writing VUI
 
 **ID:** `CONVERSATION-UX-001`
-**Estado:** `PROPOSED`; el catalogo no se ha aplicado al runtime
-**Version:** 0.1.0
-**Fecha:** 2026-08-08
+**Estado:** `IMPLEMENTED`; catálogo aplicado al runtime y verificado localmente
+**Version:** 0.2.0
+**Fecha:** 2026-08-09
 **Propietario:** agente conversacional y superficie `/call`
 **Depende de:** [`00_mvp_specification.md`](00_mvp_specification.md),
 [`05_patient_listening_timeout_specification.md`](05_patient_listening_timeout_specification.md),
@@ -136,8 +136,8 @@ equipo clinico.
 
 ## Catalogo canonico de mensajes
 
-El futuro runtime debe centralizar estas claves. Los textos siguientes son la referencia de copy,
-no codigo listo para pegar. Las llaves como `{nombre}` se sustituyen con datos validados.
+El runtime centraliza estas claves en los módulos de copy. Los textos siguientes documentan la
+referencia de copy aplicada; las llaves como `{nombre}` se sustituyen con datos validados.
 
 ### Inicio y disponibilidad
 
@@ -314,9 +314,8 @@ Se separan cuatro canales:
 3. `source_display`: nombre, pagina, chunk y revision para trazabilidad no hablada;
 4. `internal_reason`: logs y diagnostico, nunca presentado al paciente.
 
-Si el contrato actual solo devuelve `response.text`, la implementacion futura debe mantenerlo como
-respuesta hablada compatible y construir la separacion en un adaptador de presentacion, sin borrar
-los campos existentes.
+El contrato mantiene `response.text` como alias compatible y construye la separación en el
+adaptador de presentación, sin borrar los campos existentes.
 
 ## Reglas para respuestas del LLM
 
@@ -335,22 +334,23 @@ sistema debe:
 
 La validacion de copy no sustituye las reglas deterministas de `triage.py`.
 
-## Estrategia de implementacion futura
+## Estrategia de implementacion ejecutada
 
-1. extraer todos los literales actuales de `agent.py`, `triage.py`, `calls.py` y `app.js`;
-2. asignar cada literal a una clave de este catalogo;
-3. separar `voice_text`, `display_text` y errores internos;
-4. reemplazar mensajes crudos del backend por codigos traducibles en el adaptador web;
-5. aplicar el catalogo tambien al fallback y a errores de corpus obsoleto;
-6. mantener una unica pregunta por turno y un turno de escucha por intento;
-7. validar copy antes de `SpeechSynthesis`;
-8. actualizar tests y documentacion, y despues ejecutar el smoke manual.
+1. centralizar el copy en `app/services/messages.py` y su proyección browser en
+   `app/web/messages.js`;
+2. separar `voice_text`, `display_text`, `source_display` e `internal_reason` sin quitar los
+   aliases internos existentes;
+3. aplicar el catálogo al agente, triaje, errores de llamada, corpus obsoleto y estados de voz;
+4. mantener una única pregunta por turno y un turno de escucha por intento;
+5. validar el texto antes de `SpeechSynthesis` y cubrirlo con `tests/test_conversational_ux.py`;
+6. verificar sintaxis JavaScript, Ruff y la suite enfocada; el smoke real en Chrome/Edge queda
+   `MANUAL_PENDING` porque el navegador in-app no estaba disponible en esta sesión.
 
-No se debe hacer una reescritura parcial dejando mensajes antiguos en ramas de error. La matriz de
-inventario debe marcar cada literal como `MIGRATED`, `REMOVED_INTERNAL` o `PENDING_REVIEW` antes de
-declarar completa la spec.
+La matriz de inventario quedó resuelta para las superficies de paciente: mensajes clínicos y de
+triaje están `MIGRATED`, códigos/diagnóstico interno están `REMOVED_INTERNAL`, y la evidencia de
+navegador real permanece `PENDING_REVIEW`.
 
-## Project Structure futuro
+## Estructura implementada
 
 ```text
 app/services/agent.py       -> seleccion de respuesta, grounding y abstencion
@@ -358,12 +358,13 @@ app/services/triage.py      -> reglas, triggers y preguntas de una etapa
 app/services/calls.py       -> errores, corpus obsoleto, cierre y resumen
 app/web/app.js              -> estados de voz, traduccion de errores y separacion TTS/UI
 app/web/call.html           -> copy visible, labels y regiones live
-app/web/messages.js         -> catalogo de copy, si se aprueba un modulo dedicado
+app/web/messages.js         -> proyección browser del catálogo y validación de voz
 tests/test_agent.py         -> tono, grounding, cita y seguridad
 tests/test_triage.py        -> niveles, sticky, si/no y aclaracion
 tests/test_calls.py         -> errores, resumen, alertas y corpus revision
 tests/test_timeout.py       -> timeout sin turno ni copy clinico falso
-tests/test_voice_ui.*       -> smoke de SpeechRecognition/TTS futuro
+tests/test_conversational_ux.py -> catálogo, canales, triaje y contrato browser
+tests/test_voice_ui.*       -> smoke de SpeechRecognition/TTS `MANUAL_PENDING`
 specs/07_*                  -> piramide de pruebas y evidencia manual
 ```
 
@@ -465,23 +466,22 @@ fecha, navegador, permisos, modelo, proveedor, audio observado y limitaciones.
 
 ## Trazabilidad y sincronizacion
 
-| Requisito | Fuente | Reflejo futuro |
+| Requisito | Fuente | Reflejo implementado |
 |---|---|---|
 | Tono y grounding | Spec 00, rubrica | prompts, fallback y copy catalogado |
 | Niveles sticky | `triage.py`, Spec 06 | pruebas de rojo/amarillo/unknown |
-| Timeout seguro | Spec 05/06 | mensajes de reintento sin turno clinico |
+| Timeout seguro | Spec 05/06 | mensajes de reintento sin turno clínico |
 | Fuentes | Spec 04/06 | `source_display` separado de voz |
-| G4 | rubrica | smoke Chrome/Edge, no mock |
+| G4 | rubrica | smoke Chrome/Edge `MANUAL_PENDING` |
 | Admin y preview | Specs 08/09 | copy separado, sin SHA visible |
 
-Antes de implementar:
+Verificación realizada:
 
-1. actualizar `specs/00_mvp_specification.md` para incluir la politica de copy;
-2. actualizar `specs/06_system_flow_diagram_specification.md` con `MOD-UX-COPY-001`, canales y
-   trazabilidad si se crea el modulo;
-3. actualizar `specs/07_testing_unit_integration_specification.md` con las pruebas de copy y voz;
-4. actualizar `mvp/crisp-dm/04_modeling/README.md`, `README.md` e indice documental;
-5. ejecutar el inventario de literales y resolver todas las ramas antes de editar codigo.
+1. se conservaron los aliases y contratos definidos por las specs upstream;
+2. se aplicaron canales separados en agente, llamadas, triaje y browser;
+3. se cubrieron catalogo, preguntas, grounding, abstención, inyección, errores y duplicados;
+4. se actualizaron `README.md` y esta spec con el estado real;
+5. se ejecutaron Ruff, `node --check` y la suite enfocada; el smoke real requiere Chrome/Edge.
 
 ## Limites
 
