@@ -29,6 +29,7 @@ evidencia.
 | `SPEC-TEST-001` | [`specs/07_testing_unit_integration_specification.md`](07_testing_unit_integration_specification.md) | frontera entre pruebas locales y evidencia manual; estrategia ejecutable |
 | `SPEC-ADMIN-UX-001` | [`specs/08_admin_inventory_ux_specification.md`](08_admin_inventory_ux_specification.md) | inventario full-width, responsive y sin SHA visible; propuesta futura |
 | `SPEC-ADMIN-SOURCE-001` | [`specs/09_admin_source_preview_specification.md`](09_admin_source_preview_specification.md) | archivo original en modal y separacion de texto extraido; propuesta futura |
+| `SPEC-ARCH-EXPLORER-001` | [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md) | vista HTML navegable derivada; no agrega autoridad |
 | `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
 | `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
@@ -988,6 +989,7 @@ fue `@mermaid-js/mermaid-cli@11.12.0`, compatible con el contrato visual de esta
 
 - Vista publicada: [`docs/arquitectura.md`](../docs/arquitectura.md).
 - Vista formal derivada: [`mvp/deliverables/02_architecture/architecture.md`](../mvp/deliverables/02_architecture/architecture.md).
+- Explorador HTML futuro: [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md).
 - Informe y evidencia: [`docs/informe-final.md`](../docs/informe-final.md) y
   [`readme/04_metricas_y_evidencia.md`](../readme/04_metricas_y_evidencia.md).
 
