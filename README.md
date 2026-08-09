@@ -157,6 +157,8 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
   propuesta de explorador HTML offline para buscar y profundizar en la arquitectura.
 - [`11_conversational_ux_writing_specification.md`](specs/11_conversational_ux_writing_specification.md):
   catalogo propuesto para reescribir todos los mensajes del bot con UX Writing y VUI.
+- [`12_rag_deep_dive_specification.md`](specs/12_rag_deep_dive_specification.md):
+  explicacion profunda del RAG, sus diagramas, seguridad, citas y evolucion.
 
 ## Modelo permitido
 

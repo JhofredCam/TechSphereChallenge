@@ -31,6 +31,7 @@ evidencia.
 | `SPEC-ADMIN-SOURCE-001` | [`specs/09_admin_source_preview_specification.md`](09_admin_source_preview_specification.md) | archivo original en modal y separacion de texto extraido; propuesta futura |
 | `SPEC-ARCH-EXPLORER-001` | [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md) | vista HTML navegable derivada; no agrega autoridad |
 | `SPEC-UX-COPY-001` | [`specs/11_conversational_ux_writing_specification.md`](11_conversational_ux_writing_specification.md) | mensajes de voz/UI, contencion y separacion de canales; propuesta futura |
+| `SPEC-RAG-DEEP-001` | [`specs/12_rag_deep_dive_specification.md`](12_rag_deep_dive_specification.md) | explicacion profunda y contrato pedagogico del RAG |
 | `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
 | `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
@@ -905,6 +906,7 @@ real.
 | `FUT-ADMIN-UX-001` | inventario responsive sin SHA visible | PROPOSED | definido en Spec 08; requiere smoke visual |
 | `FUT-ADMIN-SOURCE-001` | archivo original en modal | PROPOSED | definido en Spec 09; requiere endpoint binario y pruebas MIME |
 | `FUT-UX-COPY-001` | catalogo de copy, validacion VUI y separacion voz/UI | PROPOSED | definido en Spec 11; requiere reescritura y smoke de voz |
+| `FUT-RAG-EMBEDDING-001` | recuperacion semantica o hibrida compatible con FTS5 | PROPOSED | contrato y fases en Spec 12; no hay modelo elegido |
 | `FUT-COST-001` | precios vivos y costo real | PROPOSED | no hay precios fechados ni log Groq real |
 | `FUT-VIDEO-001` | video de entrega | PROPOSED | solo existe manifiesto en `mvp/deliverables/04_video/` |
 | `FUT-AUTH-001` | autenticacion/CSRF/multiusuario | OUT_OF_SCOPE | admin local sin autenticacion en este MVP |
@@ -994,6 +996,7 @@ fue `@mermaid-js/mermaid-cli@11.12.0`, compatible con el contrato visual de esta
 - Vista publicada: [`docs/arquitectura.md`](../docs/arquitectura.md).
 - Vista formal derivada: [`mvp/deliverables/02_architecture/architecture.md`](../mvp/deliverables/02_architecture/architecture.md).
 - Explorador HTML futuro: [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md).
+- Documento profundo del RAG: [`specs/12_rag_deep_dive_specification.md`](12_rag_deep_dive_specification.md).
 - Informe y evidencia: [`docs/informe-final.md`](../docs/informe-final.md) y
   [`readme/04_metricas_y_evidencia.md`](../readme/04_metricas_y_evidencia.md).
 

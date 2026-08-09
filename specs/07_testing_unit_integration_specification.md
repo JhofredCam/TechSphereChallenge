@@ -477,6 +477,11 @@ externo.
   voz. Las pruebas deben comprobar maximo dos oraciones, una pregunta, contencion, copy si/no,
   ausencia de metadatos tecnicos y conservacion de alertas. El smoke real de `SpeechSynthesis`
   sigue siendo manual.
+- **Spec 12:** la documentacion profunda del RAG debe reflejar ingestion, chunking, FTS5,
+  `available + enabled`, filtro de relevancia, revision, citas, snapshots y abstencion. Sus
+  pruebas focalizadas son `test_ingestion.py`, `test_agent.py`, `test_triage.py`,
+  `test_database.py`, `test_admin_lifecycle.py` y `test_live_knowledge.py`; ninguna suite local
+  aprueba el recorrido G5 con documento externo.
 
 La UI de `/admin` y el explorador de arquitectura tienen fronteras distintas. No se reutiliza el
 estado de una llamada, el catalogo del explorador no consulta el API y los datos de preview nunca
@@ -511,6 +516,9 @@ se convierten en evidencia RAG.
   original/MIME y explorador offline; una prueba estatica no se presenta como un gate real.
 - **TST-AC-16:** la reescritura de Spec 11 tiene inventario completo de literales, pruebas de copy
   y una frontera explicita entre texto hablado, UI, fuentes y diagnostico interno.
+- **TST-AC-17:** las pruebas RAG de la Spec 12 cubren normalizacion, chunking, hashes, PDF sin
+  texto, FTS5 parametrizado, relevancia, `available + enabled`, revision concurrente, citas
+  validas, fallback, abstencion y conocimiento vivo; el recorrido G5 externo permanece manual.
 
 ## Limites
 

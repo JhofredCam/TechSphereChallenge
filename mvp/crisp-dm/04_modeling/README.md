@@ -15,6 +15,7 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [Timeout configurable de escucha](../../../specs/05_patient_listening_timeout_specification.md).
 - [Diagrama normativo del flujo](../../../specs/06_system_flow_diagram_specification.md).
 - [UX Writing y VUI](../../../specs/11_conversational_ux_writing_specification.md).
+- [RAG profundo](../../../specs/12_rag_deep_dive_specification.md).
 
 ## Salidas
 
@@ -25,6 +26,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
   citas, respuesta breve, empatia y abstencion.
 - Catalogo de mensajes patient-facing separado en `voice_text`, `display_text`, trazabilidad y
   diagnostico interno; la reescritura integral sigue propuesta hasta aplicar el catalogo.
+- Documento pedagogico del RAG con diagramas micro/macro, contrato FTS5, elegibilidad, citas,
+  revision, snapshots, abstencion, seguridad y evolucion a embeddings sin modelo impuesto.
 - Triaje determinista: `rojo` no baja, `amarillo` persiste alerta y `unknown` pide aclaracion.
 - Turnos, resumen de llamada, logs de latencia/tokens y respuesta hablada en el navegador.
 - STT remoto opcional `whisper-large-v3`; no es el modelo de razonamiento.
@@ -48,6 +51,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
    `POST /api/calls/{id}/voice-events` y reflejar el contrato en el diagrama.
 10. Aplicar una sola pregunta por turno, copy de contencion, preguntas si/no para alarmas y
     traduccion de errores internos antes de enviar texto a `SpeechSynthesis`.
+11. Mantener la explicacion RAG sincronizada con `app/services/rag.py`, ingestion, base, agente,
+    Specs 04/06 y pruebas de conocimiento vivo.
 
 ## Criterios de aceptacion
 
@@ -63,6 +68,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
   ofrece reintento/fallback seguro y rechaza transcript tardio; el smoke browser sigue pendiente.
 - [ ] Todos los mensajes patient-facing cumplen el catalogo de UX Writing, maximo dos oraciones,
   una pregunta por turno y copy de alerta/contencion; requiere reescritura y smoke de voz.
+- [ ] La vista/documento RAG refleja el contrato real, las limitaciones de FTS5 y las fronteras de
+  evidencia; requiere verificar cambios futuros contra la Spec 12.
 
 ## Verificacion y evidencia
 
