@@ -150,7 +150,7 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
 - [`07_testing_unit_integration_specification.md`](specs/07_testing_unit_integration_specification.md):
   estrategia de pruebas unitarias, integracion, cobertura y evidencia manual.
 - [`08_admin_inventory_ux_specification.md`](specs/08_admin_inventory_ux_specification.md):
-  propuesta de inventario full-width, responsive y sin SHA visible.
+  inventario `/admin` full-width, responsive y sin SHA visible; implementado localmente.
 - [`09_admin_source_preview_specification.md`](specs/09_admin_source_preview_specification.md):
   propuesta de modal para distinguir archivo original y texto extraido.
 - [`10_architecture_explorer_specification.md`](specs/10_architecture_explorer_specification.md):

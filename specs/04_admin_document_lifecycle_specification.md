@@ -305,8 +305,10 @@ preview. La propuesta elimina por completo el SHA visible, pero conserva la iden
 API, persistencia, deduplicacion y acciones internas. No cambia `status`, `enabled`,
 `rag_eligible`, revision, snapshots ni el filtro RAG.
 
-Esta propuesta queda `PROPOSED` hasta que exista evidencia de layout responsive, ausencia de scroll
-horizontal, accesibilidad y uso correcto del identificador completo en las acciones. La
+La implementacion local de la propuesta queda `IMPLEMENTED` en `app/web/`: el layout cerrado usa
+una sola columna, el preview abierto agrega una segunda zona y el inventario se transforma en
+fichas sin scroll horizontal en viewports estrechos. La inspeccion manual de navegador y lector
+de pantalla sigue pendiente. La
 previsualizacion del archivo original pertenece a la spec 09 y no se considera incluida en este
 fix.
 

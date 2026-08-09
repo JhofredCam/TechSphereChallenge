@@ -37,19 +37,19 @@
   function statusLabel(status) {
     return {
       available: "Disponible",
-      needs_ocr: "Necesita OCR",
+      needs_ocr: "Necesita revision",
       processing: "Procesando",
-      error: "Error",
+      error: "Error al procesar",
     }[status] || status;
   }
 
   function publicationLabel(documentRecord) {
     if (documentRecord.status !== "available") {
-      return { className: "publication-unavailable", text: "No disponible" };
+      return { className: "publication-unavailable", text: "No publicable" };
     }
     return documentRecord.enabled
-      ? { className: "publication-enabled", text: "Habilitado" }
-      : { className: "publication-disabled", text: "Deshabilitado" };
+      ? { className: "publication-enabled", text: "Disponible para el agente" }
+      : { className: "publication-disabled", text: "No disponible para el agente" };
   }
 
   const previewState = { documentRecord: null, page: 1 };
@@ -64,7 +64,8 @@
     previewState.documentRecord = documentRecord;
     previewState.page = page;
     panel.hidden = false;
-    documentLabel.textContent = `${documentRecord.filename} · SHA ${String(documentRecord.id).slice(0, 12)}`;
+    $(".admin-workspace")?.classList.add("preview-open");
+    documentLabel.textContent = documentRecord.filename;
     pageInput.value = String(page);
     text.textContent = "";
     meta.textContent = "Cargando texto extraido...";
@@ -103,19 +104,18 @@
       .filter(Boolean)
       .map((value) => String(value).replace("T", " "))
       .join(" → ");
-    const revision = Number.isInteger(Number(documentRecord.corpus_revision))
-      ? ` · revision ${documentRecord.corpus_revision}`
-      : "";
-    meta.textContent = `SHA ${String(documentRecord.id).slice(0, 12)} · ${formatBytes(documentRecord.size_bytes)}${revision}${dates ? ` · ${dates}` : ""}`;
+    meta.textContent = `${formatBytes(documentRecord.size_bytes)}${dates ? ` · ${dates}` : ""}`;
     nameCell.append(name, meta);
 
     const statusCell = document.createElement("td");
+    statusCell.dataset.label = "Procesamiento";
     const processingBadge = document.createElement("span");
     processingBadge.className = `status-badge status-${documentRecord.status}`;
     processingBadge.textContent = statusLabel(documentRecord.status);
     statusCell.appendChild(processingBadge);
 
     const publicationCell = document.createElement("td");
+    publicationCell.dataset.label = "Publicacion";
     const publication = publicationLabel(documentRecord);
     const publicationBadge = document.createElement("span");
     publicationBadge.className = `status-badge ${publication.className}`;
@@ -123,15 +123,18 @@
     publicationCell.appendChild(publicationBadge);
 
     const contentCell = document.createElement("td");
+    contentCell.dataset.label = "Contenido";
     contentCell.className = "document-content";
-    contentCell.textContent = `${documentRecord.page_count || 0} paginas · ${documentRecord.chunk_count || 0} chunks`;
+    contentCell.textContent = `${documentRecord.page_count || 0} paginas · ${documentRecord.chunk_count || 0} fragmentos · ${formatBytes(documentRecord.size_bytes)}`;
 
     const actionCell = document.createElement("td");
+    actionCell.dataset.label = "Acciones";
     actionCell.className = "document-actions";
     const previewButton = document.createElement("button");
     previewButton.className = "admin-action";
     previewButton.type = "button";
     previewButton.textContent = "Previsualizar";
+    previewButton.setAttribute("aria-label", `Previsualizar ${documentRecord.filename}`);
     previewButton.addEventListener("click", () => {
       void loadPreview(documentRecord);
     });
@@ -242,6 +245,7 @@
     $("#refresh-documents")?.addEventListener("click", loadDocuments);
     $("#preview-close")?.addEventListener("click", () => {
       $("#preview-panel").hidden = true;
+      $(".admin-workspace")?.classList.remove("preview-open");
       previewState.documentRecord = null;
     });
     $("#preview-load")?.addEventListener("click", () => {

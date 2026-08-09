@@ -32,7 +32,7 @@ con texto. La sintaxis se valida contra la version Mermaid fijada por la spec 06
 - [`specs/05_patient_listening_timeout_specification.md`](../specs/05_patient_listening_timeout_specification.md):
   `PATIENT_LISTEN_TIMEOUT_MS` y estados de escucha.
 - [`specs/08_admin_inventory_ux_specification.md`](../specs/08_admin_inventory_ux_specification.md):
-  propuesta de layout responsive y ocultamiento del SHA en la vista de cliente.
+  inventario `/admin` de ancho completo, responsive y sin identidad tecnica visible.
 - [`specs/09_admin_source_preview_specification.md`](../specs/09_admin_source_preview_specification.md):
   propuesta de archivo original en modal, separada de `pages.text`.
 - [`specs/10_architecture_explorer_specification.md`](../specs/10_architecture_explorer_specification.md):

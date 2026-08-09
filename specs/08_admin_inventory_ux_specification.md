@@ -1,7 +1,7 @@
 # Spec: Inventario de fuentes orientado al administrador
 
 **ID:** `ADMIN-UX-001`
-**Estado:** `PROPOSED`; no implementada en este checkout
+**Estado:** `IMPLEMENTED`; verificacion automatizada local y smoke browser pendiente de ejecucion manual
 **Version:** 0.1.0
 **Fecha:** 2026-08-08
 **Propietario:** consola `/admin`
