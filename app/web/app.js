@@ -1113,21 +1113,52 @@
     appendSummaryField(box, "Fuentes", sources);
   }
 
+  function renderPatientContext(session) {
+    const node = $("#patient-context");
+    if (!node || !session?.subject || !session.patientContext) return;
+    node.replaceChildren();
+    const identity = document.createElement("div");
+    identity.className = "session-context-main";
+    identity.textContent = session.subject.name || session.subject.patientId || "Paciente de demo";
+    node.appendChild(identity);
+    const details = document.createElement("div");
+    details.className = "session-context-details";
+    const procedure = document.createElement("span");
+    procedure.textContent = session.patientContext.procedure || "Seguimiento postoperatorio";
+    details.appendChild(procedure);
+    if (session.patientContext.dayPostop !== null && session.patientContext.dayPostop !== undefined) {
+      const day = document.createElement("span");
+      day.textContent = `Día postoperatorio ${session.patientContext.dayPostop}`;
+      details.appendChild(day);
+    }
+    if (session.subject.patientId) {
+      const patientId = document.createElement("span");
+      patientId.textContent = `ID ${session.subject.patientId}`;
+      details.appendChild(patientId);
+    }
+    node.appendChild(details);
+  }
+
   function initCall() {
+    const session = window.DemoSession?.get();
+    if (!session || session.role !== "patient") {
+      window.location.replace(session?.role === "admin" ? "/admin/access" : "/patient");
+      return;
+    }
+    renderPatientContext(session);
     initRecognition();
     void requireListenTimeout().catch(() => {});
     setCallEnabled(false);
     setStatus($("#call-status"), callCopy("CALL_READY"));
-    $("#call-form")?.addEventListener("submit", async (event) => {
-      event.preventDefault();
+    $("#start-call")?.addEventListener("click", async () => {
       const startButton = $("#start-call");
+      if (!startButton || callState.id) return;
       startButton.disabled = true;
-      const dayValue = $("#day-postop").value;
       const payload = {
-        patient_id: $("#patient-id").value.trim() || null,
-        name: $("#patient-name").value.trim() || null,
-        procedure: $("#procedure").value.trim(),
-        day_postop: dayValue === "" ? null : Number(dayValue),
+        patient_id: session.subject.patientId || null,
+        name: session.subject.name || null,
+        procedure: session.patientContext.procedure || "seguimiento postoperatorio",
+        day_postop: session.patientContext.dayPostop ?? null,
       };
       try {
         await requireListenTimeout();
@@ -1154,7 +1185,7 @@
       } catch (error) {
         setStatus($("#call-status"), safeCallError(error), "error");
       } finally {
-        startButton.disabled = false;
+        startButton.disabled = Boolean(callState.id);
       }
     });
 

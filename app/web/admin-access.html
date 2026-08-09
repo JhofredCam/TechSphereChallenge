@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Acceso de demostración a la consola de conocimiento.">
+    <title>Admin | Voz postoperatoria</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/session.js" defer></script>
+    <script src="/static/access.js" defer></script>
+  </head>
+  <body data-page="admin-access">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Volver al inicio"><span class="brand-mark" aria-hidden="true">+</span><span>Voz postoperatoria</span></a>
+      <nav class="nav-links" aria-label="Navegación principal"><a href="/patient">Paciente</a><a class="active" href="/admin/access" aria-current="page">Admin</a></nav>
+    </header>
+    <main class="page-shell access-shell">
+      <div class="access-layout access-layout-admin">
+        <section class="access-intro">
+          <p class="eyebrow">Entrada de administrador</p>
+          <h1>El conocimiento también necesita una ruta clara.</h1>
+          <p class="lede">Revisa qué fuentes están disponibles para orientar la conversación y cuál es su estado de procesamiento.</p>
+          <div class="demo-disclaimer"><strong>Acceso de demostración:</strong> no uses datos reales. Esta pantalla no verifica identidad.</div>
+        </section>
+        <section class="panel access-panel" aria-labelledby="admin-access-title">
+          <div class="panel-heading"><div><p class="eyebrow">Consola de conocimiento</p><h2 id="admin-access-title">Entrar como admin</h2></div><span class="live-chip">Solo demo</span></div>
+          <form id="admin-access-form" class="access-form">
+            <label><span>Usuario o ID</span><input id="admin-id" name="admin_id" type="text" maxlength="200" autocomplete="username" placeholder="Ej. equipo-clinico" required></label>
+            <label><span>Clave de demostración</span><input id="admin-password" name="password" type="password" inputmode="numeric" autocomplete="off" required placeholder="No se guarda"></label>
+            <button class="button button-primary button-full" type="submit">Abrir consola <span aria-hidden="true">→</span></button>
+          </form>
+          <p id="access-status" class="form-status" role="status" aria-live="polite"></p>
+          <p class="access-footnote">La clave se compara en el navegador y nunca se envía a la API.</p>
+        </section>
+      </div>
+    </main>
+    <footer class="site-footer">Datos sintéticos del reto. Demo sin autenticación real.</footer>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Acceso de demostración al seguimiento postoperatorio por voz.">
+    <title>Paciente | Voz postoperatoria</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/session.js" defer></script>
+    <script src="/static/access.js" defer></script>
+  </head>
+  <body data-page="patient-access">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Volver al inicio"><span class="brand-mark" aria-hidden="true">+</span><span>Voz postoperatoria</span></a>
+      <nav class="nav-links" aria-label="Navegación principal"><a class="active" href="/patient" aria-current="page">Paciente</a><a href="/admin/access">Admin</a></nav>
+    </header>
+    <main class="page-shell access-shell">
+      <div class="access-layout">
+        <section class="access-intro">
+          <p class="eyebrow">Entrada de paciente</p>
+          <h1>Trae tu contexto. La conversación empieza ahí.</h1>
+          <p class="lede">Indica si estás abriendo un seguimiento nuevo o regresando a la demo. La sesión vive solo en esta pestaña.</p>
+          <div class="demo-disclaimer"><strong>Acceso de demostración:</strong> no uses datos reales. Esta pantalla no verifica identidad.</div>
+        </section>
+        <section class="panel access-panel" aria-labelledby="patient-access-title">
+          <div class="panel-heading">
+            <div><p class="eyebrow">Contexto seguro para la demo</p><h2 id="patient-access-title">Entrar como paciente</h2></div>
+            <span class="live-chip">Sin cuenta real</span>
+          </div>
+          <form id="patient-access-form" class="access-form">
+            <label><span>Tipo de seguimiento</span><select id="patient-mode" name="mode"><option value="new">Nuevo seguimiento</option><option value="returning">Ya tengo un contexto</option></select></label>
+            <label><span>Nombre <small>(o identificación)</small></span><input id="patient-name" name="name" type="text" maxlength="200" autocomplete="name" placeholder="Ej. Ana María"></label>
+            <label><span>Identificación <small>(opcional)</small></span><input id="patient-id" name="patient_id" type="text" maxlength="200" autocomplete="off" placeholder="Ej. pac-demo-001"></label>
+            <div id="new-patient-context" class="context-fields">
+              <label><span>Procedimiento</span><input id="procedure" name="procedure" type="text" maxlength="200" value="seguimiento postoperatorio"></label>
+              <label><span>Día postoperatorio <small>(opcional)</small></span><input id="day-postop" name="day_postop" type="number" min="0" max="3650" placeholder="3"></label>
+            </div>
+            <label><span>Clave de demostración</span><input id="patient-password" name="password" type="password" inputmode="numeric" autocomplete="off" required placeholder="No se guarda"></label>
+            <button class="button button-primary button-full" type="submit">Continuar a la llamada <span aria-hidden="true">→</span></button>
+          </form>
+          <p id="access-status" class="form-status" role="status" aria-live="polite"></p>
+          <p class="access-footnote">La clave se compara en el navegador y nunca se envía a la API.</p>
+        </section>
+      </div>
+    </main>
+    <footer class="site-footer">Datos sintéticos del reto. Demo sin autenticación real.</footer>
+  </body>
+</html>

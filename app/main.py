@@ -321,7 +321,15 @@ def create_app(
 
     @application.get("/", include_in_schema=False)
     def root() -> FileResponse:
-        return page("call.html")
+        return page("index.html")
+
+    @application.get("/patient", include_in_schema=False)
+    def patient_page() -> FileResponse:
+        return page("patient-access.html")
+
+    @application.get("/admin/access", include_in_schema=False)
+    def admin_access_page() -> FileResponse:
+        return page("admin-access.html")
 
     @application.get("/admin", include_in_schema=False)
     def admin_page() -> FileResponse:
