@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import MAX_UPLOAD_BYTES, Settings, get_settings
+from app.config import MAX_UPLOAD_BYTES, Settings, build_rag_settings, get_settings
 
 
 def test_settings_resolve_local_overrides_without_creating_directories(tmp_path):
@@ -47,3 +47,54 @@ def test_settings_reject_invalid_integer_and_safety_limits(tmp_path):
 
     defaults = get_settings({"APP_DATA_DIR": str(tmp_path / "default-data")})
     assert defaults.data_dir == (tmp_path / "default-data").resolve()
+
+
+def test_rag_settings_keep_local_profile_offline_and_redact_secrets(tmp_path):
+    settings = build_rag_settings(
+        {
+            "APP_DATA_DIR": "rag-data",
+            "EMBEDDING_ENDPOINT": "https://embedding.example/v1",
+            "VECTOR_STORE_AUTH_TOKEN": "secret-token",
+        },
+        project_root=tmp_path,
+    )
+
+    assert settings.profile == "challenge-local"
+    assert settings.backend == "fts5"
+    assert settings.vector_store_type == "fts5"
+    assert settings.embedding_provider == "none"
+    assert settings.vector_store_path == (tmp_path / "rag-data/chroma").resolve()
+    assert not settings.vector_store_path.exists()
+    effective = settings.effective_dict(redact_secrets=True)
+    assert effective["vector_store_auth_token"] == "[redacted]"
+    assert effective["embedding_endpoint"] == "[redacted]"
+
+
+def test_rag_settings_map_legacy_chunk_names_and_reject_inconsistent_values(tmp_path):
+    settings = build_rag_settings(
+        {"APP_CHUNK_SIZE": "900", "APP_CHUNK_OVERLAP": "100"},
+        project_root=tmp_path,
+    )
+    assert (settings.chunk_size, settings.chunk_overlap) == (900, 100)
+
+    with pytest.raises(ValueError, match="CHUNK_OVERLAP"):
+        build_rag_settings(
+            {"CHUNK_SIZE": "100", "CHUNK_OVERLAP": "100"},
+            project_root=tmp_path,
+        )
+
+
+def test_rag_staging_requires_preloaded_embedding_provider(tmp_path):
+    with pytest.raises(ValueError, match="embedding provider"):
+        build_rag_settings({"RAG_PROFILE": "staging"}, project_root=tmp_path)
+
+    settings = build_rag_settings(
+        {
+            "RAG_PROFILE": "staging",
+            "EMBEDDING_PROVIDER": "fastembed",
+            "EMBEDDING_MODEL_REVISION": "sha256:test",
+        },
+        project_root=tmp_path,
+    )
+    assert settings.profile == "staging"
+    assert settings.embedding_provider == "fastembed"
