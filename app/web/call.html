@@ -26,12 +26,12 @@
       <section class="call-hero">
         <div>
           <p class="eyebrow">Seguimiento por navegador · es-CO</p>
-          <h1>Una escucha cuidadosa, un turno a la vez.</h1>
+          <h1>Seguimiento de hoy: una escucha cuidadosa.</h1>
           <p class="lede">Habla con el micrófono o usa el texto. El agente responde desde la información disponible y muestra la señal que guía la seguridad.</p>
         </div>
         <div class="hero-note">
           <span class="hero-note-number">01</span>
-          <span>La voz se procesa por turnos. El texto siempre queda disponible como respaldo auditable.</span>
+          <span>La conversación es lo primero. El texto siempre queda disponible como respaldo auditable.</span>
         </div>
       </section>
 
@@ -59,9 +59,9 @@
               <p class="eyebrow">Conversacion</p>
               <h2 id="conversation-title">Transcripcion</h2>
             </div>
-            <span id="call-id-label" class="call-id-label">Sin llamada</span>
+            <span class="demo-badge">DEMO · es-CO</span>
           </div>
-          <div id="turn-list" class="turn-list">
+          <div id="turn-list" class="turn-list" role="log" aria-live="off" aria-relevant="additions">
             <div class="empty-state empty-conversation">Aquí aparecerán los turnos.</div>
           </div>
           <div class="voice-controls" aria-label="Controles de voz">
@@ -82,7 +82,19 @@
           </form>
         </div>
 
-        <aside class="side-stack">
+        <aside id="call-rail" class="side-stack call-rail" aria-labelledby="rail-title" data-state="idle">
+          <section class="panel rail-state-panel" aria-labelledby="rail-title">
+            <div class="panel-heading compact-heading">
+              <div>
+                <p class="eyebrow">Acompañamiento</p>
+                <h2 id="rail-title">Estado de la llamada</h2>
+              </div>
+              <span class="rail-pulse" aria-hidden="true"></span>
+            </div>
+            <p id="rail-call-state" class="rail-state-label" aria-live="polite">Listo para escuchar</p>
+            <p class="muted-copy">Te mostramos qué está pasando sin interrumpir lo que quieres contar.</p>
+          </section>
+
           <section class="panel triage-panel" aria-labelledby="triage-title">
             <div class="panel-heading compact-heading">
               <div>
@@ -99,9 +111,10 @@
             <div class="panel-heading compact-heading">
               <div>
                 <p class="eyebrow">Trazabilidad</p>
-                <h2 id="sources-title">Fuentes usadas</h2>
+                <h2 id="sources-title">Fuentes consultadas</h2>
               </div>
             </div>
+            <p class="muted-copy">Material disponible que ayudó a preparar la respuesta.</p>
             <ul id="source-list" class="source-list">
               <li class="empty-state">Todavia no hay fuentes.</li>
             </ul>
@@ -114,8 +127,8 @@
                 <h2 id="finish-title">Guardar resumen</h2>
               </div>
             </div>
-            <p class="muted-copy">Cierra cuando hayas terminado. Se guardan paciente, procedimiento, dia, sintomas, decision, fuentes, alerta y proximos pasos.</p>
-            <button class="button button-dark button-full" id="finish-call" type="button" disabled>Finalizar llamada</button>
+            <p class="muted-copy">Al cerrar guardaremos un resumen de la conversación para revisarlo con calma.</p>
+            <button class="button button-dark button-full" id="finish-call" type="button" disabled>Finalizar atención</button>
             <div id="summary-box" class="summary-box" role="status" aria-live="polite" hidden></div>
           </section>
         </aside>

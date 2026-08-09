@@ -558,6 +558,24 @@
     processing: false,
   };
 
+  function renderCallState(state) {
+    const labels = {
+      idle: "Listo para escuchar",
+      listening: "Escuchando",
+      processing: "Procesando",
+      responding: "Respondiendo",
+      error: "Necesita atención técnica",
+      finished: "Atención cerrada",
+    };
+    const label = labels[state] || labels.error;
+    const voiceState = $("#voice-state");
+    const railState = $("#rail-call-state");
+    const rail = $("#call-rail");
+    if (voiceState) voiceState.textContent = label;
+    if (railState) railState.textContent = label;
+    if (rail) rail.dataset.state = labels[state] ? state : "error";
+  }
+
   function syncCallControls() {
     const enabled = callState.callEnabled && !callState.closed && !callState.processing;
     [$("#turn-text"), $("#send-text"), $("#finish-call")].forEach((node) => {
@@ -603,6 +621,16 @@
       RETRY_REQUIRED: "Listo para reintentar",
     };
     if (node) node.textContent = labels[state] || "Puedes reintentar";
+    const visualState = {
+      LISTENING: "listening",
+      PARTIAL: "listening",
+      PROCESSING: "processing",
+      NO_RESPONSE: "error",
+      LISTEN_TIMEOUT: "error",
+      RECOGNITION_ERROR: "error",
+      RETRY_REQUIRED: "idle",
+    }[state] || "error";
+    renderCallState(visualState);
   }
 
   function updateListenTimer() {
@@ -730,12 +758,11 @@
       const item = document.createElement("li");
       const citation = document.createElement("span");
       citation.className = "source-citation";
-      const shortChunk = source.chunk_id ? ` · chunk ${String(source.chunk_id).slice(0, 12)}` : "";
-      const score = Number.isFinite(Number(source.score)) ? ` · score ${Number(source.score).toFixed(2)}` : "";
-      citation.textContent = `${source.citation || source.filename || "Fuente"}${shortChunk}${score}`;
+      const page = Number.isInteger(Number(source.page)) ? ` · p. ${Number(source.page)}` : "";
+      citation.textContent = `${source.citation || source.filename || "Fuente"}${page}`;
       const revision = document.createElement("span");
       revision.className = "source-revision";
-      revision.textContent = source.corpus_revision ? `Revision ${source.corpus_revision}` : "Fuente local";
+      revision.textContent = source.corpus_revision ? `Revisión ${source.corpus_revision}` : "Fuente local";
       item.append(citation, revision);
       list.appendChild(item);
     });
@@ -760,8 +787,8 @@
       sources.slice(0, 3).forEach((source) => {
         const sourceTag = document.createElement("span");
         sourceTag.className = "source-mini";
-        const shortChunk = source.chunk_id ? ` · ${String(source.chunk_id).slice(0, 8)}` : "";
-        sourceTag.textContent = `${source.citation || "Fuente"}${shortChunk}`;
+        const page = Number.isInteger(Number(source.page)) ? ` · p. ${Number(source.page)}` : "";
+        sourceTag.textContent = `${source.citation || source.filename || "Fuente"}${page}`;
         sourceWrap.appendChild(sourceTag);
       });
       turn.appendChild(sourceWrap);
@@ -813,6 +840,7 @@
     turnAttempt.state = "PROCESSING";
     turnAttempt.terminal = true;
     setTurnBusy(true);
+    renderCallState("processing");
     const sendButton = $("#send-text");
     if (sendButton) sendButton.disabled = true;
     if (!inputTiming?.duplicate) renderTurn("patient", normalized);
@@ -829,6 +857,7 @@
         }),
       });
       const patientText = response.patient_text || response.voice_text || response.display_text || callVoice("GENERIC_RETRY");
+      renderCallState("responding");
       if (!response.duplicate) {
         renderTurn("agent", patientText, response.sources || []);
         renderTriage(response);
@@ -844,6 +873,7 @@
         "success",
       );
     } catch (error) {
+      renderCallState("error");
       setStatus($("#call-status"), safeCallError(error), "error");
     } finally {
       if (sendButton) sendButton.disabled = false;
@@ -1146,6 +1176,7 @@
       return;
     }
     renderPatientContext(session);
+    renderCallState("idle");
     initRecognition();
     void requireListenTimeout().catch(() => {});
     setCallEnabled(false);
@@ -1170,11 +1201,12 @@
         callState.id = call.id;
          callState.closed = false;
          callState.processing = false;
-         callState.currentAttempt = null;
+        callState.currentAttempt = null;
         callState.listening = false;
         clearPartial();
-        $("#voice-state").textContent = "Listo para escuchar";
-        $("#call-id-label").textContent = call.id;
+        renderCallState("idle");
+        const callIdLabel = $("#call-id-label");
+        if (callIdLabel) callIdLabel.textContent = call.id;
         $("#turn-list").replaceChildren();
         const empty = document.createElement("div");
         empty.className = "empty-state empty-conversation";
@@ -1199,6 +1231,7 @@
 
     $("#finish-call")?.addEventListener("click", async () => {
       if (!callState.id || callState.closed) return;
+      if (!window.confirm("¿Quieres finalizar la atención y guardar el resumen?")) return;
       const button = $("#finish-call");
       button.disabled = true;
       setTurnBusy(true);
@@ -1209,6 +1242,7 @@
           body: JSON.stringify({}),
         });
         callState.closed = true;
+        renderCallState("finished");
         if (call.summary) renderSummary(call.summary);
         setStatus($("#call-status"), callCopy("CALL_FINISHED"), "success");
         $("#mic-button").disabled = true;
