@@ -71,6 +71,9 @@ class TurnRequest(BaseModel):
 
 VOICE_EVENT_TYPES = Literal[
     "patient_listen_started",
+    "vad_speech_started",
+    "vad_silence_started",
+    "vad_segment_finalized",
     "partial",
     "final",
     "ended",
@@ -102,6 +105,8 @@ class VoiceEventRequest(BaseModel):
         "SpeechRecognition"
     )
     configured_timeout_ms: StrictInt | None = Field(default=None, ge=1000, le=300000)
+    silence_timeout_ms: StrictInt | None = Field(default=None, ge=500, le=10000)
+    sequence: StrictInt | None = Field(default=None, ge=0, le=1000000)
     error_code: str | None = Field(
         default=None,
         max_length=64,
@@ -356,6 +361,9 @@ def create_app(
             "corpus_revision": documents.corpus_revision,
             "voice_mode": voice.mode,
             "patient_listen_timeout_ms": effective_settings.patient_listen_timeout_ms,
+            "voice_silence_timeout_ms": effective_settings.voice_silence_timeout_ms,
+            "voice_vad_rms_threshold": effective_settings.voice_vad_rms_threshold,
+            "voice_speech_start_timeout_ms": effective_settings.voice_speech_start_timeout_ms,
         }
 
     @application.get("/api/admin/documents")
@@ -605,6 +613,8 @@ def create_app(
                 implementation=request.implementation,
                 error_code=request.error_code,
                 configured_timeout_ms=request.configured_timeout_ms,
+                silence_timeout_ms=request.silence_timeout_ms,
+                sequence=request.sequence,
             )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc

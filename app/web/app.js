@@ -556,6 +556,7 @@
     healthPromise: null,
     callEnabled: false,
     processing: false,
+    voiceLoop: null,
   };
 
   function renderCallState(state) {
@@ -797,7 +798,7 @@
     list.scrollTop = list.scrollHeight;
   }
 
-  function speak(text, onStart = null) {
+  function speak(text, onStart = null, onEnd = null) {
     if (!("speechSynthesis" in window) || !text) return false;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -805,6 +806,12 @@
     utterance.rate = .98;
     utterance.onstart = () => {
       if (typeof onStart === "function") onStart(new Date().toISOString());
+    };
+    utterance.onend = () => {
+      if (typeof onEnd === "function") onEnd();
+    };
+    utterance.onerror = () => {
+      if (typeof onEnd === "function") onEnd();
     };
     window.speechSynthesis.speak(utterance);
     return true;
@@ -863,9 +870,14 @@
         renderTriage(response);
         renderSources(response.sources || []);
         const voiceInput = inputTiming?.mode === "voice" ? inputTiming : null;
-        speak(patientText, (audioStartedAt) => {
-          void recordVoiceTiming(callId, response.agent_turn_id, voiceInput, audioStartedAt);
-        });
+        const spoken = speak(
+          patientText,
+          (audioStartedAt) => {
+            void recordVoiceTiming(callId, response.agent_turn_id, voiceInput, audioStartedAt);
+          },
+          () => callState.voiceLoop?.resume(),
+        );
+        if (!spoken) callState.voiceLoop?.resume();
       }
       setStatus(
         $("#call-status"),
@@ -881,7 +893,85 @@
     }
   }
 
+  function initContinuousRecognition() {
+    const VoiceLoop = window.VoiceLoop;
+    const micButton = $("#mic-button");
+    if (!VoiceLoop?.VoiceLoopController || !navigator.mediaDevices?.getUserMedia) return false;
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Recognition) return false;
+    callState.voiceSupported = true;
+    $("#voice-support")?.replaceChildren(document.createTextNode("Micrófono listo · escucha continua · es-CO"));
+    callState.voiceLoop = new VoiceLoop.VoiceLoopController({
+      config: {
+        silenceTimeoutMs: 2000,
+        rmsThreshold: 0.025,
+        speechStartTimeoutMs: 10000,
+      },
+      onState: (state) => {
+        const map = {
+          LISTENING: "listening",
+          PROCESSING: "processing",
+          RESPONDING: "responding",
+        };
+        renderCallState(map[state] || "error");
+        if (state === "LISTENING") {
+          if (micButton) micButton.classList.add("listening");
+          $("#mic-label").textContent = "Escuchando...";
+        }
+      },
+      onPartial: (interim) => showPartial(interim),
+      onEvent: (eventType, identifiers = {}) => {
+        if (!callState.id || !callState.voiceLoop) return;
+        const attempt = callState.currentAttempt || {
+          listenId: identifiers.listenId || `listen_${createClientId("vad")}`.slice(0, 128),
+          clientTurnId: identifiers.clientTurnId || `client_turn_${createClientId("vad")}`.slice(0, 128),
+          implementation: "SpeechRecognition",
+          state: "LISTENING",
+          terminal: false,
+          startedAt: monotonicNow(),
+        };
+        attempt.listenId = identifiers.listenId || attempt.listenId;
+        attempt.clientTurnId = identifiers.clientTurnId || attempt.clientTurnId;
+        callState.currentAttempt = attempt;
+        void registerVoiceEvent(attempt, eventType);
+      },
+      onFinal: (text, identifiers) => {
+        const attempt = callState.currentAttempt || {
+          listenId: identifiers.listenId,
+          clientTurnId: identifiers.clientTurnId,
+          state: "PROCESSING",
+          terminal: true,
+          startedAt: monotonicNow(),
+        };
+        attempt.listenId = identifiers.listenId || attempt.listenId;
+        attempt.clientTurnId = identifiers.clientTurnId || attempt.clientTurnId;
+        attempt.implementation = "SpeechRecognition";
+        attempt.state = "PROCESSING";
+        attempt.terminal = true;
+        callState.currentAttempt = attempt;
+        void registerVoiceEvent(attempt, "final");
+        clearPartial();
+        void sendTurn(text, { mode: "voice", speech_ended_at: new Date().toISOString(), audio_started_at: null }, attempt);
+      },
+      onError: () => {
+        renderCallState("error");
+        setStatus($("#call-status"), callCopy("LISTEN_ERROR"), "error");
+      },
+    });
+    micButton?.addEventListener("click", () => {
+      if (!callState.voiceLoop) return;
+      callState.voiceLoop.toggle();
+      if (callState.voiceLoop.paused) {
+        micButton.classList.remove("listening");
+        $("#mic-label").textContent = "Reanudar escucha";
+        renderCallState("idle");
+      }
+    });
+    return true;
+  }
+
   function initRecognition() {
+    if (initContinuousRecognition()) return;
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const micButton = $("#mic-button");
     const support = $("#voice-support");
@@ -1213,6 +1303,12 @@
         empty.textContent = callCopy("CALL_OPEN");
         $("#turn-list").appendChild(empty);
         setCallEnabled(true);
+        if (callState.voiceLoop) {
+          void callState.voiceLoop.start().catch(() => {
+            renderCallState("error");
+            setStatus($("#call-status"), callCopy("MIC_PERMISSION_DENIED"), "error");
+          });
+        }
         setStatus($("#call-status"), callCopy("CALL_OPEN"), "success");
       } catch (error) {
         setStatus($("#call-status"), safeCallError(error), "error");
@@ -1242,6 +1338,7 @@
           body: JSON.stringify({}),
         });
         callState.closed = true;
+        callState.voiceLoop?.stop();
         renderCallState("finished");
         if (call.summary) renderSummary(call.summary);
         setStatus($("#call-status"), callCopy("CALL_FINISHED"), "success");
