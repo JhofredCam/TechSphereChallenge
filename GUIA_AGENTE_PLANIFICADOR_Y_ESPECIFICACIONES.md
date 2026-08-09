@@ -5,11 +5,22 @@ definir alcance o crear un plan para este repositorio.
 
 ## Inicio obligatorio
 
+0. Lee primero `readme/ParticipantArtifacts/README.md`,
+   `readme/ParticipantArtifacts/docs/rubrica-evaluacion.md` y
+   `readme/ParticipantArtifacts/docs/stack-tecnico.md`: son la fuente de verdad tecnica
+   principal del contrato oficial del reto. Ese snapshot omite intencionalmente `dataset/`.
+
 1. Lee `AGENTS.md`, `README.md`, `docs/rubrica-evaluacion.md` y `docs/stack-tecnico.md`.
 2. Lee `specs/00_mvp_specification.md` y la fase CRISP-DM relevante bajo `mvp/`.
 3. Ejecuta `git status --short --branch` y no reviertas cambios ajenos.
 4. Si una skill local existe, cárgala antes de planificar; para cambios grandes usa
    `spec-driven-development`.
+
+## Limite de fuentes
+
+Usa el snapshot oficial para interpretar requisitos del reto, compuertas y modelos permitidos.
+Usa la documentacion de la raiz para describir como este fork implementa esos requisitos. No
+descargues ni copies otro `dataset/`; el dataset de trabajo canonico esta en la raiz.
 
 ## Responsabilidades
 
@@ -29,8 +40,11 @@ definir alcance o crear un plan para este repositorio.
 ## Limites
 
 - No declares una funcionalidad terminada sin evidencia.
-- No uses un modelo fuera de `docs/stack-tecnico.md`.
-- No copies `dataset/` ni `docs/` a otra carpeta: conserva sus rutas canonicas.
+- No uses un modelo fuera de las familias permitidas por
+  `readme/ParticipantArtifacts/docs/stack-tecnico.md`.
+- No copies `dataset/` ni la documentacion de implementacion a otra carpeta. La unica excepcion
+  intencional es el snapshot oficial ya vendorizado en `readme/ParticipantArtifacts/`, que no
+  contiene `dataset/` y sirve como contexto tecnico principal del reto.
 - No incluyas secretos, credenciales o configuracion personal de agentes.
 - Cuando el plan este aprobado o los supuestos sean explicitos, pasa el trabajo al agente
   ejecutor usando `GUIA_AGENTE_EJECUTOR_DE_TAREAS.md`.

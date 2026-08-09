@@ -2,7 +2,9 @@
 
 Este directorio contiene la documentacion operativa del MVP y una copia historica del
 README del repositorio base anterior al fork. Las fuentes originales del reto siguen en sus
-rutas canonicas; aqui se enlazan, no se duplican.
+rutas canonicas. El contexto oficial se conserva ademas como snapshot reducido en
+`ParticipantArtifacts/`, sin `dataset/`, para que las guias de agentes tengan una referencia
+local y versionada.
 
 ## Navegacion
 
@@ -55,8 +57,8 @@ integracion local verificadas, pero sigue `PENDIENTE` de evidencia en demo con u
 externo al corpus. G1 conserva el pendiente del video de entrega.
 
 El snapshot pre-fork de `readme/01_repositorio_base_pre_fork/` se conserva sin incorporar
-cambios posteriores. `dataset/` y los documentos canonicos de `docs/` se referencian, no se
-copian.
+cambios posteriores. El snapshot oficial bajo `ParticipantArtifacts/` es la excepcion documental
+intencional y no incluye `dataset/`; el dataset de trabajo sigue en la raiz.
 
 La reestructuracion de entregables, la ampliacion de `/admin`, el timeout de escucha y el
 diagrama integrado estan aplicados y sincronizados. El contrato estatico del inventario admin
@@ -66,6 +68,9 @@ externo tambien permanece pendiente.
 
 ## Fuentes canonicas
 
+- El contrato oficial del reto, la rubrica y el stack permitido estan en
+  [`ParticipantArtifacts/`](ParticipantArtifacts/README.md), snapshot de
+  `TechSphere2026/ParticipantArtifacts` en `main` (`595989d`).
 - El dataset permanece en [`dataset/`](../dataset/).
 - La rubrica y el stack permanecen en [`docs/`](../docs/).
 - El README base actual permanece en [`README.md`](../README.md).

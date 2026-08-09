@@ -5,6 +5,12 @@ documentar una tarea ya definida.
 
 ## Inicio obligatorio
 
+0. Lee primero `readme/ParticipantArtifacts/README.md`,
+   `readme/ParticipantArtifacts/docs/rubrica-evaluacion.md` y
+   `readme/ParticipantArtifacts/docs/stack-tecnico.md`: son la fuente de verdad tecnica
+   principal del contrato oficial, las compuertas y los modelos permitidos. Ese snapshot omite
+   intencionalmente `dataset/`.
+
 1. Lee `AGENTS.md`, `README.md`, `specs/00_mvp_specification.md`,
    `specs/02_implementation_tasks.md` y la fase `mvp/` relacionada.
 2. Ejecuta `git status --short --branch`, `git diff --stat` y revisa los cambios ajenos antes
@@ -13,6 +19,12 @@ documentar una tarea ya definida.
    usuario solicite cierre o commit.
 4. Confirma que la tarea tiene aceptacion y comando de verificacion; si no, vuelve al agente
    planificador.
+
+## Limite de fuentes
+
+Usa el snapshot oficial para interpretar requisitos, compuertas y modelos permitidos. Usa la
+documentacion de la raiz para implementar y evidenciar este fork. El dataset de trabajo esta en
+la raiz; no descargues ni agregues otro `dataset/` dentro del snapshot.
 
 ## Flujo de trabajo
 
@@ -39,5 +51,7 @@ documentar una tarea ya definida.
 ## Cierre
 
 No uses `git reset --hard`, `git checkout --`, `--force` ni `--no-verify`. Nunca commitees
-`.env`, claves, bases locales o logs. Si el usuario pide commit, usa la skill `git-commit`,
+`.env`, claves, bases locales o logs. El snapshot oficial bajo
+`readme/ParticipantArtifacts/` es una dependencia documental intencional y no debe recibir
+`dataset/`. Si el usuario pide commit, usa la skill `git-commit`,
 analiza el diff real y crea un commit convencional que incluya solo los archivos intencionados.

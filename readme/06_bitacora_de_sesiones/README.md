@@ -18,6 +18,10 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 - [2026-08-09 | Merge de sesiones ejecutor y planificador a `main`](2026-08-09_merge_sesiones_main.md)
 - [2026-08-09 | Corrección del modal PDF en `/admin`](2026-08-09_admin_pdf_modal_runtime_fix.md)
 
+## Entrada reciente
+
+- [2026-08-09 | Integracion del contexto oficial y guias de agente](2026-08-09_integracion_contexto_reto_guias_agente.md)
+
 ## Regla de integracion
 
 Toda sesion de ejecutor o planificador que produzca cambios debe cerrar su rama dedicada

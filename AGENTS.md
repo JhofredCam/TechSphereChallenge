@@ -1,9 +1,23 @@
 # Agent Instructions
 
+## Fuente de verdad del reto
+
+- `readme/ParticipantArtifacts/` es el snapshot local del repositorio oficial
+  `TechSphere2026/ParticipantArtifacts`, rama `main`, commit `595989d5f5d37c847d66b737e787cb9ad6f8a7c3`.
+- Para el contrato del reto, las compuertas de evaluacion y las familias de modelos permitidas,
+  consulta primero `readme/ParticipantArtifacts/README.md`,
+  `readme/ParticipantArtifacts/docs/rubrica-evaluacion.md` y
+  `readme/ParticipantArtifacts/docs/stack-tecnico.md`. El snapshot excluye intencionalmente
+  `dataset/`; los insumos de trabajo siguen en el `dataset/` de la raiz.
+- `README.md`, `docs/` y `specs/` describen la implementacion de este fork. Pueden agregar
+  decisiones del producto, pero no deben contradecir silenciosamente el contrato oficial.
+
 ## Repository Shape
 
 - This checkout is the implementation fork of the Tech Sphere Challenge 2026 starter/data repository. Add the application, toolchain, tests, and executable documentation here; at this baseline there is no package manifest, lockfile, build/lint/typecheck/test configuration, CI workflow, or app entrypoint, so do not assume a package-manager command exists.
-- Read `README.md` for the product contract, `docs/rubrica-evaluacion.md` for elimination gates and required metrics, and `docs/stack-tecnico.md` for the closed list of allowed language-model families.
+- Read the official challenge context under `readme/ParticipantArtifacts/` first, then read
+  `README.md`, `docs/rubrica-evaluacion.md` and `docs/stack-tecnico.md` for this fork's applied
+  implementation and evidence.
 - Read `readme/06_bitacora_de_sesiones/README.md` for the session log and its project guidance.
 - Document and verify the fork's real setup, run, and focused-test commands in the README; prefer the implementation's scripts/config files over stale prose.
 
