@@ -1,0 +1,41 @@
+version: 1
+index_version: benchmark-protocol-v1
+corpus_revision: 0
+top_k: 5
+vector_fetch_k: 20
+threshold: 0.0
+warmups: 20
+repetitions: 5
+queries: benchmarks/rag/queries.jsonl
+qrels: benchmarks/rag/qrels.jsonl
+variants:
+  - variant_id: E0-fts5-c0
+    chunking: c0
+    provider: fts5
+    embedding_model_name: none
+    embedding_model_revision: none
+    metric: lexical
+  - variant_id: E1-bge-m3-c1
+    chunking: c1
+    provider: sentence_transformers
+    embedding_model_name: BAAI/bge-m3
+    embedding_model_revision: pinned-by-environment
+    metric: cosine
+  - variant_id: E2-e5-small-c1
+    chunking: c1
+    provider: sentence_transformers
+    embedding_model_name: intfloat/multilingual-e5-small
+    embedding_model_revision: pinned-by-environment
+    metric: cosine
+  - variant_id: E3-e5-base-c2
+    chunking: c2
+    provider: sentence_transformers
+    embedding_model_name: intfloat/multilingual-e5-base
+    embedding_model_revision: pinned-by-environment
+    metric: cosine
+  - variant_id: E4-builtin-hash-c2
+    chunking: c2
+    provider: builtin_hash
+    embedding_model_name: deterministic-hash-test-only
+    embedding_model_revision: v1
+    metric: cosine
