@@ -32,6 +32,7 @@ rutas canonicas; aqui se enlazan, no se duplican.
 - [Spec de inventario admin responsive y sin SHA visible](../specs/08_admin_inventory_ux_specification.md).
 - [Spec de previsualizacion del archivo original](../specs/09_admin_source_preview_specification.md).
 - [Spec de explorador HTML de arquitectura](../specs/10_architecture_explorer_specification.md).
+- [Spec de UX Writing y mensajes del bot](../specs/11_conversational_ux_writing_specification.md).
 
 ## Estado de evidencia
 
