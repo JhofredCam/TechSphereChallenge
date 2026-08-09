@@ -1,17 +1,19 @@
 # Spec: Previsualizacion del archivo original en `/admin`
 
 **ID:** `ADMIN-SOURCE-PREVIEW-001`
-**Estado:** `IMPLEMENTED`; endpoint, modal y pruebas locales aplicados en `spec/09-admin-source-preview`
-**Version:** 0.1.0
-**Fecha:** 2026-08-08
+**Estado:** `IMPLEMENTED`; endpoint, modal PDF directo y pruebas locales aplicados
+**Version:** 0.2.0
+**Fecha:** 2026-08-09
 **Propietario:** consola `/admin`
 **Depende de:** [`04_admin_document_lifecycle_specification.md`](04_admin_document_lifecycle_specification.md)
 **Complementa:** [`08_admin_inventory_ux_specification.md`](08_admin_inventory_ux_specification.md)
 
 ## Objetivo
 
-Permitir que el administrador abra una ventana emergente accesible y compruebe como era el
-archivo que originalmente subio. La experiencia debe distinguir sin ambiguedad entre:
+Permitir que el administrador abra una ventana emergente accesible y compruebe directamente cómo
+era el archivo que originalmente subió. Para PDF, el requisito obligatorio es un visor del archivo
+original dentro del modal: el navegador debe recibir y mostrar los bytes PDF, no una conversión a
+texto ni una navegación a otra pestaña. La experiencia debe distinguir sin ambigüedad entre:
 
 1. **Archivo original:** la representacion del PDF, TXT o MD tal como fue recibido y almacenado.
 2. **Texto extraido:** el resultado de la ingestion que actualmente usa la preview por pagina.
@@ -27,9 +29,10 @@ HTML ejecutable.
    ni se expone la ruta fisica al navegador.
 2. La superficie continua limitada a localhost mientras no exista autenticacion, CSRF y control
    de permisos.
-3. Un PDF puede mostrarse mediante el visor seguro del navegador; esta eleccion permite conservar
-   paginas, imagenes y disposicion, pero no promete impedir que una persona con acceso al navegador
-   guarde una copia.
+3. Un PDF debe mostrarse dentro del modal mediante el visor seguro del navegador; esta elección
+   conserva páginas, imágenes y disposición, pero no promete impedir que una persona con acceso al
+   navegador guarde una copia. Abrir una pestaña nueva o entregar solamente un enlace de descarga
+   no satisface este contrato.
 4. TXT y MD se muestran como texto plano literal, incluso si contienen HTML, Markdown o texto que
    intenta cambiar las instrucciones del agente.
 5. `status`, `enabled` y `rag_eligible` mantienen la semantica de la Spec 04. Ver el original no
@@ -50,7 +53,7 @@ No se agrega una libreria PDF obligatoria en este corte. El visor nativo del nav
 primer camino; una biblioteca local solo puede proponerse despues de evaluar tamano, licencia,
 seguridad y setup de 15 minutos.
 
-## Project Structure futuro
+## Estructura implementada
 
 ```text
 app/main.py                    -> endpoint de lectura del original y headers
@@ -68,8 +71,9 @@ specs/06_*                     -> trazabilidad de archivo original y RAG
 specs/07_*                     -> automatizacion y smoke manual
 ```
 
-Esta spec no crea esos archivos ni modifica el runtime; define el contrato previo a la
-implementacion.
+La implementación mantiene este contrato en el runtime: el endpoint entrega los bytes originales
+y el modal decide cómo mostrarlos según el formato, sin exponer rutas físicas ni convertir el PDF
+en texto como camino principal.
 
 ## Experiencia funcional
 
@@ -90,7 +94,15 @@ activar el boton:
 4. se muestra un indicador de carga que no bloquea la lectura del titulo;
 5. el foco entra en el boton de cierre o en el titulo, segun la implementacion accesible;
 6. se solicita el original usando el identificador completo internamente;
-7. se muestra una alternativa textual si el visor no puede abrir el formato.
+7. si el formato es PDF, se monta el archivo original directamente dentro del modal mediante
+   `<iframe>` u `<object>` con MIME `application/pdf`; no se abre otra pestaña y no se sustituye
+   el visor por el texto extraído;
+8. se muestra una alternativa textual si el visor no puede abrir el formato.
+
+El modal es un requisito funcional, no una sugerencia visual: el administrador debe poder abrir y
+cerrar el PDF sin abandonar el inventario `/admin`. El flujo no se considera cumplido si el botón
+solo descarga el archivo, navega a `/source`, abre `target="_blank"` o muestra únicamente las
+páginas extraídas.
 
 Cerrar con `Esc`, el boton `Cerrar` o el control de cierre debe:
 
@@ -120,8 +132,12 @@ equivalente. No se debe diferenciar solo por color.
 
 ### PDF
 
-- Servir el original con `Content-Type: application/pdf` canonico.
-- Usar `Content-Disposition: inline` y un visor embebido con `title` descriptivo.
+- Servir el original con `Content-Type: application/pdf` canónico.
+- Usar `Content-Disposition: inline` y un visor embebido con `title` descriptivo dentro del
+  `<dialog>`/modal visible; el `src` puede ser el endpoint seguro o un `Blob URL` creado con esos
+  bytes, pero debe representar el PDF original directamente.
+- No usar una página HTML intermedia, una URL externa, una nueva pestaña ni una descarga como
+  sustituto del visor modal.
 - Aislar el visor con `sandbox` sin scripts, formularios ni navegacion superior cuando el
   navegador lo permita.
 - Mantener zoom, paginas e imagenes del archivo original.
@@ -350,7 +366,8 @@ El checkout no tiene runner browser. Antes de implementar automatizacion, el smo
 recorrer Chrome y Edge:
 
 1. subir PDF textual, PDF escaneado, TXT y MD;
-2. abrir la modal desde cada fila sin ver SHA o ruta;
+2. abrir el modal desde cada fila sin ver SHA o ruta y confirmar que el PDF aparece dentro del
+   modal, sin abrir una pestaña nueva;
 3. cambiar entre original y texto extraido;
 4. comprobar que el PDF conserva apariencia y que TXT/MD no renderizan HTML/Markdown;
 5. probar cierre con boton, Escape y click fuera solo si la politica lo permite;
@@ -372,12 +389,12 @@ git diff --check
 
 ## Criterios de aceptacion
 
-- **ADMIN-SOURCE-AC-01:** el administrador abre una ventana emergente accesible desde una fuente,
-  no una navegacion perdida ni una pestaña sin contexto.
+- **ADMIN-SOURCE-AC-01:** el administrador abre una ventana emergente accesible desde una fuente y
+  el PDF aparece dentro de ella, no como una navegación perdida, pestaña nueva o descarga.
 - **ADMIN-SOURCE-AC-02:** la ventana distingue por nombre, estado y ayuda entre archivo original
   y texto extraido.
-- **ADMIN-SOURCE-AC-03:** el PDF conserva paginas, imagenes y disposicion del archivo original
-  cuando el visor del navegador es compatible.
+- **ADMIN-SOURCE-AC-03:** el PDF original se monta directamente en el modal y conserva páginas,
+  imágenes y disposición cuando el visor del navegador es compatible.
 - **ADMIN-SOURCE-AC-04:** TXT y MD se muestran literalmente como texto plano, sin ejecutar HTML,
   JavaScript ni renderizar Markdown.
 - **ADMIN-SOURCE-AC-05:** un PDF `needs_ocr` puede visualizarse como archivo original, pero no se
@@ -399,23 +416,22 @@ git diff --check
 
 ## Trazabilidad y sincronizacion
 
-| Requisito | Spec o ruta origen | Reflejo antes de implementar |
+| Requisito | Spec o ruta origen | Reflejo implementado |
 |---|---|---|
-| Archivo original almacenado | Spec 04, `documents.py` | contrato de resolucion segura |
+| Archivo original almacenado | Spec 04, `documents.py` | contrato de resolución segura |
 | Texto extraido por pagina | Spec 04, `GET .../preview` | mantener endpoint actual |
 | Estado OCR | `ingestion.py`, Spec 04 | tabla de estados y pruebas |
-| Admin full-width y sin SHA visible | Spec 08 | mantener boton y modal sin IDs visibles |
+| Admin full-width y sin SHA visible | Spec 08 | mantener botón y modal sin IDs visibles |
 | RAG solo disponible + habilitado | Spec 04, Spec 06 | no alterar filtro |
 | Seguridad de contenido | Spec 00, Spec 07 | pruebas de XSS, MIME y path |
 
-Antes de escribir codigo:
+Verificación y sincronización:
 
-1. actualizar la Spec 04 para incluir este endpoint y revisar su no-objetivo de render PDF;
-2. actualizar Spec 06 con `API-ADMIN-SOURCE`, `DATA-FILES` y el flujo de preview original;
-3. actualizar Spec 07 con pruebas binarias, MIME independiente y smoke modal;
-4. actualizar `README.md`, `docs/arquitectura.md` e indice documental;
-5. revisar que la Spec 08 siga ocultando SHA y rutas en la UI;
-6. implementar solo despues de aprobar el riesgo de visor PDF.
+1. el endpoint binario conserva el contrato de la Spec 04 y valida la ruta en servidor;
+2. el modal monta el PDF original directamente dentro de `/admin`;
+3. las pruebas cubren bytes, MIME, headers, estados y fallback del visor;
+4. la UI mantiene el modal sin SHA, rutas físicas ni navegación externa;
+5. el riesgo del visor nativo —guardar o copiar el PDF— queda documentado explícitamente.
 
 ## Limites
 
