@@ -1,7 +1,7 @@
 # Spec: Diagrama integrador del flujo completo del MVP
 
-**Estado:** integrada; runtime y pruebas locales verificadas; evidencia manual pendiente
-**Version:** 0.2.0
+**Estado:** integrada; sintaxis y contrato visual corregidos; runtime y pruebas locales verificadas; evidencia manual pendiente
+**Version:** 0.3.0
 **Fecha:** 2026-08-08
 **Rol:** fuente normativa del diagrama y de la trazabilidad de las specs 03, 04 y 05
 
@@ -27,6 +27,8 @@ evidencia.
 | `SPEC-ADMIN-001` | [`specs/04_admin_document_lifecycle_specification.md`](04_admin_document_lifecycle_specification.md) | preview textual, `enabled`, `rag_eligible`, toggle, delete y snapshots |
 | `SPEC-TIMEOUT-001` | [`specs/05_patient_listening_timeout_specification.md`](05_patient_listening_timeout_specification.md) | `PATIENT_LISTEN_TIMEOUT_MS`, estados, IDs, eventos e idempotencia |
 | `SPEC-TEST-001` | [`specs/07_testing_unit_integration_specification.md`](07_testing_unit_integration_specification.md) | frontera entre pruebas locales y evidencia manual; estrategia ejecutable |
+| `SPEC-ADMIN-UX-001` | [`specs/08_admin_inventory_ux_specification.md`](08_admin_inventory_ux_specification.md) | inventario full-width, responsive y sin SHA visible; propuesta futura |
+| `SPEC-ADMIN-SOURCE-001` | [`specs/09_admin_source_preview_specification.md`](09_admin_source_preview_specification.md) | archivo original en modal y separacion de texto extraido; propuesta futura |
 | `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
 | `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
@@ -80,6 +82,62 @@ recuperacion, `RAG`; y las que tienen un limite temporal, `T=`. La tabla de
 [contratos](#mapa-de-contratos-y-submodulos) y la matriz `TRZ-*` son la autoridad para localizar
 cada flecha.
 
+### Contrato visual y compatibilidad Mermaid
+
+Los diagramas deben ayudar a una persona a entender ownership y responsabilidad antes de leer
+codigo. El color no es un estado clinico ni una prueba de seguridad: es una segunda señal de quien
+opera o posee cada bloque. Todo color debe acompanarse con una etiqueta textual entre corchetes.
+
+| Ownership | Fondo | Borde | Etiqueta obligatoria |
+|---|---|---|---|
+| Usuario/paciente | `#DBEAFE` | `#1D4ED8` | `[USUARIO]` |
+| Administrador | `#FEF3C7` | `#B45309` | `[ADMIN]` |
+| Bot/aplicacion | `#EDE9FE` | `#6D28D9` | `[BOT]` |
+| RAG/conocimiento | `#CCFBF1` | `#0F766E` | `[RAG]` |
+| Datos/persistencia | `#E2E8F0` | `#475569` | `[DATOS]` |
+| Externo/proveedor | `#FFEDD5` | `#C2410C` | `[EXTERNO]` |
+| Seguridad/triage | `#FEE2E2` | `#B91C1C` | `[SEGURIDAD]` |
+| Metricas/evidencia | `#DCFCE7` | `#15803D` | `[METRICAS]` |
+| Futuro o pendiente | `#F5F3FF` | `#7C3AED` discontinuo | `[PROPOSED]` o `[MANUAL_PENDING]` |
+
+Convenciones de forma:
+
+- `([ ... ])`: actor o persona que inicia una accion.
+- `[ ... ]`: UI, proceso, API o servicio.
+- `{ ... }`: decision o compuerta.
+- `[( ... )]`: persistencia o almacen de datos.
+- `subgraph`: limite de confianza, ownership o entorno.
+- `stateDiagram-v2`: ciclo de vida, no flujo de datos.
+- borde discontinuo: dependencia opcional, capacidad futura o evidencia pendiente.
+
+Convenciones de flecha:
+
+- `-->` o `->>`: flujo principal.
+- `-.->`: telemetria, dependencia opcional, futuro o dato que no debe reutilizarse.
+- `HTTP`, `DB`, `RAG`, `STT`, `TTS` y `T=` deben aparecer en la etiqueta cuando aplique.
+- `red`, `yellow`, `green` y `unknown` se escriben como texto; no reutilizan la paleta de
+  ownership para expresar urgencia.
+
+Compatibilidad obligatoria:
+
+- validar con Mermaid `11.16.1` o la version fijada por el artefacto que renderice estos bloques;
+- usar aliases internos con el patron `[A-Za-z][A-Za-z0-9_]*` y mostrar el ID canonico solo en la
+  etiqueta;
+- encerrar etiquetas que contienen `<`, `>`, `&`, `#`, `|` o corchetes en comillas;
+- no usar `;` dentro de mensajes de `sequenceDiagram`; sustituirlo por coma o punto;
+- no usar `\n` como salto de linea portable; preferir una etiqueta corta o `<br/>` validado;
+- no usar shapes experimentales, iconos, imagenes, callbacks o CSS remoto;
+- cada bloque debe tener una leyenda textual cercana y una descripcion equivalente fuera del
+  diagrama. `accTitle` y `accDescr` se pueden agregar cuando la version fijada los soporte.
+
+La leyenda minima que acompana a cada vista es:
+
+```text
+Color = ownership. Forma = tipo de entidad. Linea solida = flujo.
+Linea punteada = opcional, telemetria o futuro. Borde discontinuo = pendiente o dependencia externa.
+El color no decide triaje y no sustituye el texto del estado.
+```
+
 ### IDs de vistas
 
 | ID | Vista |
@@ -110,14 +168,14 @@ cada flecha.
 
 ```mermaid
 flowchart TD
-    ROOT["Repositorio raiz<br/>README, app, scripts, tests, specs, readme<br/>[TESTED]"]
-    MVP["mvp/<br/>contenedor de entrega y proceso<br/>[TESTED]"]
-    CRISP["mvp/crisp-dm/<br/>seis fases CRISP-DM<br/>[TESTED]"]
-    DELIV["mvp/deliverables/<br/>cuatro entregables formales<br/>[TESTED]"]
-    SPEC["specs/<br/>fuente normativa<br/>[IMPLEMENTED]"]
-    OPS["readme/<br/>setup, demo, evidencia y sesiones<br/>[IMPLEMENTED]"]
-    CODE["app/ + scripts/ + tests/<br/>runtime y verificaciones<br/>[TESTED]"]
-    CANON["dataset/ + docs canonicos<br/>fuera de mvp; se enlazan<br/>[TESTED]"]
+    ROOT["[DATOS] Repositorio raiz<br/>README, app, scripts, tests, specs, readme<br/>[TESTED]"]:::data
+    MVP["[BOT] mvp/<br/>contenedor de entrega y proceso<br/>[TESTED]"]:::bot
+    CRISP["[BOT] mvp/crisp-dm/<br/>seis fases CRISP-DM<br/>[TESTED]"]:::bot
+    DELIV["[METRICAS] mvp/deliverables/<br/>cuatro entregables formales<br/>[TESTED]"]:::metrics
+    SPEC["[BOT] specs/<br/>fuente normativa<br/>[IMPLEMENTED]"]:::bot
+    OPS["[METRICAS] readme/<br/>setup, demo, evidencia y sesiones<br/>[IMPLEMENTED]"]:::metrics
+    CODE["[BOT] app/ + scripts/ + tests/<br/>runtime y verificaciones<br/>[TESTED]"]:::bot
+    CANON["[DATOS] dataset/ + docs canonicos<br/>fuera de mvp; se enlazan<br/>[TESTED]"]:::data
 
     ROOT --> MVP
     MVP --> CRISP
@@ -128,6 +186,10 @@ flowchart TD
     ROOT --> CANON
     SPEC -.->|"define ownership y procedencia"| MVP
     CANON -.->|"se enlaza, no se copia"| CRISP
+
+    classDef bot fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95,stroke-width:2px;
+    classDef data fill:#E2E8F0,stroke:#475569,color:#1E293B,stroke-width:2px;
+    classDef metrics fill:#DCFCE7,stroke:#15803D,color:#14532D,stroke-width:2px;
 ```
 
 `mvp/crisp-dm/` y `mvp/deliverables/` existen en las rutas aplicadas. No contienen copias de
@@ -197,7 +259,7 @@ introducir caminos alternativos que contradigan el flujo.
                     |                         |
                     v                         v
           +-------------------+     +--------------------------+
-          | EXT-GROQ-001      |     | MOD-FALLBACK-001         |
+           | EXT-GROQ-LLM-001  |     | MOD-FALLBACK-001         |
           | Llama allowed     |     | extractive FTS5          |
           | Whisper optional  |     | deterministic             |
           | OPTIONAL;         |     | [TESTED]                 |
@@ -266,43 +328,43 @@ G5 con un documento externo.
 
 ```mermaid
 flowchart LR
-    PAT["ACT-PATIENT-001<br/>Paciente"]
-    ADM["ACT-ADMIN-001<br/>Administrador"]
-    BR["ACT-BROWSER-001<br/>Navegador"]
-    PROV_LLM["EXT-GROQ-LLM-001<br/>Meta Llama permitido<br/>OPTIONAL; MANUAL_PENDING"]
-    PROV_STT["EXT-GROQ-STT-001<br/>Whisper opcional<br/>OPTIONAL; MANUAL_PENDING"]
+    PAT["[USUARIO] ACT-PATIENT-001<br/>Paciente"]:::actor
+    ADM["[ADMIN] ACT-ADMIN-001<br/>Administrador"]:::admin
+    BR["[USUARIO] ACT-BROWSER-001<br/>Navegador"]:::actor
+    PROV_LLM["[EXTERNO] EXT-GROQ-LLM-001<br/>Meta Llama permitido<br/>OPTIONAL, MANUAL_PENDING"]:::external
+    PROV_STT["[EXTERNO] EXT-GROQ-STT-001<br/>Whisper opcional<br/>OPTIONAL, MANUAL_PENDING"]:::external
 
     subgraph WEB["UI-001 | Superficies browser"]
-        ADMIN["UI-ADMIN-001<br/>/admin<br/>[IMPLEMENTED]"]
-        CALL["UI-CALL-001<br/>/call<br/>[IMPLEMENTED; MANUAL_PENDING]"]
-        LISTEN["MOD-VOICE-BROWSER-001<br/>SpeechRecognition es-CO<br/>IMPLEMENTED; MANUAL_PENDING"]
-        TTS["MOD-TTS-BROWSER-001<br/>SpeechSynthesis es-CO<br/>IMPLEMENTED; MANUAL_PENDING"]
-        TEXT["UI-TEXT-FALLBACK-001<br/>entrada textual<br/>IMPLEMENTED; MANUAL_PENDING UI"]
+        ADMIN["[ADMIN] UI-ADMIN-001<br/>/admin<br/>[IMPLEMENTED]"]:::admin
+        CALL["[USUARIO] UI-CALL-001<br/>/call<br/>[IMPLEMENTED, MANUAL_PENDING]"]:::actor
+        LISTEN["[USUARIO] MOD-VOICE-BROWSER-001<br/>SpeechRecognition es-CO<br/>IMPLEMENTED, MANUAL_PENDING"]:::actor
+        TTS["[BOT] MOD-TTS-BROWSER-001<br/>SpeechSynthesis es-CO<br/>IMPLEMENTED, MANUAL_PENDING"]:::bot
+        TEXT["[USUARIO] UI-TEXT-FALLBACK-001<br/>entrada textual<br/>IMPLEMENTED, MANUAL_PENDING UI"]:::actor
     end
 
     subgraph APP["SYS-APP-001 | FastAPI local"]
-        API["MOD-API-001<br/>app/main.py<br/>[TESTED]"]
-        CFG["MOD-CONFIG-001<br/>env y timeout paciente<br/>[TESTED]"]
-        DOC["MOD-DOCUMENT-001<br/>upload/list/preview/toggle/delete<br/>[TESTED]"]
-        ING["MOD-INGEST-001<br/>extraccion y chunks<br/>[TESTED]"]
-        BOOT["MOD-BOOTSTRAP-001<br/>validacion y corpus inicial<br/>[TESTED]"]
-        C["MOD-CALL-001<br/>llamadas, turnos, resumen<br/>[TESTED]"]
-        TRI["MOD-TRIAGE-001<br/>reglas deterministas<br/>[TESTED]"]
-        RAG["MOD-RAG-001<br/>FTS5; available AND enabled=1<br/>[TESTED]"]
-        AG["MOD-AGENT-001<br/>grounding y abstencion<br/>[TESTED]"]
-        VOICE["MOD-VOICE-SERVER-001<br/>Whisper opcional<br/>IMPLEMENTED; MANUAL_PENDING real"]
-        MET["MOD-METRICS-001<br/>JSONL y agregacion<br/>[TESTED]"]
+        API["[BOT] MOD-API-001<br/>app/main.py<br/>[TESTED]"]:::bot
+        CFG["[BOT] MOD-CONFIG-001<br/>env y timeout paciente<br/>[TESTED]"]:::bot
+        DOC["[ADMIN] MOD-DOCUMENT-001<br/>upload/list/preview/toggle/delete<br/>[TESTED]"]:::admin
+        ING["[RAG] MOD-INGEST-001<br/>extraccion y chunks<br/>[TESTED]"]:::rag
+        BOOT["[RAG] MOD-BOOTSTRAP-001<br/>validacion y corpus inicial<br/>[TESTED]"]:::rag
+        C["[BOT] MOD-CALL-001<br/>llamadas, turnos, resumen<br/>[TESTED]"]:::bot
+        TRI["[SEGURIDAD] MOD-TRIAGE-001<br/>reglas deterministas<br/>[TESTED]"]:::security
+        RAG["[RAG] MOD-RAG-001<br/>FTS5, available AND enabled=1<br/>[TESTED]"]:::rag
+        AG["[BOT] MOD-AGENT-001<br/>grounding y abstencion<br/>[TESTED]"]:::bot
+        VOICE["[EXTERNO] MOD-VOICE-SERVER-001<br/>Whisper opcional<br/>IMPLEMENTED, MANUAL_PENDING real"]:::external
+        MET["[METRICAS] MOD-METRICS-001<br/>JSONL y agregacion<br/>[TESTED]"]:::metrics
     end
 
     subgraph DATA["DATA-001 | Estado local"]
-        DB[("DATA-SQLITE-001<br/>SQLite + FTS5")]
-        FILES[("DATA-FILES-001<br/>data/uploads")]
-        EVENTS[("DATA-EVENTS-001<br/>data/events.jsonl")]
+        DB[("[DATOS] DATA-SQLITE-001<br/>SQLite + FTS5")]:::data
+        FILES[("[DATOS] DATA-FILES-001<br/>data/uploads")]:::data
+        EVENTS[("[METRICAS] DATA-EVENTS-001<br/>data/events.jsonl")]:::metrics
     end
 
     subgraph SOURCES["SOURCES-001 | Canonico"]
-        CORPUS["dataset/textos/<br/>corpus clinico"]
-        XLSX["dataset/*.xlsx<br/>casos sinteticos"]
+        CORPUS["[DATOS] dataset/textos/<br/>corpus clinico"]:::data
+        XLSX["[DATOS] dataset/*.xlsx<br/>casos sinteticos"]:::data
     end
 
     PAT -->|"voz o texto"| BR
@@ -339,6 +401,15 @@ flowchart LR
     DB -.->|"agregados locales"| MET
     VOICE -.->|"STT opcional"| PROV_STT
     AG -.->|"LLM permitido opcional"| PROV_LLM
+
+    classDef actor fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A,stroke-width:2px;
+    classDef admin fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:2px;
+    classDef bot fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95,stroke-width:2px;
+    classDef rag fill:#CCFBF1,stroke:#0F766E,color:#134E4A,stroke-width:2px;
+    classDef data fill:#E2E8F0,stroke:#475569,color:#1E293B,stroke-width:2px;
+    classDef external fill:#FFEDD5,stroke:#C2410C,color:#7C2D12,stroke-width:2px,stroke-dasharray:5 5;
+    classDef security fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D,stroke-width:2px;
+    classDef metrics fill:#DCFCE7,stroke:#15803D,color:#14532D,stroke-width:2px;
 ```
 
 La existencia de la UI, la ruta HTTP o el proveedor no aprueba por si sola G4. El estado de
@@ -349,19 +420,19 @@ credencial real.
 
 ```mermaid
 sequenceDiagram
-    actor PAT as ACT-PATIENT-001
-    participant BR as ACT-BROWSER-001
-    participant API as MOD-API-001
-    participant CFG as MOD-CONFIG-001
-    participant VOICE as MOD-VOICE-BROWSER-001
-    participant CALL as MOD-CALL-001
-    participant TRI as MOD-TRIAGE-001
-    participant RAG as MOD-RAG-001
-    participant AG as MOD-AGENT-001
-    participant LLM as EXT-GROQ-LLM-001
-    participant STT as EXT-GROQ-STT-001
-    participant DB as DATA-SQLITE-001
-    participant MET as MOD-METRICS-001
+    actor PAT as USUARIO - ACT-PATIENT-001
+    participant BR as USUARIO - ACT-BROWSER-001
+    participant API as BOT - MOD-API-001
+    participant CFG as BOT - MOD-CONFIG-001
+    participant VOICE as USUARIO - MOD-VOICE-BROWSER-001
+    participant CALL as BOT - MOD-CALL-001
+    participant TRI as SEGURIDAD - MOD-TRIAGE-001
+    participant RAG as RAG - MOD-RAG-001
+    participant AG as BOT - MOD-AGENT-001
+    participant LLM as EXTERNO - EXT-GROQ-LLM-001
+    participant STT as EXTERNO - EXT-GROQ-STT-001
+    participant DB as DATOS - DATA-SQLITE-001
+    participant MET as METRICAS - MOD-METRICS-001
 
     PAT->>BR: Abrir /call y completar contexto
     BR->>API: POST /api/calls
@@ -379,7 +450,7 @@ sequenceDiagram
         alt SpeechRecognition disponible
             BR->>VOICE: start lang=es-CO, continuous=false
             VOICE-->>BR: onstart -> LISTENING + timer total
-            VOICE-->>BR: interim -> PARTIAL; no backend clinico
+            VOICE-->>BR: interim -> PARTIAL, no backend clinico
             BR->>API: POST /api/calls/{id}/voice-events partial
         else audio al servidor
             BR->>API: POST /api/calls/{id}/audio
@@ -393,7 +464,7 @@ sequenceDiagram
             BR->>API: POST /api/calls/{id}/turns {listen_id, client_turn_id}
         else timeout/no_response/error sin final
             VOICE-->>BR: cancelar escucha y limpiar parcial
-            BR-->>PAT: LISTEN_TIMEOUT/RETRY_REQUIRED; reintentar o texto
+            BR-->>PAT: LISTEN_TIMEOUT/RETRY_REQUIRED, reintentar o texto
             BR->>API: POST /api/calls/{id}/voice-events timeout/no_response/error
             API->>MET: events.jsonl sin audio ni texto clinico
         end
@@ -446,14 +517,14 @@ transcript posterior recibe `409` con `error_code=late_transcript`.
 
 ```mermaid
 sequenceDiagram
-    actor ADM as ACT-ADMIN-001
-    participant BR as ACT-BROWSER-001
-    participant API as MOD-API-001
-    participant DOC as MOD-DOCUMENT-001
-    participant ING as MOD-INGEST-001
-    participant DB as DATA-SQLITE-001
-    participant FS as DATA-FILES-001
-    participant RAG as MOD-RAG-001
+    actor ADM as ADMIN - ACT-ADMIN-001
+    participant BR as USUARIO - ACT-BROWSER-001
+    participant API as BOT - MOD-API-001
+    participant DOC as ADMIN - MOD-DOCUMENT-001
+    participant ING as RAG - MOD-INGEST-001
+    participant DB as DATOS - DATA-SQLITE-001
+    participant FS as DATOS - DATA-FILES-001
+    participant RAG as RAG - MOD-RAG-001
 
     ADM->>BR: Abrir /admin
     BR->>API: GET /api/admin/documents
@@ -483,7 +554,7 @@ sequenceDiagram
     DOC->>DB: enabled=0, revision y audit
     DB-->>API: rag_eligible=false
     RAG->>DB: nueva consulta con status=available AND enabled=1
-    DB-->>RAG: documento excluido; paginas/chunks se conservan
+    DB-->>RAG: documento excluido, paginas/chunks se conservan
 
     ADM->>BR: Habilitar documento
     BR->>API: PATCH /api/admin/documents/{id} {enabled:true}
@@ -496,23 +567,23 @@ sequenceDiagram
     ADM->>BR: Eliminar documento
     BR->>API: DELETE /api/admin/documents/{id}
     API->>DOC: delete(id)
-    DOC->>DB: snapshot de sources; borrar pages/chunks/FTS5/document
+    DOC->>DB: snapshot de sources, borrar pages/chunks/FTS5/document
     DOC->>DB: revision y audit delete
     DOC->>FS: eliminar original despues del commit
     API-->>BR: deleted=true
     RAG->>DB: nueva consulta
-    DB-->>RAG: fuente ausente; abstencion si era la unica evidencia
+    DB-->>RAG: fuente ausente, abstencion si era la unica evidencia
 ```
 
 ```mermaid
 stateDiagram-v2
     [*] --> PROCESSING
-    state "STATE-DOC-PROCESSING-001\nprocessing [TESTED]" as PROCESSING
-    state "STATE-DOC-AVAILABLE-001\navailable + enabled [TESTED]" as ENABLED
-    state "STATE-DOC-DISABLED-001\navailable + disabled [TESTED]" as DISABLED
-    state "STATE-DOC-OCR-001\nneeds_ocr [TESTED]" as OCR
-    state "STATE-DOC-ERROR-001\nerror [TESTED]" as ERROR
-    state "STATE-DOC-DELETED-001\nausente; snapshots historicos [TESTED]" as DELETED
+    state "[RAG] processing, STATE-DOC-PROCESSING-001 [TESTED]" as PROCESSING
+    state "[RAG] available + enabled, STATE-DOC-AVAILABLE-001 [TESTED]" as ENABLED
+    state "[ADMIN] available + disabled, STATE-DOC-DISABLED-001 [TESTED]" as DISABLED
+    state "[RAG] needs_ocr, STATE-DOC-OCR-001 [TESTED]" as OCR
+    state "[BOT] error, STATE-DOC-ERROR-001 [TESTED]" as ERROR
+    state "[DATOS] ausente, snapshots historicos, STATE-DOC-DELETED-001 [TESTED]" as DELETED
 
     PROCESSING --> ENABLED: texto extraido e indexado
     PROCESSING --> OCR: sin texto utilizable
@@ -524,6 +595,18 @@ stateDiagram-v2
     DISABLED --> DELETED: DELETE
     OCR --> DELETED: DELETE
     ERROR --> DELETED: DELETE
+    DELETED --> [*]
+
+    classDef docProcessing fill:#CCFBF1,stroke:#0F766E,color:#134E4A;
+    classDef docReady fill:#DCFCE7,stroke:#15803D,color:#14532D;
+    classDef docAdmin fill:#FEF3C7,stroke:#B45309,color:#78350F;
+    classDef docBlocked fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D;
+    classDef docData fill:#E2E8F0,stroke:#475569,color:#1E293B;
+    class PROCESSING docProcessing;
+    class ENABLED docReady;
+    class DISABLED docAdmin;
+    class OCR,ERROR docBlocked;
+    class DELETED docData;
 ```
 
 `available` es un estado tecnico. `enabled` es publicacion administrativa. `rag_eligible` es la
@@ -536,39 +619,46 @@ reintroduce en RAG.
 
 ```mermaid
 flowchart TD
-    T["STG-TRIAGE-001<br/>Transcript final"] --> N["MOD-NORMALIZE-001<br/>normalizar"]
-    N --> INJ{"RULE-SECURITY-001<br/>inyeccion o datos no confiables?"}
-    INJ -->|"si"| SAFE["Abstencion de seguridad<br/>pedir sintoma real [TESTED]"]
-    INJ -->|"no"| TRI["MOD-TRIAGE-001<br/>nivel previo [TESTED]"]
+    T["[USUARIO] STG-TRIAGE-001<br/>Transcript final"]:::actor --> N["[BOT] MOD-NORMALIZE-001<br/>normalizar"]:::bot
+    N --> INJ{"[SEGURIDAD] RULE-SECURITY-001<br/>inyeccion o datos no confiables?"}:::security
+    INJ -->|"si"| SAFE["[SEGURIDAD] Abstencion de seguridad<br/>pedir sintoma real [TESTED]"]:::security
+    INJ -->|"no"| TRI["[SEGURIDAD] MOD-TRIAGE-001<br/>nivel previo [TESTED]"]:::security
 
-    HISTORY["DATA-TURN-001<br/>historial y nivel previo"] --> TRI
-    TRI --> LEVEL{"Nivel determinista"}
-    LEVEL -->|"red"| RED["RULE-RED-001<br/>alerta inmediata; sticky [TESTED]"]
-    LEVEL -->|"yellow"| YELLOW["RULE-YELLOW-001<br/>alerta persistente [TESTED]"]
-    LEVEL -->|"green"| GREEN["Continuar evaluacion<br/>sin alarma detectada [TESTED]"]
-    LEVEL -->|"unknown"| UNKNOWN["RULE-UNKNOWN-001<br/>pedir aclaracion [TESTED]"]
+    HISTORY["[DATOS] DATA-TURN-001<br/>historial y nivel previo"]:::data --> TRI
+    TRI --> LEVEL{"[SEGURIDAD] Nivel determinista"}:::security
+    LEVEL -->|"red"| RED["[SEGURIDAD] RULE-RED-001<br/>alerta inmediata, sticky [TESTED]"]:::security
+    LEVEL -->|"yellow"| YELLOW["[SEGURIDAD] RULE-YELLOW-001<br/>alerta persistente [TESTED]"]:::security
+    LEVEL -->|"green"| GREEN["[SEGURIDAD] Continuar evaluacion<br/>sin alarma detectada [TESTED]"]:::security
+    LEVEL -->|"unknown"| UNKNOWN["[SEGURIDAD] RULE-UNKNOWN-001<br/>pedir aclaracion [TESTED]"]:::security
 
-    RED --> CONTEXT["MOD-RAG-001<br/>contexto activo"]
+    RED --> CONTEXT["[RAG] MOD-RAG-001<br/>contexto activo"]:::rag
     YELLOW --> CONTEXT
     GREEN --> CONTEXT
-    UNKNOWN --> RESPONSE["MOD-RESPONSE-001<br/>aclaracion o seguridad"]
+    UNKNOWN --> RESPONSE["[BOT] MOD-RESPONSE-001<br/>aclaracion o seguridad"]:::bot
     SAFE --> RESPONSE
-    CONTEXT --> SEARCH["status=available<br/>AND enabled=1 [TESTED]"]
-    SEARCH --> EVIDENCE{"Evidencia suficiente?"}
-    EVIDENCE -->|"no"| ABSTAIN["Abstencion explicita<br/>redireccion segura [TESTED]"]
-    EVIDENCE -->|"si"| CITE["Contexto delimitado<br/>documento/pagina/chunk/score [TESTED]"]
-    CITE --> PROVIDER{"Proveedor disponible?"}
-    PROVIDER -->|"si"| LLM["EXT-GROQ-LLM-001<br/>Meta Llama [MANUAL_PENDING real]"]
-    PROVIDER -->|"no"| FALLBACK["MOD-FALLBACK-001<br/>FTS5 extractivo [TESTED]"]
-    LLM --> VALIDATE{"Cita y salida seguras?"}
-    VALIDATE -->|"si"| ANSWER["Respuesta breve en espanol<br/>con cita y decision [TESTED local]"]
+    CONTEXT --> SEARCH["[RAG] status=available<br/>AND enabled=1 [TESTED]"]:::rag
+    SEARCH --> EVIDENCE{"[RAG] Evidencia suficiente?"}:::rag
+    EVIDENCE -->|"no"| ABSTAIN["[BOT] Abstencion explicita<br/>redireccion segura [TESTED]"]:::bot
+    EVIDENCE -->|"si"| CITE["[RAG] Contexto delimitado<br/>documento, pagina, chunk, score [TESTED]"]:::rag
+    CITE --> PROVIDER{"[EXTERNO] Proveedor disponible?"}:::external
+    PROVIDER -->|"si"| LLM["[EXTERNO] EXT-GROQ-LLM-001<br/>Meta Llama [MANUAL_PENDING real]"]:::external
+    PROVIDER -->|"no"| FALLBACK["[BOT] MOD-FALLBACK-001<br/>FTS5 extractivo [TESTED]"]:::bot
+    LLM --> VALIDATE{"[SEGURIDAD] Cita y salida seguras?"}:::security
+    VALIDATE -->|"si"| ANSWER["[BOT] Respuesta breve en espanol<br/>con cita y decision [TESTED local]"]:::bot
     VALIDATE -->|"no"| FALLBACK
-    FALLBACK --> SAFEANSWER["Respuesta grounded<br/>o abstencion [TESTED]"]
+    FALLBACK --> SAFEANSWER["[BOT] Respuesta grounded<br/>o abstencion [TESTED]"]:::bot
     ABSTAIN --> RESPONSE
     ANSWER --> RESPONSE
     SAFEANSWER --> RESPONSE
-    RESPONSE --> PERSIST["MOD-PERSIST-001<br/>turno, fuente, alerta, revision [TESTED]"]
-    PERSIST --> AUDIO["STG-TTS-001<br/>SpeechSynthesis es-CO<br/>[MANUAL_PENDING]"]
+    RESPONSE --> PERSIST["[DATOS] MOD-PERSIST-001<br/>turno, fuente, alerta, revision [TESTED]"]:::data
+    PERSIST --> AUDIO["[BOT] STG-TTS-001<br/>SpeechSynthesis es-CO<br/>[MANUAL_PENDING]"]:::bot
+
+    classDef actor fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A,stroke-width:2px;
+    classDef bot fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95,stroke-width:2px;
+    classDef rag fill:#CCFBF1,stroke:#0F766E,color:#134E4A,stroke-width:2px;
+    classDef data fill:#E2E8F0,stroke:#475569,color:#1E293B,stroke-width:2px;
+    classDef external fill:#FFEDD5,stroke:#C2410C,color:#7C2D12,stroke-width:2px,stroke-dasharray:5 5;
+    classDef security fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D,stroke-width:2px;
 ```
 
 Reglas que no puede cambiar el proveedor:
@@ -585,17 +675,17 @@ Reglas que no puede cambiar el proveedor:
 ```mermaid
 stateDiagram-v2
     [*] --> IDLE
-    state "STATE-VOICE-IDLE-001\nListo [IMPLEMENTED]" as IDLE
-    state "STATE-VOICE-PERMISSION-001\nPermiso [IMPLEMENTED]" as PERMISSION
-    state "STATE-VOICE-LISTENING-001\nEscucha + timer total [IMPLEMENTED; browser MANUAL_PENDING]" as LISTENING
-    state "STATE-VOICE-PARTIAL-001\nBorrador no clinico [IMPLEMENTED; browser MANUAL_PENDING]" as PARTIAL
-    state "STATE-VOICE-PROCESSING-001\nTranscript final [TESTED]" as PROCESSING
-    state "STATE-VOICE-NO-RESPONSE-001\nTermino sin final [TESTED API]" as NO_RESPONSE
-    state "STATE-VOICE-TIMEOUT-001\nTimeout sin turno [TESTED API]" as TIMEOUT
-    state "STATE-VOICE-ERROR-001\nError visible [TESTED API]" as ERROR
-    state "STATE-VOICE-RETRY-001\nReintentar o texto [IMPLEMENTED; browser MANUAL_PENDING]" as RETRY
-    state "STATE-VOICE-TEXT-001\nFallback textual [IMPLEMENTED; browser MANUAL_PENDING]" as TEXT
-    state "STATE-VOICE-SPEAK-001\nSpeechSynthesis [IMPLEMENTED; MANUAL_PENDING]" as SPEAK
+    state "[USUARIO] Listo, STATE-VOICE-IDLE-001 [IMPLEMENTED]" as IDLE
+    state "[USUARIO] Permiso, STATE-VOICE-PERMISSION-001 [IMPLEMENTED]" as PERMISSION
+    state "[USUARIO] Escucha + timer total, STATE-VOICE-LISTENING-001 [IMPLEMENTED, browser MANUAL_PENDING]" as LISTENING
+    state "[USUARIO] Borrador no clinico, STATE-VOICE-PARTIAL-001 [IMPLEMENTED, browser MANUAL_PENDING]" as PARTIAL
+    state "[BOT] Transcript final, STATE-VOICE-PROCESSING-001 [TESTED]" as PROCESSING
+    state "[USUARIO] Termino sin final, STATE-VOICE-NO-RESPONSE-001 [TESTED API]" as NO_RESPONSE
+    state "[USUARIO] Timeout sin turno, STATE-VOICE-TIMEOUT-001 [TESTED API]" as TIMEOUT
+    state "[USUARIO] Error visible, STATE-VOICE-ERROR-001 [TESTED API]" as ERROR
+    state "[USUARIO] Reintentar o texto, STATE-VOICE-RETRY-001 [IMPLEMENTED, browser MANUAL_PENDING]" as RETRY
+    state "[USUARIO] Fallback textual, STATE-VOICE-TEXT-001 [IMPLEMENTED, browser MANUAL_PENDING]" as TEXT
+    state "[BOT] SpeechSynthesis, STATE-VOICE-SPEAK-001 [IMPLEMENTED, MANUAL_PENDING]" as SPEAK
 
     IDLE --> PERMISSION: click Hablar
     PERMISSION --> LISTENING: onstart, T=PATIENT_LISTEN_TIMEOUT_MS
@@ -618,6 +708,12 @@ stateDiagram-v2
     RETRY --> IDLE: reintentar o cancelar
     TEXT --> PROCESSING: POST /turns
     SPEAK --> IDLE: audio terminado
+
+    classDef userVoice fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A;
+    classDef botVoice fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95;
+    classDef pendingVoice fill:#FEF3C7,stroke:#B45309,color:#78350F;
+    class IDLE,PERMISSION,LISTENING,PARTIAL,NO_RESPONSE,TIMEOUT,ERROR,RETRY,TEXT userVoice;
+    class PROCESSING,SPEAK botVoice;
 ```
 
 Los eventos de escucha van a `POST /api/calls/{id}/voice-events` y se escriben en JSONL sin
@@ -629,25 +725,33 @@ audio ni texto clinico completo. `client_turn_id` es la clave de idempotencia po
 
 ```mermaid
 flowchart LR
-    DOC["MOD-DOCUMENT-001<br/>upload/preview/toggle/delete [TESTED]"] --> AUDIT["DATA-AUDIT-001<br/>acciones y revision [TESTED]"]
-    CALL["MOD-CALL-001<br/>turno y cierre [TESTED]"] --> TURN["DATA-TURN-001<br/>texto, decision, sources"]
-    RAG["MOD-RAG-001<br/>resultado recuperado [TESTED]"] --> SOURCE["DATA-SOURCE-001<br/>documento/pagina/chunk/cita/snapshot"]
-    VOICE["MOD-VOICE-BROWSER-001<br/>listen_id, IDs y estados"] --> VOICE_API["API-CALL-VOICE-EVENT-001<br/>POST voice-events [TESTED]"]
-    VOICE_API --> EVENT["DATA-EVENTS-001<br/>events.jsonl [TESTED]"]
+    DOC["[ADMIN] MOD-DOCUMENT-001<br/>upload/preview/toggle/delete [TESTED]"]:::admin --> AUDIT["[DATOS] DATA-AUDIT-001<br/>acciones y revision [TESTED]"]:::data
+    CALL["[BOT] MOD-CALL-001<br/>turno y cierre [TESTED]"]:::bot --> TURN["[DATOS] DATA-TURN-001<br/>texto, decision, sources"]:::data
+    RAG["[RAG] MOD-RAG-001<br/>resultado recuperado [TESTED]"]:::rag --> SOURCE["[DATOS] DATA-SOURCE-001<br/>documento, pagina, chunk, cita, snapshot"]:::data
+    VOICE["[USUARIO] MOD-VOICE-BROWSER-001<br/>listen_id, IDs y estados"]:::actor --> VOICE_API["[BOT] API-CALL-VOICE-EVENT-001<br/>POST voice-events [TESTED]"]:::bot
+    VOICE_API --> EVENT["[METRICAS] DATA-EVENTS-001<br/>events.jsonl [TESTED]"]:::metrics
     TURN --> EVENT
     AUDIT --> EVENT
     SOURCE --> EVENT
-    EVENT --> AGG["MOD-METRICS-001<br/>agregar sin inventar [TESTED]"]
-    API["API-METRICS-001<br/>GET /api/metrics"] --> AGG
+    EVENT --> AGG["[METRICAS] MOD-METRICS-001<br/>agregar sin inventar [TESTED]"]:::metrics
+    API["[METRICAS] API-METRICS-001<br/>GET /api/metrics"]:::metrics -->|"solicita agregados"| AGG
     AGG -->|"respuesta agregada"| API
-    AGG --> REPORT["readme/04_metricas_y_evidencia.md<br/>docs/informe-final.md"]
+    AGG --> REPORT["[METRICAS] readme/04_metricas_y_evidencia.md<br/>docs/informe-final.md"]:::metrics
 
-    LAT["MET-VOICE-LATENCY-001<br/>speech_ended -> audio_started [TESTED]"] --> AGG
-    TOK["MET-TOKENS-001<br/>input/output por turno/llamada [TESTED local]"] --> AGG
-    MC["MET-MODEL-CALLS-001<br/>invocaciones [TESTED local]"] --> AGG
-    RQ["MET-RAG-QUERIES-001<br/>consultas y fuentes [TESTED local]"] --> AGG
-    TO["MET-VOICE-TIMEOUT-001<br/>estado y duracion [TESTED API]"] --> AGG
-    COST["MET-COST-001<br/>precios vivos [PROPOSED]"] --> AGG
+    LAT["[METRICAS] MET-VOICE-LATENCY-001<br/>speech_ended -> audio_started [TESTED]"]:::metrics --> AGG
+    TOK["[METRICAS] MET-TOKENS-001<br/>input/output por turno/llamada [TESTED local]"]:::metrics --> AGG
+    MC["[METRICAS] MET-MODEL-CALLS-001<br/>invocaciones [TESTED local]"]:::metrics --> AGG
+    RQ["[RAG] MET-RAG-QUERIES-001<br/>consultas y fuentes [TESTED local]"]:::rag --> AGG
+    TO["[USUARIO] MET-VOICE-TIMEOUT-001<br/>estado y duracion [TESTED API]"]:::actor --> AGG
+    COST["[METRICAS] MET-COST-001<br/>precios vivos [PROPOSED]"]:::future -.-> AGG
+
+    classDef actor fill:#DBEAFE,stroke:#1D4ED8,color:#1E3A8A,stroke-width:2px;
+    classDef admin fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:2px;
+    classDef bot fill:#EDE9FE,stroke:#6D28D9,color:#4C1D95,stroke-width:2px;
+    classDef rag fill:#CCFBF1,stroke:#0F766E,color:#134E4A,stroke-width:2px;
+    classDef data fill:#E2E8F0,stroke:#475569,color:#1E293B,stroke-width:2px;
+    classDef metrics fill:#DCFCE7,stroke:#15803D,color:#14532D,stroke-width:2px;
+    classDef future fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95,stroke-width:2px,stroke-dasharray:5 5;
 ```
 
 El evento de turno conserva `call_id`, `turn_id`, `speech_ended_at`, `audio_started_at`,
@@ -684,6 +788,16 @@ el estado; las capacidades de navegador o proveedor conservan su pendiente manua
 | `MOD-TTS-BROWSER-001` | texto | audio `es-CO` | `app/web/app.js` | `node --check app/web/app.js`; smoke audio pendiente | IMPLEMENTED; MANUAL_PENDING |
 | `MOD-METRICS-001` | turnos, timing y eventos | JSONL y agregados | `app/services/metrics.py`, `GET /api/metrics` | `tests/test_metrics.py`, `tests/test_api.py` | TESTED |
 | `MOD-BOOTSTRAP-001` | dataset local | corpus inicial e idempotencia | `app/bootstrap.py`, `scripts/bootstrap.py`, `scripts/validate_dataset.py` | `python -m scripts.validate_dataset`, `python -m app.bootstrap --data-dir <temp>`, `tests/test_bootstrap.py` | TESTED |
+
+### Reglas de seguridad dibujadas
+
+| ID | Contrato | Ruta de codigo | Verificacion | Estado |
+|---|---|---|---|---|
+| `RULE-SECURITY-001` | paciente, preview y corpus son datos no ejecutables | `app/services/agent.py`, `app/web/app.js` | `tests/test_agent.py`, `tests/test_admin_lifecycle.py` | TESTED |
+| `RULE-RED-001` | alerta roja escala y nunca baja de nivel | `app/services/triage.py`, `app/services/calls.py` | `tests/test_triage.py`, `tests/test_calls.py` | TESTED |
+| `RULE-YELLOW-001` | alerta amarilla persiste y exige contacto oportuno | `app/services/triage.py`, `app/services/calls.py` | `tests/test_triage.py`, `tests/test_calls.py` | TESTED |
+| `RULE-UNKNOWN-001` | ambiguedad pide aclaracion y no se convierte en verde | `app/services/triage.py` | `tests/test_triage.py` | TESTED |
+| `RULE-RAG-ELIGIBLE-001` | solo `available + enabled=1` entra al RAG | `app/services/rag.py` | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py` | TESTED |
 
 ### Nodos de datos, UI y observabilidad
 
@@ -724,6 +838,7 @@ el estado; las capacidades de navegador o proveedor conservan su pendiente manua
 | `API-ADMIN-LIST-001` | `GET /api/admin/documents` | inventario y badges | `tests/test_api.py`, `tests/test_admin_lifecycle.py` | TESTED |
 | `API-ADMIN-UPLOAD-001` | `POST /api/admin/documents` | ingesta sincronica | `tests/test_api.py`, `tests/test_admin_lifecycle.py` | TESTED |
 | `API-ADMIN-PREVIEW-001` | `GET /api/admin/documents/{id}/preview` | preview textual acotada | `tests/test_admin_lifecycle.py` | TESTED |
+| `API-ADMIN-SOURCE-001` | `GET /api/admin/documents/{id}/source` | archivo original para modal; propuesta | pruebas binarias, MIME y path futuras | PROPOSED |
 | `API-ADMIN-TOGGLE-001` | `PATCH /api/admin/documents/{id}` | enable/disable sin reingesta | `tests/test_admin_lifecycle.py` | TESTED |
 | `API-ADMIN-DELETE-001` | `DELETE /api/admin/documents/{id}` | borrar y olvidar | `tests/test_api.py`, `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED local; G5 MANUAL_PENDING |
 | `API-CALL-PAGE-001` | `GET /call` | llamada | ruta en `app/main.py`; smoke UI pendiente | IMPLEMENTED |
@@ -748,6 +863,8 @@ real.
 | `TRZ-SURFACES-001` | `/admin` y `/call` accesibles | D1, D2 | 00 | `GET /admin`, `GET /call` | rutas en `app/main.py`; smoke de browser pendiente | IMPLEMENTED |
 | `TRZ-STRUCTURE-001` | fases bajo `mvp/crisp-dm/` y entregables bajo `mvp/deliverables/` | D1 | 03 | indices y manifiestos | comprobacion Python de rutas y copias prohibidas | TESTED |
 | `TRZ-ADMIN-PREVIEW-001` | texto extraido visible, acotado y literal | D3, D4 | 04 | `DocumentService.preview`, `GET .../preview`, `textContent` | `tests/test_admin_lifecycle.py` | TESTED |
+| `TRZ-ADMIN-UX-001` | inventario ocupa el ancho disponible, no necesita scroll horizontal y no muestra SHA | D1, D3 | 08 | `app/web/admin.html`, `app/web/styles.css`, `app/web/app.js` | smoke responsive y DOM sin SHA; futuro | PROPOSED |
+| `TRZ-ADMIN-SOURCE-001` | archivo original se distingue del texto extraido en modal segura | D3 | 09 | `API-ADMIN-SOURCE-001`, `app/web/admin.html` | pruebas binarias y smoke modal; futuro | PROPOSED |
 | `TRZ-ADMIN-TOGGLE-001` | disable excluye RAG y enable recupera sin reingesta | D3, D4 | 04 | `enabled`, `rag_eligible`, `PATCH`, revision | `tests/test_admin_lifecycle.py` | TESTED |
 | `TRZ-ADMIN-DELETE-001` | delete limpia conocimiento futuro y conserva snapshot | D3, D4, D6 | 00, 04, G5 | `DocumentService.delete`, `sources` | `tests/test_live_knowledge.py`, `tests/test_admin_lifecycle.py` | TESTED local; G5 externo MANUAL_PENDING |
 | `TRZ-RAG-ACTIVE-001` | RAG usa solo `available + enabled` | D1, D3, D4 | 04 | `RagService.search` SQL con ambos filtros | `tests/test_admin_lifecycle.py`, `tests/test_live_knowledge.py` | TESTED |
@@ -781,6 +898,8 @@ real.
 | `GATE-G4-001` | voz en tiempo real | MANUAL_PENDING | falta microfono, transcripcion, TTS y audio observados |
 | `GATE-G5-001` | conocimiento vivo externo | MANUAL_PENDING | upload/disable/enable/delete locales pasan; falta documento externo |
 | `FUT-OCR-001` | OCR automatico | PROPOSED | hoy `needs_ocr` se informa, no se ejecuta OCR |
+| `FUT-ADMIN-UX-001` | inventario responsive sin SHA visible | PROPOSED | definido en Spec 08; requiere smoke visual |
+| `FUT-ADMIN-SOURCE-001` | archivo original en modal | PROPOSED | definido en Spec 09; requiere endpoint binario y pruebas MIME |
 | `FUT-COST-001` | precios vivos y costo real | PROPOSED | no hay precios fechados ni log Groq real |
 | `FUT-VIDEO-001` | video de entrega | PROPOSED | solo existe manifiesto en `mvp/deliverables/04_video/` |
 | `FUT-AUTH-001` | autenticacion/CSRF/multiusuario | OUT_OF_SCOPE | admin local sin autenticacion en este MVP |
@@ -821,6 +940,8 @@ escribible usado en la ejecucion real.
 | `python -m pytest -q --basetemp <temp>` | `96 passed` |
 | `ruff check .` | `All checks passed` |
 | `node --check app/web/app.js` | sin salida; codigo JavaScript valido |
+| `node <temp>/mermaid-cli-check/node_modules/@mermaid-js/mermaid-cli/src/cli.js -i specs/06_system_flow_diagram_specification.md -o <temp>/mermaid-renders/spec06.md -q` | renderizo los 8 bloques Mermaid sin errores |
+| `node <temp>/mermaid-cli-check/node_modules/@mermaid-js/mermaid-cli/src/cli.js -i docs/arquitectura.md -o <temp>/mermaid-renders/architecture.md -q` | renderizo los 3 bloques Mermaid sin errores |
 | `python -m scripts.validate_dataset` | valido; filas `3991/40/40/160` |
 | `python -m app.bootstrap --data-dir <temp>` | `104` documentos; `103 available`, `1 needs_ocr` |
 | comprobacion Python de rutas y copias prohibidas | ejecutada como preflight documental |
@@ -829,6 +950,10 @@ escribible usado en la ejecucion real.
 
 No se ejecutaron navegador, microfono, audio real, Groq/Whisper con credencial, cronometraje G2
 ni demo G5 externa. Esas salidas permanecen `MANUAL_PENDING`/`PENDIENTE`.
+
+Mermaid CLI se uso solo como validador documental temporal; no se agrega como dependencia del
+runtime ni se descarga durante el setup de 15 minutos. La version usada para esta sincronizacion
+fue `@mermaid-js/mermaid-cli@11.12.0`, compatible con el contrato visual de esta spec.
 
 ## Criterios de exito
 
@@ -847,6 +972,17 @@ ni demo G5 externa. Esas salidas permanecen `MANUAL_PENDING`/`PENDIENTE`.
 - **DGM-AC-10:** la regla de sincronizacion obliga a revisar esta vista tras cambios en 03/04/05.
 - **DGM-AC-11:** solo capacidades realmente futuras quedan `PROPOSED`; G2, G4, G5 externo y
   proveedor real no se aprueban por pruebas locales.
+- **DGM-AC-12:** los ocho bloques Mermaid de esta spec y los tres publicados en
+  `docs/arquitectura.md` pasan el parser de la version fijada; ningun mensaje de secuencia usa
+  `;` como separador.
+- **DGM-AC-13:** todos los aliases Mermaid cumplen el patron seguro, los IDs canonicos son
+  consistentes y `RULE-*`, `API-ADMIN-SOURCE-001` y `TRZ-ADMIN-*` tienen trazabilidad.
+- **DGM-AC-14:** usuario, admin, bot, RAG, datos, externos, seguridad y metricas se distinguen por
+  color y etiqueta textual; los estados de evidencia usan borde/palabra y no solo color.
+- **DGM-AC-15:** cada diagrama tiene leyenda, descripcion textual equivalente y formas coherentes;
+  el diagrama sigue siendo legible en escala de grises y con zoom.
+- **DGM-AC-16:** rojo y amarillo atraviesan evidencia y abstencion cuando no existe fuente actual;
+  el corpus apunta a ingestion y no se reutilizan snapshots eliminados.
 
 ## Vistas derivadas
 
