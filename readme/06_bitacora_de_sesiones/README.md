@@ -25,6 +25,7 @@ Esta carpeta conserva una entrada por sesión de trabajo. Cada entrada debe regi
 - [2026-08-09 | Specs de portal demo, UX de llamada y VAD](2026-08-09_specs_portal_demo_call_vad.md)
 - [2026-08-09 | Orquestacion paralela de specs y cierre integrador](2026-08-09_orquestacion_specs_paralelo.md)
 - [2026-08-09 | Especificacion de logging propio y trazabilidad](2026-08-09_spec_23_custom_logging.md)
+- [2026-08-09 | Specs 23/24 de logging y testing fail-detect](2026-08-09_specs_logging_testing.md)
 
 ## Regla de integracion
 

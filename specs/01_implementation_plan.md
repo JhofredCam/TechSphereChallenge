@@ -10,6 +10,10 @@
 6. Integrar LangSmith redacted, metricas por nodo, health seguro y eventos locales.
 7. Implementar promotion, canary, rollback, backup y prueba de reinicio.
 8. Mantener triaje, llamadas, admin, voz, README, diagrama e informe sincronizados.
+9. Definir e instrumentar el logger propio con correlacion, redaccion y JSONL local sin
+   reemplazar `events.jsonl` ni la autoridad de SQLite.
+10. Ejecutar la bateria fail-detect unitaria e integracion y cerrar la evidencia automatizada
+    antes de la evidencia manual de G2/G4/G5.
 
 ## Extensiones planificadas por dependencia
 
@@ -31,6 +35,10 @@ Antes de implementar cambios nuevos, se deben revisar las specs en este orden:
 10. `specs/17_rag_observability_langsmith_specification.md`: spans, redaction y SLOs.
 11. `specs/18_rag_production_operations_specification.md`: rollout, rollback y backup.
 12. `specs/19_rag_production_migration_specification.md`: contrato integrador antes del codigo.
+13. `specs/23_custom_logging_system.md`: logger central y eventos seguros antes de pruebas de
+    trazabilidad.
+14. `specs/24_testing_suite.md`: validacion fail-detect despues de estabilizar el contrato de
+    logging e instrumentacion.
 
 La cuarta spec es un checkpoint de arquitectura: no se debe comenzar la implementacion de una
 extension si el diagrama no muestra su bloque, transiciones, estado y verificacion. La quinta
@@ -53,15 +61,21 @@ spec debe revisarse antes de implementar cada contrato para evitar pruebas desco
 | Escucha paciente | navegador | no existe timer propio en el baseline | variable de entorno, estados y fallback textual |
 | LangChain | contratos RAG | cadena opaca u overhead | runnables visibles, timeouts y DTO estable |
 | LangSmith | callback opcional | fuga PII o dependencia de red | redaction, sample rate y fail-open |
+| Logger propio | instrumentacion transversal | ruido, PII o sink bloqueante | schema, redaction, JSONL separado y fail-open |
+| Suite fail-detect | servicios y contratos | mocks que ocultan regresiones | oraculos de estado, persistencia y eventos |
 | Rollout | indice versionado | regresion o rollback tardio | shadow, canary, puntero y FTS5 |
 
 ## Paralelismo
 
 - Configuracion, qrels/benchmark, redaction de observabilidad y loaders pueden avanzar en
   paralelo despues de fijar interfaces.
+- El contrato del logger propio puede avanzar aislado de la suite; su instrumentacion se
+  integra despues de estabilizar los nombres de eventos y antes de cerrar los tests.
 - Chroma y base de datos deben coordinar IDs, revision, estado de indice y orden de delete.
 - LangChain/prompt y operaciones pueden avanzar en paralelo despues de estabilizar `SearchResult`.
-- README, diagrama e informe se cierran despues del benchmark, rollback y comandos reales.
+- La suite fail-detect se ejecuta secuencialmente despues del logger y puede distribuir sus
+  fixtures por area sin editar simultaneamente el mismo contrato.
+- README, diagrama, informe y bitacora se cierran despues de pruebas, rollback y comandos reales.
 
 ## Checkpoints
 
@@ -80,3 +94,7 @@ spec debe revisarse antes de implementar cada contrato para evitar pruebas desco
    publicado.
 12. Las pruebas unitarias y de integracion deben aislar proveedores, datos y estado generado antes
    de servir como evidencia de los gates.
+13. El logger propio debe demostrar stack traces redacted, correlacion de llamada/turno/VAD/RAG
+   y fail-open antes de habilitar la suite de integracion.
+14. La suite fail-detect debe dejar P0/P1 en rojo ante regresiones de triaje, citas, delete,
+   timeout, render seguro o fuga de secretos.

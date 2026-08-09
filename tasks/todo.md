@@ -132,3 +132,43 @@ una capacidad ya implementada en el checkout.
   - Aceptacion: cada gate tiene artefacto fechado y estado `TESTED`, `MANUAL_PENDING` o `FAILED`; no se inventan P50/P95/costo.
   - Verificar: `python -m pytest -q --basetemp <temp>/final`, smoke G4 y G5 externo.
   - Archivos: `readme/04_metricas_y_evidencia.md`, `mvp/deliverables/03_final_report/README.md`, `docs/informe-final.md`.
+
+## Logging propio y trazabilidad
+
+- [ ] **LOG-T01 Contrato y configuracion del logger**
+  - Aceptacion: `AppLogger` implementa niveles `DEBUG/INFO/WARN/ERROR`, contexto, JSONL,
+    consola opcional, rotacion y variables `APP_LOG_*` validadas.
+  - Verificar: `python -m pytest tests/test_logger.py -q --basetemp <temp>/logger`.
+  - Archivos: `app/services/logger.py`, `app/config.py`, `.env.example`, `tests/test_logger.py`.
+
+- [ ] **LOG-T02 Redaccion y errores fail-open**
+  - Aceptacion: stack traces completos redacted, secretos/PII/audio/transcript fuera del log,
+    exporter/sink fallido no bloquea la persistencia clinica y deja `observability_degraded`.
+  - Verificar: `python -m pytest tests/test_logger.py tests/test_observability_contracts.py -q --basetemp <temp>/logging`.
+  - Archivos: `app/services/logger.py`, `app/services/observability.py`, `tests/`.
+
+- [ ] **LOG-T03 Instrumentacion end-to-end**
+  - Aceptacion: startup, API, admin, llamadas, estados VAD/audio, RAG, agente, ingestion y
+    excepciones comparten correlacion sin duplicar `events.jsonl`.
+  - Verificar: integracion HTTP y conciliacion de `data/app.log.jsonl`/`data/events.jsonl`.
+  - Archivos: `app/main.py`, `app/bootstrap.py`, `app/services/`, `tests/`.
+
+## Suite fail-detect
+
+- [ ] **TEST-T01 Unitarias deterministas**
+  - Aceptacion: logger, transformadores, ingestion, triaje, VAD, RAG, metricas y render
+    contracts fallan ante regresiones de redaccion, cita, timeout o DOM seguro.
+  - Verificar: `python -m pytest tests/test_logger.py tests/test_vad.py tests/test_metrics.py tests/test_rendering_contracts.py -q --basetemp <temp>/unit`.
+  - Archivos: `tests/test_logger.py`, `tests/test_vad.py`, `tests/test_metrics.py`, `tests/test_rendering_contracts.py`.
+
+- [ ] **TEST-T02 Integracion de llamada, audio, admin y RAG**
+  - Aceptacion: `TestClient` con SQLite/FTS5 real prueba llamada, triaje sticky, resumen,
+    eventos VAD, timeout/idempotencia, upload/disable/enable/delete y aprender/olvidar.
+  - Verificar: `python -m pytest tests/test_call_flow_integration.py tests/test_audio_vad_integration.py tests/test_data_flow_integration.py tests/test_live_knowledge.py -q --basetemp <temp>/integration`.
+  - Archivos: `tests/test_call_flow_integration.py`, `tests/test_audio_vad_integration.py`, `tests/test_data_flow_integration.py`, `tests/`.
+
+- [ ] **TEST-T03 Suite completa y frontera manual**
+  - Aceptacion: suite completa, coverage por ramas >=80%, Ruff y Node check pasan; G2/G4/G5
+    quedan clasificados honestamente como automatizados o `MANUAL_PENDING`.
+  - Verificar: `python -m pytest -q --basetemp <temp>/full --cov=app --cov=scripts --cov-branch --cov-fail-under=80`, `ruff check app scripts tests` y `node --check app/web/app.js app/web/voice-loop.js`.
+  - Archivos: `pyproject.toml`, `tests/`, `readme/04_metricas_y_evidencia.md`, `docs/informe-final.md`, `readme/06_bitacora_de_sesiones/`.

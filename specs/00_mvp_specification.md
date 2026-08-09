@@ -64,11 +64,16 @@ implementados:
     rollback, backup y seguridad de despliegue.
 13. [Migracion integradora](19_rag_production_migration_specification.md): contrato final del
     upgrade y sucesor de la antigua Spec 12.
+14. [Logging propio y trazabilidad](23_custom_logging_system.md): contrato de eventos,
+    redaccion, correlacion y sinks locales para diagnostico end-to-end.
+15. [Suite fail-detect](24_testing_suite.md): pruebas unitarias e integracion para llamadas,
+    audio/VAD, render, datos, RAG y logging.
 
 El orden obligatorio del baseline es estructura, admin, timeout y finalmente diagrama. Para la
 migracion, el orden es configuracion, vector store, benchmark, orquestacion, observabilidad,
-operacion y luego actualizacion del diagrama/pruebas. Un cambio en estado, contrato, indice o
-metrica obliga a revisar `specs/06` y `specs/07` antes de escribir codigo.
+operacion, logging propio y luego la bateria fail-detect. Un cambio en estado, contrato, indice,
+log o metrica obliga a revisar `specs/06`, `specs/07`, `specs/23` y `specs/24` antes de escribir
+codigo.
 
 ## Stack y modelo
 
@@ -124,6 +129,7 @@ app/
     rag_chain.py            Runnables LangChain visibles y acotados.
     prompts.py              Prompt versionado y contrato de salida.
     observability.py        Spans, redaccion y LangSmith opcional.
+    logger.py               Logging propio por niveles, contexto, redaccion y JSONL local.
     index_manager.py        Build, reconciliacion, promotion y rollback.
     agent.py                Respuesta fundamentada y adaptador LLM.
     triage.py               Reglas conservadoras y no degradacion de nivel.
