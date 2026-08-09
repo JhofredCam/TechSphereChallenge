@@ -6,12 +6,13 @@
     <meta name="description" content="Interfaz browser de seguimiento postoperatorio por voz.">
     <title>Llamada | Seguimiento por voz</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/session.js" defer></script>
     <script src="/static/messages.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body data-page="call">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="Ir a la llamada">
+      <a class="brand" href="/" aria-label="Volver al inicio">
         <span class="brand-mark" aria-hidden="true">+</span>
         <span>Voz postoperatoria</span>
       </a>
@@ -26,7 +27,7 @@
         <div>
           <p class="eyebrow">Seguimiento por navegador · es-CO</p>
           <h1>Una escucha cuidadosa, un turno a la vez.</h1>
-          <p class="lede">Inicia una llamada, habla con el micrófono o usa el texto. El agente responde desde la información disponible y muestra la señal que guía la seguridad.</p>
+          <p class="lede">Habla con el micrófono o usa el texto. El agente responde desde la información disponible y muestra la señal que guía la seguridad.</p>
         </div>
         <div class="hero-note">
           <span class="hero-note-number">01</span>
@@ -34,33 +35,20 @@
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="start-title">
+      <section class="panel session-panel" aria-labelledby="start-title">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow">Contexto minimo</p>
-            <h2 id="start-title">Abrir llamada</h2>
+            <p class="eyebrow">Contexto de esta pestaña</p>
+            <h2 id="start-title">Tu seguimiento está listo</h2>
           </div>
           <span class="live-chip"><span class="live-dot" aria-hidden="true"></span>Local</span>
         </div>
-        <form id="call-form" class="call-form">
-          <label>
-            <span>Nombre del paciente</span>
-            <input id="patient-name" name="name" type="text" maxlength="200" autocomplete="name" placeholder="Ej. Ana Maria" required>
-          </label>
-          <label>
-            <span>ID del paciente <small>(opcional)</small></span>
-            <input id="patient-id" name="patient_id" type="text" maxlength="200" autocomplete="off" placeholder="Ej. pac-001">
-          </label>
-          <label>
-            <span>Procedimiento</span>
-            <input id="procedure" name="procedure" type="text" maxlength="200" value="seguimiento postoperatorio" required>
-          </label>
-          <label>
-            <span>Dia postoperatorio <small>(opcional)</small></span>
-            <input id="day-postop" name="day_postop" type="number" min="0" max="3650" placeholder="3">
-          </label>
-          <button class="button button-primary" id="start-call" type="submit">Iniciar llamada</button>
-        </form>
+        <div id="patient-context" class="session-context" aria-live="polite"></div>
+        <div class="session-actions">
+          <button class="button button-primary" id="start-call" type="button">Iniciar llamada <span aria-hidden="true">→</span></button>
+          <a class="button button-quiet" href="/patient">Cambiar contexto</a>
+        </div>
+        <p class="access-footnote">Acceso de demostración: no uses datos reales. La clave no se conserva.</p>
         <p id="call-status" class="form-status" role="status" aria-live="polite"></p>
       </section>
 

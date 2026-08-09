@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Seguimiento postoperatorio por voz para pacientes colombianos.">
+    <title>Voz postoperatoria | Demo</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body data-page="landing">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Inicio">
+        <span class="brand-mark" aria-hidden="true">+</span>
+        <span>Voz postoperatoria</span>
+      </a>
+      <nav class="nav-links" aria-label="Navegación principal">
+        <a href="/patient">Paciente</a>
+        <a href="/admin/access">Admin</a>
+      </nav>
+    </header>
+
+    <main class="page-shell landing-shell">
+      <section class="landing-hero">
+        <div class="landing-copy">
+          <p class="eyebrow">Demo local · seguimiento por voz · es-CO</p>
+          <h1>Después de la cirugía, también importa cómo te sientes.</h1>
+          <p class="lede">Una conversación clara para revisar síntomas, consultar protocolos disponibles y dejar un resumen trazable para tu equipo de cuidado.</p>
+          <p class="demo-disclaimer"><strong>Acceso de demostración:</strong> no uses datos reales ni tomes decisiones clínicas con esta interfaz.</p>
+        </div>
+        <div class="route-card" aria-label="Recorrido de la demo">
+          <div class="route-line" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="eyebrow">Un recorrido breve</p>
+          <ol class="route-steps">
+            <li><strong>Contexto</strong><span>Define el seguimiento.</span></li>
+            <li><strong>Escucha</strong><span>Habla o escribe.</span></li>
+            <li><strong>Rastro</strong><span>Revisa fuentes y cierre.</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="entry-grid" aria-labelledby="entry-title">
+        <div class="section-intro">
+          <p class="eyebrow">Elige tu recorrido</p>
+          <h2 id="entry-title">Dos puertas, una misma señal de cuidado.</h2>
+        </div>
+        <a class="entry-card entry-card-patient" href="/patient">
+          <span class="entry-index">01 / Paciente</span>
+          <h2>Quiero contar cómo voy</h2>
+          <p>Abre un contexto de seguimiento y conversa con el agente por micrófono o texto.</p>
+          <span class="entry-action">Entrar como paciente <span aria-hidden="true">→</span></span>
+        </a>
+        <a class="entry-card entry-card-admin" href="/admin/access">
+          <span class="entry-index">02 / Admin</span>
+          <h2>Quiero revisar el conocimiento</h2>
+          <p>Carga, consulta y elimina las fuentes que hacen trazables las respuestas.</p>
+          <span class="entry-action">Entrar al conocimiento <span aria-hidden="true">→</span></span>
+        </a>
+      </section>
+    </main>
+
+    <footer class="site-footer">Datos sintéticos del reto. Demo sin autenticación real.</footer>
+  </body>
+</html>

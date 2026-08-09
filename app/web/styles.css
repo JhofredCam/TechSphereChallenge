@@ -87,6 +87,79 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: .55; }
 
 .page-shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 64px 0 72px; }
 
+.landing-shell, .access-shell { padding-top: 74px; }
+
+.landing-hero, .access-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+  gap: 56px;
+  align-items: end;
+  margin-bottom: 74px;
+}
+
+.landing-copy h1, .access-intro h1 { max-width: 760px; }
+
+.demo-disclaimer {
+  max-width: 620px;
+  margin-top: 25px;
+  padding: 13px 15px;
+  border-left: 3px solid var(--coral);
+  color: #735448;
+  background: rgba(216, 108, 78, .08);
+  font-size: .78rem;
+  line-height: 1.5;
+}
+
+.route-card {
+  position: relative;
+  padding: 22px 23px 24px;
+  border: 1px solid rgba(13, 113, 108, .24);
+  border-radius: 18px;
+  background: rgba(13, 113, 108, .06);
+}
+
+.route-line { display: flex; align-items: center; gap: 7px; margin-bottom: 25px; }
+.route-line::before { flex: 1; height: 1px; content: ""; background: rgba(13, 113, 108, .3); }
+.route-line span { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); }
+.route-line span:last-child { background: var(--coral); }
+.route-steps { display: grid; gap: 15px; margin: 0; padding: 0; list-style: none; counter-reset: route; }
+.route-steps li { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; counter-increment: route; }
+.route-steps li::before { grid-row: span 2; color: var(--teal); content: counter(route, decimal-leading-zero); font-size: .72rem; font-weight: 850; }
+.route-steps strong { grid-column: 2; font-size: .84rem; }
+.route-steps span { grid-column: 2; color: var(--muted); font-size: .73rem; }
+
+.entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.section-intro { grid-column: 1 / -1; margin-bottom: 3px; }
+.section-intro h2 { max-width: 480px; font-size: clamp(1.5rem, 3vw, 2.15rem); }
+.entry-card { min-height: 270px; display: flex; flex-direction: column; padding: 27px; border: 1px solid var(--line); border-radius: 18px; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.entry-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
+.entry-card-patient { background: var(--teal); border-color: var(--teal); color: white; }
+.entry-card-admin { background: var(--surface); }
+.entry-index { margin-bottom: 42px; color: var(--coral); font-size: .68rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.entry-card-patient .entry-index { color: #9be0d8; }
+.entry-card h2 { margin-bottom: 12px; font-size: clamp(1.35rem, 3vw, 2rem); }
+.entry-card p { max-width: 390px; margin-bottom: 25px; color: var(--muted); font-size: .84rem; line-height: 1.55; }
+.entry-card-patient p { color: rgba(255, 255, 255, .78); }
+.entry-action { margin-top: auto; font-size: .78rem; font-weight: 850; }
+.entry-action span { margin-left: 5px; font-size: 1rem; }
+
+.access-layout { align-items: start; margin-bottom: 0; }
+.access-intro { padding-top: 22px; }
+.access-panel { max-width: 540px; width: 100%; justify-self: end; }
+.access-form { display: grid; gap: 15px; }
+.access-form label > span { display: block; margin-bottom: 7px; color: var(--muted); font-size: .71rem; font-weight: 800; }
+.access-form label small { font-weight: 500; }
+.access-form input, .access-form select { width: 100%; min-height: 45px; padding: 0 12px; border: 1px solid #d8d5cc; border-radius: 9px; color: var(--ink); background: #fff; font-size: .82rem; }
+.access-form select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--teal) 50%), linear-gradient(135deg, var(--teal) 50%, transparent 50%); background-position: calc(100% - 17px) 19px, calc(100% - 12px) 19px; background-repeat: no-repeat; background-size: 5px 5px, 5px 5px; }
+.context-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, .45fr); gap: 15px; }
+.access-footnote { margin: 12px 0 0; color: var(--muted); font-size: .7rem; line-height: 1.45; }
+
+.session-panel { margin-bottom: 20px; }
+.session-context { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; padding: 15px 17px; border: 1px solid rgba(13, 113, 108, .2); border-radius: 12px; background: rgba(13, 113, 108, .06); }
+.session-context-main { font-size: 1rem; font-weight: 800; }
+.session-context-details { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 13px; color: var(--muted); font-size: .72rem; text-align: right; }
+.session-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 17px; }
+
 .intro-grid, .call-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(250px, .55fr);
@@ -318,6 +391,9 @@ input:hover { border-color: #afb9b5; }
 @media (max-width: 840px) {
   .page-shell { padding-top: 43px; }
   .intro-grid, .call-hero { grid-template-columns: 1fr; gap: 25px; }
+  .landing-hero, .access-layout { grid-template-columns: 1fr; gap: 30px; margin-bottom: 48px; }
+  .access-intro { padding-top: 0; }
+  .access-panel { justify-self: stretch; max-width: none; }
   .call-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .conversation-grid { grid-template-columns: 1fr; }
   .admin-workspace { grid-template-columns: 1fr; }
@@ -331,12 +407,18 @@ input:hover { border-color: #afb9b5; }
   .brand { font-size: .82rem; }
   .nav-links a { padding: 8px 9px; font-size: .72rem; }
   .page-shell { padding: 34px 0 50px; }
+  .landing-shell, .access-shell { padding-top: 38px; }
   h1 { font-size: clamp(2.4rem, 15vw, 4rem); }
   .panel { padding: 18px; border-radius: 14px; }
   .upload-form, .text-fallback { grid-template-columns: 1fr; }
   .upload-form .button { width: 100%; }
   .call-form { grid-template-columns: 1fr; }
   .call-form .button { margin-top: 3px; }
+  .entry-grid { grid-template-columns: 1fr; }
+  .entry-card { min-height: 230px; }
+  .context-fields { grid-template-columns: 1fr; }
+  .session-context { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .session-context-details { justify-content: flex-start; text-align: left; }
   .panel-heading { align-items: flex-start; }
   .file-rule { font-size: .65rem; }
   .voice-controls { align-items: flex-start; flex-direction: column; gap: 9px; }
