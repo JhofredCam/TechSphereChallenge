@@ -473,6 +473,10 @@ externo.
 - **Spec 10:** el explorador HTML debe abrir con `file://`, no hacer solicitudes de red, mantener
   procedencia y pasar validacion estatica de IDs, estados, relaciones, enlaces locales y ausencia
   de secretos. Este smoke documental no aprueba G4 ni G5.
+- **Spec 11:** el catalogo de mensajes debe cubrir todas las ramas de agente, triaje, llamadas y
+  voz. Las pruebas deben comprobar maximo dos oraciones, una pregunta, contencion, copy si/no,
+  ausencia de metadatos tecnicos y conservacion de alertas. El smoke real de `SpeechSynthesis`
+  sigue siendo manual.
 
 La UI de `/admin` y el explorador de arquitectura tienen fronteras distintas. No se reutiliza el
 estado de una llamada, el catalogo del explorador no consulta el API y los datos de preview nunca
@@ -505,6 +509,8 @@ se convierten en evidencia RAG.
   inventan metricas de voz.
 - **TST-AC-15:** el flujo de validacion documental de specs 08-10 separa DOM/viewport, archivo
   original/MIME y explorador offline; una prueba estatica no se presenta como un gate real.
+- **TST-AC-16:** la reescritura de Spec 11 tiene inventario completo de literales, pruebas de copy
+  y una frontera explicita entre texto hablado, UI, fuentes y diagnostico interno.
 
 ## Limites
 

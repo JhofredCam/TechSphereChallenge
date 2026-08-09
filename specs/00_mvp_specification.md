@@ -47,10 +47,13 @@ implementados:
    tres anteriores y es la fuente de los bloques y subflujos futuros.
 5. [Pruebas unitarias e integracion](07_testing_unit_integration_specification.md): define la
    piramide, fixtures, contratos, cobertura y frontera entre automatizacion y evidencia manual.
+6. [UX Writing y VUI](11_conversational_ux_writing_specification.md): define el catalogo de
+   mensajes, contencion, preguntas si/no, separacion de voz/UI y validacion de copy.
 
-El orden obligatorio es estructura, admin, timeout y finalmente diagrama. Un cambio en cualquiera
-de las tres primeras obliga a revisar la spec del diagrama y la estrategia de pruebas antes de
-escribir codigo.
+El orden obligatorio es estructura, admin, timeout y finalmente diagrama. Las mejoras de UX,
+exploracion documental y RAG deben actualizar sus specs antes de tocar runtime. Un cambio en
+cualquiera de las tres primeras obliga a revisar la spec del diagrama y la estrategia de pruebas
+antes de escribir codigo.
 
 ## Stack y modelo
 

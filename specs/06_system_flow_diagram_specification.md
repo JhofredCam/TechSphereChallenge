@@ -30,6 +30,7 @@ evidencia.
 | `SPEC-ADMIN-UX-001` | [`specs/08_admin_inventory_ux_specification.md`](08_admin_inventory_ux_specification.md) | inventario full-width, responsive y sin SHA visible; propuesta futura |
 | `SPEC-ADMIN-SOURCE-001` | [`specs/09_admin_source_preview_specification.md`](09_admin_source_preview_specification.md) | archivo original en modal y separacion de texto extraido; propuesta futura |
 | `SPEC-ARCH-EXPLORER-001` | [`specs/10_architecture_explorer_specification.md`](10_architecture_explorer_specification.md) | vista HTML navegable derivada; no agrega autoridad |
+| `SPEC-UX-COPY-001` | [`specs/11_conversational_ux_writing_specification.md`](11_conversational_ux_writing_specification.md) | mensajes de voz/UI, contencion y separacion de canales; propuesta futura |
 | `SPEC-RUBRIC-001` | [`docs/rubrica-evaluacion.md`](../docs/rubrica-evaluacion.md) | gates G1-G5 y metricas obligatorias |
 | `SPEC-STACK-001` | [`docs/stack-tecnico.md`](../docs/stack-tecnico.md) | familias de modelos permitidas |
 
@@ -789,6 +790,7 @@ el estado; las capacidades de navegador o proveedor conservan su pendiente manua
 | `MOD-TTS-BROWSER-001` | texto | audio `es-CO` | `app/web/app.js` | `node --check app/web/app.js`; smoke audio pendiente | IMPLEMENTED; MANUAL_PENDING |
 | `MOD-METRICS-001` | turnos, timing y eventos | JSONL y agregados | `app/services/metrics.py`, `GET /api/metrics` | `tests/test_metrics.py`, `tests/test_api.py` | TESTED |
 | `MOD-BOOTSTRAP-001` | dataset local | corpus inicial e idempotencia | `app/bootstrap.py`, `scripts/bootstrap.py`, `scripts/validate_dataset.py` | `python -m scripts.validate_dataset`, `python -m app.bootstrap --data-dir <temp>`, `tests/test_bootstrap.py` | TESTED |
+| `MOD-UX-COPY-001` | respuesta interna y estado de voz | `voice_text`, `display_text`, claves y validacion de copy | `specs/11_conversational_ux_writing_specification.md`; runtime futuro | pruebas de catalogo y smoke de voz futuro | PROPOSED |
 
 ### Reglas de seguridad dibujadas
 
@@ -878,6 +880,7 @@ real.
 | `TRZ-ABSTAIN-001` | sin evidencia produce abstencion | D4 | 00 | `AgentService.respond` | `tests/test_agent.py`, `tests/test_live_knowledge.py`, `tests/test_api.py` | TESTED |
 | `TRZ-PERSIST-001` | turnos, fuentes, alertas y resumen persisten | D2, D6 | 00 | `database.py`, `calls.py` | `tests/test_calls.py`, `tests/test_api.py` | TESTED |
 | `TRZ-METRICS-001` | latencia, tokens, calls y RAG son trazables | D2, D6 | 00, rubrica | `metrics.py`, JSONL, `/api/metrics` | `tests/test_metrics.py`, `tests/test_api.py` | TESTED local; logs de voz real MANUAL_PENDING |
+| `TRZ-COPY-001` | mensajes hablados cortos, empaticos, de una pregunta y sin metadatos tecnicos | D2, D4, D5 | 11 | `MOD-UX-COPY-001`, `app/services/agent.py`, `app/web/app.js` | pruebas de catalogo y smoke Chrome/Edge futuro | PROPOSED |
 | `TRZ-COST-001` | costo por llamada con precios vivos fechados | D6 | rubrica | formula en informe/metricas | no hay precios ni logs reales | PROPOSED |
 | `TRZ-VOICE-IDEMP-001` | un transcript final no duplica; final tardio devuelve `late_transcript` | D2, D5 | 05 | `client_turn_id`, `listen_id`, `CallService`, `POST voice-events` | `tests/test_timeout.py` | TESTED API |
 | `TRZ-CONFIG-PUBLIC-001` | timeout efectivo llega al browser sin secreto | D2, D5 | 05 | `/health`, `Settings` | `tests/test_timeout.py`, `tests/test_api.py` | TESTED |
@@ -901,6 +904,7 @@ real.
 | `FUT-OCR-001` | OCR automatico | PROPOSED | hoy `needs_ocr` se informa, no se ejecuta OCR |
 | `FUT-ADMIN-UX-001` | inventario responsive sin SHA visible | PROPOSED | definido en Spec 08; requiere smoke visual |
 | `FUT-ADMIN-SOURCE-001` | archivo original en modal | PROPOSED | definido en Spec 09; requiere endpoint binario y pruebas MIME |
+| `FUT-UX-COPY-001` | catalogo de copy, validacion VUI y separacion voz/UI | PROPOSED | definido en Spec 11; requiere reescritura y smoke de voz |
 | `FUT-COST-001` | precios vivos y costo real | PROPOSED | no hay precios fechados ni log Groq real |
 | `FUT-VIDEO-001` | video de entrega | PROPOSED | solo existe manifiesto en `mvp/deliverables/04_video/` |
 | `FUT-AUTH-001` | autenticacion/CSRF/multiusuario | OUT_OF_SCOPE | admin local sin autenticacion en este MVP |

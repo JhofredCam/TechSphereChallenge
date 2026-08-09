@@ -14,6 +14,7 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [Plan de componentes](../../../specs/01_implementation_plan.md#componentes-y-dependencias).
 - [Timeout configurable de escucha](../../../specs/05_patient_listening_timeout_specification.md).
 - [Diagrama normativo del flujo](../../../specs/06_system_flow_diagram_specification.md).
+- [UX Writing y VUI](../../../specs/11_conversational_ux_writing_specification.md).
 
 ## Salidas
 
@@ -22,6 +23,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - Modo extractivo determinista con SQLite FTS5 si `GROQ_API_KEY` no esta disponible.
 - Prompt y contrato que delimitan el contexto clinico como datos no ejecutables y exigen
   citas, respuesta breve, empatia y abstencion.
+- Catalogo de mensajes patient-facing separado en `voice_text`, `display_text`, trazabilidad y
+  diagnostico interno; la reescritura integral sigue propuesta hasta aplicar el catalogo.
 - Triaje determinista: `rojo` no baja, `amarillo` persiste alerta y `unknown` pide aclaracion.
 - Turnos, resumen de llamada, logs de latencia/tokens y respuesta hablada en el navegador.
 - STT remoto opcional `whisper-large-v3`; no es el modelo de razonamiento.
@@ -43,6 +46,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 8. Registrar cada invocacion, consulta RAG, tokens y latencia con el identificador de llamada.
 9. Mantener el timeout de escucha del paciente separado de Groq, Whisper y SQLite, registrar
    `POST /api/calls/{id}/voice-events` y reflejar el contrato en el diagrama.
+10. Aplicar una sola pregunta por turno, copy de contencion, preguntas si/no para alarmas y
+    traduccion de errores internos antes de enviar texto a `SpeechSynthesis`.
 
 ## Criterios de aceptacion
 
@@ -56,6 +61,8 @@ dejar la seguridad clinica fuera de la autoridad exclusiva del LLM.
 - [x] Los logs exponen los campos necesarios para las metricas obligatorias.
 - [x] La escucha configurable valida `PATIENT_LISTEN_TIMEOUT_MS`, publica el valor en `/health`,
   ofrece reintento/fallback seguro y rechaza transcript tardio; el smoke browser sigue pendiente.
+- [ ] Todos los mensajes patient-facing cumplen el catalogo de UX Writing, maximo dos oraciones,
+  una pregunta por turno y copy de alerta/contencion; requiere reescritura y smoke de voz.
 
 ## Verificacion y evidencia
 
