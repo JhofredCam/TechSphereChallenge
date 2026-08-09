@@ -1,5 +1,27 @@
 # Tareas: Migracion RAG de produccion
 
+## Addendum: AGENT-RECOVERY-025
+
+- [x] **AGENT-RECOVERY-T01 Configuracion LLM local**
+  - Aceptacion: `.env` se lee solo en la instancia por defecto, el entorno del proceso gana y
+    `Settings` explícito no activa red.
+  - Verificar: `python -m pytest tests/test_config_contracts.py -q --basetemp .pytest-tmp/agent-config`.
+  - Archivos: `app/config.py`, `tests/test_config_contracts.py`.
+- [x] **AGENT-RECOVERY-T02 Inyeccion y health**
+  - Aceptacion: agente/Whisper reciben la configuracion cargada y `/health` distingue Groq de
+    fallback sin secretos.
+  - Verificar: `python -m pytest tests/test_api.py -q --basetemp .pytest-tmp/agent-api`.
+  - Archivos: `app/main.py`, `app/services/voice.py`, `tests/test_api.py`.
+- [x] **AGENT-RECOVERY-T03 Respuesta segura**
+  - Aceptacion: ausencia, error, timeout, JSON vacío o salida insegura del modelo nunca dejan
+    `patient_text` vacío ni convierten el turno en 500.
+  - Verificar: `python -m pytest tests/test_agent.py -q --basetemp .pytest-tmp/agent-agent`.
+  - Archivos: `app/services/agent.py`, `tests/test_agent.py`.
+- [x] **AGENT-RECOVERY-T04 Cierre y evidencia**
+  - Aceptacion: suite completa, Ruff, Node check, spec y bitácora sincronizados; sin secretos.
+  - Verificar: `python -m pytest -q --basetemp .pytest-tmp/agent-full`.
+  - Archivos: `specs/25_agent_response_recovery_specification.md`, `readme/06_bitacora_de_sesiones/`.
+
 Las tareas se ejecutan en orden de dependencia. Cada tarea debe actualizar su spec antes de
 implementar una decision nueva y conservar un comando de verificacion. Ninguna casilla representa
 una capacidad ya implementada en el checkout.

@@ -8,6 +8,7 @@ clients are created here.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping
@@ -15,6 +16,9 @@ from typing import Any, Mapping
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+DEFAULT_GROQ_MODEL = "llama-3.1-8b-instant"
+DEFAULT_GROQ_WHISPER_MODEL = "whisper-large-v3"
+DEFAULT_GROQ_WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 DEFAULT_PATIENT_LISTEN_TIMEOUT_MS = 30_000
 MIN_PATIENT_LISTEN_TIMEOUT_MS = 1_000
 MAX_PATIENT_LISTEN_TIMEOUT_MS = 300_000
@@ -34,6 +38,47 @@ EMBEDDING_PROVIDERS = frozenset({"none", "sentence_transformers", "fastembed", "
 VECTOR_STORE_TYPES = frozenset({"fts5", "chroma"})
 VECTOR_STORE_MODES = frozenset({"embedded", "server"})
 DISTANCE_METRICS = frozenset({"cosine", "l2", "ip"})
+_ENV_KEY_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
+
+
+def read_local_env(path: str | Path) -> dict[str, str]:
+    """Read simple KEY=VALUE entries without mutating the process environment.
+
+    This intentionally supports only the local configuration shape used by this
+    repository.  It does not expand variables, execute commands, or log values.
+    """
+
+    env_path = Path(path)
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except (FileNotFoundError, OSError, UnicodeError):
+        return {}
+
+    values: dict[str, str] = {}
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        if "=" not in line:
+            continue
+        name, raw_value = (part.strip() for part in line.split("=", 1))
+        if not _ENV_KEY_PATTERN.fullmatch(name):
+            continue
+        value = raw_value.strip()
+        if value[:1] in {"'", '"'}:
+            quote = value[0]
+            closing_quote = value.find(quote, 1)
+            suffix = value[closing_quote + 1 :].strip().lstrip() if closing_quote > 0 else ""
+            if closing_quote > 0 and suffix and not suffix.startswith("#"):
+                closing_quote = -1
+            if closing_quote > 0:
+                value = value[1:closing_quote]
+        elif " #" in value:
+            value = value.split(" #", 1)[0].rstrip()
+        values[name] = value
+    return values
 
 
 def _configured_path(value: str | Path | None, default: Path, base_dir: Path) -> Path:
@@ -443,6 +488,10 @@ class Settings:
     voice_silence_timeout_ms: int = DEFAULT_VOICE_SILENCE_TIMEOUT_MS
     voice_vad_rms_threshold: float = DEFAULT_VOICE_VAD_RMS_THRESHOLD
     voice_speech_start_timeout_ms: int = DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS
+    groq_api_key: str | None = field(default=None, repr=False)
+    groq_model: str = DEFAULT_GROQ_MODEL
+    groq_whisper_model: str = DEFAULT_GROQ_WHISPER_MODEL
+    groq_whisper_url: str = DEFAULT_GROQ_WHISPER_URL
     rag: RagSettings = field(default_factory=RagSettings)
 
     def __post_init__(self) -> None:
@@ -495,11 +544,20 @@ class Settings:
         environ: Mapping[str, str] | None = None,
         *,
         project_root: Path | None = None,
+        load_dotenv: bool = False,
     ) -> "Settings":
-        """Build settings from environment variables without touching the filesystem."""
+        """Build settings, optionally reading the local root ``.env`` file.
 
-        values = os.environ if environ is None else environ
+        Explicit process variables always win.  Reading the file is opt-in so
+        tests and injected application settings never contact a provider by
+        accident.
+        """
+
         root = (project_root or PROJECT_ROOT).expanduser().resolve()
+        values = dict(os.environ if environ is None else environ)
+        if load_dotenv and environ is None:
+            for name, value in read_local_env(root / ".env").items():
+                values.setdefault(name, value)
         data_dir = _configured_path(
             values.get("APP_DATA_DIR", values.get("DATA_DIR")),
             root / "data",
@@ -544,6 +602,12 @@ class Settings:
                 DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS,
                 validate_voice_speech_start_timeout_ms,
             ),
+            groq_api_key=(values.get("GROQ_API_KEY") or "").strip() or None,
+            groq_model=(values.get("GROQ_MODEL") or DEFAULT_GROQ_MODEL).strip(),
+            groq_whisper_model=(
+                values.get("GROQ_WHISPER_MODEL") or DEFAULT_GROQ_WHISPER_MODEL
+            ).strip(),
+            groq_whisper_url=(values.get("GROQ_WHISPER_URL") or DEFAULT_GROQ_WHISPER_URL).strip(),
             rag=build_rag_settings(values, project_root=root, data_dir=data_dir),
         )
 
@@ -562,6 +626,9 @@ def get_settings(environ: Mapping[str, str] | None = None) -> Settings:
 
 __all__ = [
     "DEFAULT_DATA_DIR",
+    "DEFAULT_GROQ_MODEL",
+    "DEFAULT_GROQ_WHISPER_MODEL",
+    "DEFAULT_GROQ_WHISPER_URL",
     "DEFAULT_PATIENT_LISTEN_TIMEOUT_MS",
     "DEFAULT_VOICE_SILENCE_TIMEOUT_MS",
     "DEFAULT_VOICE_SPEECH_START_TIMEOUT_MS",
@@ -586,6 +653,7 @@ __all__ = [
     "Settings",
     "build_rag_settings",
     "get_settings",
+    "read_local_env",
     "validate_patient_listen_timeout_ms",
     "validate_voice_silence_timeout_ms",
     "validate_voice_speech_start_timeout_ms",

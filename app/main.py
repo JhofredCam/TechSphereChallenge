@@ -259,22 +259,33 @@ def create_app(
     """Create one application and its one local service graph.
 
     Tests can pass a temporary ``Settings`` and initialized ``Database``.  The
-    production module-level instance below uses ``Settings.from_env()``.
+    production module-level instance below uses ``Settings.from_env(load_dotenv=True)``.
     """
 
-    effective_settings = settings or Settings.from_env()
+    effective_settings = settings or Settings.from_env(load_dotenv=True)
     effective_database = database or init_database(effective_settings)
     metrics = MetricsService(effective_database)
     documents = DocumentService(effective_database, effective_settings)
     rag = RagService(effective_database)
-    agent = AgentService(rag)
+    agent = AgentService(
+        rag,
+        api_key=effective_settings.groq_api_key or "",
+        model=effective_settings.groq_model,
+        timeout=effective_settings.rag.groq_chat_timeout_ms / 1000.0,
+    )
     calls = CallService(
         effective_database,
         agent=agent,
         metrics=metrics,
         configured_timeout_ms=effective_settings.patient_listen_timeout_ms,
     )
-    voice = VoiceService(max_bytes=effective_settings.max_upload_bytes)
+    voice = VoiceService(
+        api_key=effective_settings.groq_api_key or "",
+        model=effective_settings.groq_whisper_model,
+        endpoint=effective_settings.groq_whisper_url,
+        timeout=effective_settings.rag.groq_whisper_timeout_ms / 1000.0,
+        max_bytes=effective_settings.max_upload_bytes,
+    )
 
     application = FastAPI(
         title="Seguimiento postoperatorio por voz",
@@ -348,6 +359,7 @@ def create_app(
     def health() -> dict[str, Any]:
         document_count = len(documents.list())
         model_id = getattr(agent, "model", DEFAULT_MODEL_VERSION)
+        llm_configured = agent.provider_configured
         return {
             "status": "ok",
             "model_family": "Meta Llama",
@@ -373,6 +385,9 @@ def create_app(
             "langsmith_enabled": effective_settings.rag.langchain_tracing,
             "llm_family": "Meta Llama",
             "llm_model_version": model_id,
+            "llm_configured": llm_configured,
+            "llm_provider": "groq" if llm_configured else "extractive",
+            "llm_status": "configured" if llm_configured else "fallback_only",
         }
 
     @application.get("/api/admin/documents")

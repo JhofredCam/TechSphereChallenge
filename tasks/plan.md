@@ -1,5 +1,35 @@
 # Plan: Migracion RAG de produccion
 
+Estado del addendum `AGENT-RECOVERY-025`: implementado; queda ejecutar el cierre de
+verificacion completa y la integracion de la rama segun la politica de la bitacora.
+
+## Addendum: recuperacion de respuesta del agente (`AGENT-RECOVERY-025`)
+
+Este addendum pertenece a la rama `spec/agent-response-recovery` y no cambia el plan de la
+migracion RAG. La causa observada fue que `.env` no llegaba al proceso, mientras el agente
+ocultaba el modo fallback detrás de una respuesta segura.
+
+### Orden de implementacion
+
+1. **Configuracion:** agregar parser local redacted, precedencia del entorno y campos LLM en
+   `Settings`, manteniendo `Settings(...)` explícito aislado para tests.
+2. **Inyeccion:** pasar la configuracion cargada al agente y al servicio Whisper opcional; no
+   exponer la clave ni cambiar la familia Meta Llama.
+3. **Diagnostico:** ampliar `/health` con estado booleano del proveedor y enriquecer el resultado
+   seguro del agente sin filtrar errores remotos.
+4. **Pruebas:** cubrir parser, precedencia, fallback no vacio, health redacted y regresion HTTP;
+   ejecutar primero pruebas enfocadas y después la suite completa.
+5. **Evidencia:** actualizar la bitácora, revisar diff/secretos, commit convencional y push de la
+   rama dedicada.
+
+### Riesgos y checkpoints
+
+- Riesgo: cargar `.env` durante tests podría activar red; mitigación: solo el `create_app()` por
+  defecto carga el archivo, mientras los tests inyectan `Settings` explícito.
+- Riesgo: mostrar diagnósticos internos al paciente; mitigación: health solo redacted y copy
+  existente para fallback.
+- Checkpoint: tests de config/agente/API verdes antes de editar documentación final.
+
 **Spec integradora:** [`specs/19_rag_production_migration_specification.md`](../specs/19_rag_production_migration_specification.md)  
 **Fecha:** 2026-08-08  
 **Estado:** plan de implementacion, pendiente de ejecucion por el agente ejecutor

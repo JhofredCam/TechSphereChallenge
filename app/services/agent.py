@@ -349,6 +349,12 @@ class AgentService:
         value = (value or "").strip()
         return value or None
 
+    @property
+    def provider_configured(self) -> bool:
+        """Whether a remote provider credential is available without exposing it."""
+
+        return self._configured_api_key() is not None
+
     def _retrieve(self, query: str, limit: int) -> tuple[list[dict[str, Any]], int, str | None]:
         if self.rag is None:
             return [], 0, None
@@ -648,6 +654,7 @@ class AgentService:
         grounded = False
         abstained = False
         reason: str | None = None
+        model_text: str | None = None
 
         if injection:
             security_text = self._clarification_text(triage)
@@ -669,7 +676,6 @@ class AgentService:
         else:
             fallback = self._fallback_text(sources, patient_text)
             api_key = self._configured_api_key()
-            model_text: str | None = None
             if api_key:
                 model_calls = 1
                 provider = "groq"
@@ -693,6 +699,10 @@ class AgentService:
                     # the deterministic extractive path remains auditable.
                     model_text = None
                     reason = "model_unavailable_fallback"
+                if not model_text:
+                    reason = reason or "empty_model_response_fallback"
+            else:
+                reason = "provider_not_configured_fallback"
             if model_text:
                 if _contains_unsafe_claim(model_text) or contains_prompt_injection(model_text):
                     model_text = None
@@ -722,6 +732,8 @@ class AgentService:
 
         fallback_used = provider == "extractive" or reason in {
             "model_unavailable_fallback",
+            "empty_model_response_fallback",
+            "provider_not_configured_fallback",
             "unsafe_model_output_fallback",
             "invalid_model_citation_fallback",
             "irrelevant_model_output_fallback",
@@ -769,6 +781,9 @@ class AgentService:
                 "sources": sources,
                 "source_ids": source_ids,
                 "provider": provider,
+                "provider_status": (
+                    "model_used" if model_text else "fallback" if grounded else "abstained"
+                ),
                 "model": model_version,
                 "model_version": model_version,
                 "metrics": metrics,

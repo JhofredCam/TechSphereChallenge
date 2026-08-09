@@ -49,6 +49,15 @@ GROQ_MODEL=llama-3.1-8b-instant
 GROQ_WHISPER_MODEL=whisper-large-v3
 ```
 
+La instancia por defecto de `app.main:app` lee el `.env` de la raiz al arrancar; no hace falta
+agregar `--env-file` a Uvicorn. Las variables ya presentes en el proceso tienen prioridad y el
+archivo nunca se imprime ni modifica el entorno. Si cambias `.env`, reinicia Uvicorn para
+reconstruir el grafo de servicios.
+
+En `/health`, `llm_status=configured` confirma que el agente tiene una clave disponible y
+`llm_status=fallback_only` indica que respondera con FTS5 extractivo/abstencion segura. Ambos
+modos devuelven texto al paciente; el segundo no es evidencia de una llamada real al modelo.
+
 Usa el formato de variables de tu sistema (`$env:GROQ_API_KEY="..."` en PowerShell o
 `export GROQ_API_KEY="..."` en bash). `.env.example` documenta los valores sin contener
 secretos. La demo básica de navegador usa `SpeechRecognition` `es-CO` y `SpeechSynthesis`,

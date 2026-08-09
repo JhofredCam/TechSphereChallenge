@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -26,6 +28,23 @@ def test_health_exposes_local_capabilities(client):
     assert payload["model_id"] == "llama-3.1-8b-instant"
     assert payload["fts5"] is True
     assert payload["docs_count"] == 0
+    assert payload["voice_mode"] == "browser-speechrecognition"
+    assert payload["llm_configured"] is False
+    assert payload["llm_provider"] == "extractive"
+    assert payload["llm_status"] == "fallback_only"
+    assert "GROQ_API_KEY" not in json.dumps(payload)
+
+
+def test_explicit_settings_do_not_inherit_provider_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "process-key")
+    settings = Settings(data_dir=tmp_path)
+    database = init_database(settings)
+    application = create_app(settings=settings, database=database)
+
+    payload = TestClient(application).get("/health").json()
+
+    assert payload["llm_configured"] is False
+    assert payload["llm_status"] == "fallback_only"
     assert payload["voice_mode"] == "browser-speechrecognition"
 
 

@@ -68,6 +68,34 @@ def test_agent_retrieves_before_using_grounded_extractive_fallback(monkeypatch):
     json.dumps(response)
 
 
+def test_agent_reports_unconfigured_provider_and_returns_safe_fallback(monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    response = AgentService(FakeRag([_source()])).respond("Como vigilo la herida?")
+
+    assert response.reason == "provider_not_configured_fallback"
+    assert response.provider_status == "fallback"
+    assert response.patient_text.strip()
+    assert response.grounded is True
+
+
+def test_agent_reports_empty_model_response_and_returns_safe_fallback():
+    class EmptyAdapter:
+        def complete(self, messages, **kwargs):
+            return {"text": "", "usage": {}, "model": DEFAULT_MODEL_VERSION}
+
+    response = AgentService(
+        FakeRag([_source()]),
+        api_key="test-key",
+        adapter=EmptyAdapter(),
+    ).respond("Como vigilo la herida?")
+
+    assert response.reason == "empty_model_response_fallback"
+    assert response.provider_status == "fallback"
+    assert response.patient_text.strip()
+    assert response.model_calls == 1
+
+
 def test_agent_abstains_explicitly_when_current_rag_has_no_evidence(monkeypatch):
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     rag = FakeRag([])

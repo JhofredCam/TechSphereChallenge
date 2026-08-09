@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from app.config import MAX_UPLOAD_BYTES, Settings, build_rag_settings, get_settings
@@ -33,6 +35,30 @@ def test_settings_resolve_local_overrides_without_creating_directories(tmp_path)
     )
     assert direct.db_path == (tmp_path / "custom.sqlite3").resolve()
     assert direct.documents_dir == (tmp_path / "custom uploads").resolve()
+
+
+def test_local_env_loading_is_opt_in_and_process_variables_win(tmp_path, monkeypatch):
+    (tmp_path / ".env").write_text(
+        "# local-only provider settings\n"
+        "export GROQ_API_KEY='file-key' # do not log this\n"
+        'GROQ_MODEL="file-model"\n'
+        "INVALID LINE\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_MODEL", raising=False)
+
+    isolated = Settings.from_env(project_root=tmp_path)
+    assert isolated.groq_api_key is None
+
+    loaded = Settings.from_env(project_root=tmp_path, load_dotenv=True)
+    assert loaded.groq_api_key == "file-key"
+    assert loaded.groq_model == "file-model"
+    assert os.getenv("GROQ_API_KEY") is None
+
+    monkeypatch.setenv("GROQ_API_KEY", "process-key")
+    process_wins = Settings.from_env(project_root=tmp_path, load_dotenv=True)
+    assert process_wins.groq_api_key == "process-key"
 
 
 def test_settings_reject_invalid_integer_and_safety_limits(tmp_path):
