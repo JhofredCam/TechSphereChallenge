@@ -150,7 +150,9 @@ derivada esta en [`mvp/deliverables/02_architecture/architecture.md`](mvp/delive
 - [`07_testing_unit_integration_specification.md`](specs/07_testing_unit_integration_specification.md):
   estrategia de pruebas unitarias, integracion, cobertura y evidencia manual.
 - [`08_admin_inventory_ux_specification.md`](specs/08_admin_inventory_ux_specification.md):
-  inventario `/admin` full-width, responsive y sin SHA visible; implementado localmente.
+  inventario `/admin` full-width, responsive, con estados humanos y sin identidad tecnica visible;
+  implementado localmente. El contrato estatico se verifica con
+  `tests/test_admin_ui_contracts.py`; el smoke visual sigue siendo manual.
 
 ## Modelo permitido
 
@@ -194,6 +196,7 @@ python -m pytest -q
 ruff check .
 python -m pytest tests/test_api.py tests/test_live_knowledge.py -q
 python -m pytest tests/test_admin_lifecycle.py tests/test_timeout.py -q --basetemp <temp>
+python -m pytest tests/test_admin_ui_contracts.py -q
 python -m pytest -q --basetemp <temp>/coverage-pytest --cov=app --cov=scripts --cov-branch --cov-report=term-missing --cov-report=xml:<temp>/coverage.xml --cov-fail-under=80
 node --check app/web/app.js
 python -m scripts.validate_dataset

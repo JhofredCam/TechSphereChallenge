@@ -27,189 +27,302 @@
     node.className = `form-status ${kind}`.trim();
   }
 
-  function formatBytes(bytes) {
-    if (!Number.isFinite(bytes)) return "";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
+  const ADMIN_COPY = Object.freeze({
+    status: Object.freeze({
+      available: { label: "Disponible", className: "status-available", help: "La fuente tiene texto utilizable." },
+      needs_ocr: { label: "Necesita revisión", className: "status-needs_ocr", help: "No encontramos texto utilizable. Se necesita OCR." },
+      processing: { label: "Procesando", className: "status-processing", help: "Estamos procesando esta fuente." },
+      error: { label: "Error al procesar", className: "status-error", help: "No pudimos procesar esta fuente." },
+    }),
+    publication: Object.freeze({
+      enabled: { label: "Disponible para el agente", className: "publication-enabled", help: "El agente puede consultar esta fuente." },
+      disabled: { label: "No disponible para el agente", className: "publication-disabled", help: "La fuente se conserva, pero el agente no la consulta." },
+      unavailable: { label: "No publicable", className: "publication-unavailable", help: "La fuente necesita texto utilizable antes de publicarse." },
+    }),
+  });
 
-  function statusLabel(status) {
-    return {
-      available: "Disponible",
-      needs_ocr: "Necesita revision",
-      processing: "Procesando",
-      error: "Error al procesar",
-    }[status] || status;
-  }
-
-  function publicationLabel(documentRecord) {
-    if (documentRecord.status !== "available") {
-      return { className: "publication-unavailable", text: "No publicable" };
+  class AdminApiError extends Error {
+    constructor(status, code) {
+      super("No se pudo completar la operación");
+      this.name = "AdminApiError";
+      this.status = status;
+      this.code = code;
     }
-    return documentRecord.enabled
-      ? { className: "publication-enabled", text: "Disponible para el agente" }
-      : { className: "publication-disabled", text: "No disponible para el agente" };
   }
 
-  const previewState = { documentRecord: null, page: 1 };
+  async function adminApi(path, options = {}) {
+    const response = await fetch(path, options);
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json") ? await response.json() : await response.text();
+    if (!response.ok) throw new AdminApiError(response.status, adminErrorCode(data));
+    return data;
+  }
 
-  async function loadPreview(documentRecord, page = 1) {
+  function adminErrorCode(value) {
+    if (Array.isArray(value)) return value[0]?.type || "validation";
+    if (value && typeof value === "object") {
+      if (value.detail && typeof value.detail === "object") return value.detail.error_code || "request";
+      return value.error_code || "request";
+    }
+    return "request";
+  }
+
+  function adminErrorMessage(error, action = "actualizar") {
+    if (!(error instanceof AdminApiError)) return `No pudimos ${action} la fuente. Inténtalo de nuevo.`;
+    const messages = {
+      document_not_found: "La fuente ya no está disponible. Actualiza el inventario.",
+      document_processing: "La fuente todavía se está procesando. Inténtalo de nuevo en un momento.",
+      document_not_searchable: "La fuente no tiene texto utilizable para esta acción.",
+      page_not_found: "No encontramos esa página en la fuente.",
+      invalid_preview_range: "Indica una página válida para consultar la fuente.",
+      offset_out_of_range: "No encontramos texto en ese punto de la página.",
+    };
+    return messages[error.code] || `No pudimos ${action} la fuente. Inténtalo de nuevo.`;
+  }
+
+  function adminStatusInfo(status) {
+    return ADMIN_COPY.status[status] || {
+      label: "Estado no disponible",
+      className: "status-unknown",
+      help: "No pudimos confirmar el estado de esta fuente.",
+    };
+  }
+
+  function adminPublicationInfo(documentRecord) {
+    if (documentRecord.status !== "available") return ADMIN_COPY.publication.unavailable;
+    return documentRecord.enabled ? ADMIN_COPY.publication.enabled : ADMIN_COPY.publication.disabled;
+  }
+
+  function adminFormatBytes(bytes) {
+    if (!Number.isFinite(Number(bytes)) || Number(bytes) < 0) return "Tamaño no disponible";
+    const value = Number(bytes);
+    if (value < 1024) return "<1 KB";
+    if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function adminFormatDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  }
+
+  function adminFileType(documentRecord) {
+    const mime = String(documentRecord.mime_type || "").toLowerCase();
+    if (mime.includes("pdf") || /\.pdf$/i.test(documentRecord.filename || "")) return "PDF";
+    if (mime.includes("markdown") || /\.md$/i.test(documentRecord.filename || "")) return "Markdown";
+    return "Texto";
+  }
+
+  function adminDocumentDetails(documentRecord) {
+    const pages = Number(documentRecord.page_count) || 0;
+    const chunks = Number(documentRecord.chunk_count) || 0;
+    return `${pages} ${pages === 1 ? "página" : "páginas"} · ${chunks} ${chunks === 1 ? "fragmento" : "fragmentos"} · ${adminFormatBytes(documentRecord.size_bytes)}`;
+  }
+
+  function adminAppendText(parent, className, value) {
+    const node = document.createElement("span");
+    node.className = className;
+    node.textContent = value;
+    parent.appendChild(node);
+    return node;
+  }
+
+  const adminPreviewState = { documentRecord: null, page: 1, opener: null };
+
+  function closeAdminPreview(restoreFocus = true) {
+    const panel = $("#preview-panel");
+    const workspace = $(".admin-workspace");
+    if (panel) panel.hidden = true;
+    workspace?.classList.remove("preview-open");
+    const opener = adminPreviewState.opener;
+    adminPreviewState.documentRecord = null;
+    adminPreviewState.opener = null;
+    if (restoreFocus && opener && document.contains(opener)) opener.focus();
+  }
+
+  async function loadAdminPreview(documentRecord, page = 1, opener = null) {
     const panel = $("#preview-panel");
     const pageInput = $("#preview-page");
     const documentLabel = $("#preview-document");
     const meta = $("#preview-meta");
     const text = $("#preview-text");
     if (!panel || !pageInput || !documentLabel || !meta || !text) return;
-    previewState.documentRecord = documentRecord;
-    previewState.page = page;
+    adminPreviewState.documentRecord = documentRecord;
+    adminPreviewState.page = page;
+    adminPreviewState.opener = opener || adminPreviewState.opener;
     panel.hidden = false;
     $(".admin-workspace")?.classList.add("preview-open");
     documentLabel.textContent = documentRecord.filename;
     pageInput.value = String(page);
     text.textContent = "";
-    meta.textContent = "Cargando texto extraido...";
-    setStatus($("#preview-status"), "");
+    meta.textContent = "";
+    setStatus($("#preview-status"), "Estamos cargando el texto de la fuente...");
+    $("#preview-close")?.focus();
     try {
-      const data = await api(
+      const data = await adminApi(
         `/api/admin/documents/${encodeURIComponent(documentRecord.id)}/preview?page=${encodeURIComponent(page)}&offset=0&limit=8000`,
       );
       const preview = data.preview || {};
       if (preview.available) {
         text.textContent = preview.text || "";
-        meta.textContent = `Pagina ${preview.page} de ${preview.page_count} · ${preview.total_chars} caracteres${preview.truncated ? " · vista truncada a 8000" : ""}`;
-        setStatus($("#preview-status"), "Se muestra texto plano no ejecutable. No se interpreta Markdown ni HTML.", "success");
+        const truncation = preview.truncated ? " · vista limitada" : "";
+        meta.textContent = `Página ${preview.page} de ${preview.page_count} · ${preview.total_chars} caracteres${truncation}`;
+        setStatus($("#preview-status"), "Texto plano seguro: el contenido no se interpreta como HTML, Markdown ni instrucciones.", "success");
       } else {
         text.textContent = "";
-        meta.textContent = `Pagina ${preview.page || page} de ${preview.page_count || documentRecord.page_count || 0}`;
-        setStatus($("#preview-status"), `Preview no disponible: ${preview.reason || "sin texto extraible"}.`, "error");
+        meta.textContent = `Página ${preview.page || page} de ${preview.page_count || documentRecord.page_count || 0}`;
+        setStatus($("#preview-status"), "No encontramos texto utilizable. Se necesita OCR.", "error");
       }
     } catch (error) {
       text.textContent = "";
       meta.textContent = "";
-      setStatus($("#preview-status"), error.message, "error");
+      setStatus($("#preview-status"), adminErrorMessage(error, "consultar"), "error");
     }
   }
 
-  function renderDocumentRow(documentRecord) {
+  function adminActionButton({ className = "admin-action", label, accessibleLabel, onClick }) {
+    const button = document.createElement("button");
+    button.className = className;
+    button.type = "button";
+    button.textContent = label;
+    button.setAttribute("aria-label", accessibleLabel);
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function renderAdminDocumentRow(documentRecord) {
     const row = document.createElement("tr");
+    row.className = "document-row";
+
     const nameCell = document.createElement("td");
     const name = document.createElement("div");
     name.className = "document-name";
     name.title = documentRecord.filename;
     name.textContent = documentRecord.filename;
+    const type = document.createElement("span");
+    type.className = "document-type";
+    type.textContent = adminFileType(documentRecord);
     const meta = document.createElement("div");
     meta.className = "document-meta";
-    const dates = [documentRecord.created_at, documentRecord.processed_at]
-      .filter(Boolean)
-      .map((value) => String(value).replace("T", " "))
-      .join(" → ");
-    meta.textContent = `${formatBytes(documentRecord.size_bytes)}${dates ? ` · ${dates}` : ""}`;
-    nameCell.append(name, meta);
+    const dates = [
+      adminFormatDate(documentRecord.created_at) ? `Cargado ${adminFormatDate(documentRecord.created_at)}` : "",
+      adminFormatDate(documentRecord.processed_at) ? `Procesado ${adminFormatDate(documentRecord.processed_at)}` : "",
+    ].filter(Boolean);
+    meta.textContent = dates.join(" · ") || "Fecha no disponible";
+    nameCell.append(name, type, meta);
 
+    const processing = adminStatusInfo(documentRecord.status);
     const statusCell = document.createElement("td");
     statusCell.dataset.label = "Procesamiento";
-    const processingBadge = document.createElement("span");
-    processingBadge.className = `status-badge status-${documentRecord.status}`;
-    processingBadge.textContent = statusLabel(documentRecord.status);
-    statusCell.appendChild(processingBadge);
+    adminAppendText(statusCell, `status-badge ${processing.className}`, processing.label);
+    adminAppendText(statusCell, "document-helper", processing.help);
 
+    const publication = adminPublicationInfo(documentRecord);
     const publicationCell = document.createElement("td");
-    publicationCell.dataset.label = "Publicacion";
-    const publication = publicationLabel(documentRecord);
-    const publicationBadge = document.createElement("span");
-    publicationBadge.className = `status-badge ${publication.className}`;
-    publicationBadge.textContent = publication.text;
-    publicationCell.appendChild(publicationBadge);
+    publicationCell.dataset.label = "Publicación";
+    adminAppendText(publicationCell, `status-badge ${publication.className}`, publication.label);
+    adminAppendText(publicationCell, "document-helper", publication.help);
 
     const contentCell = document.createElement("td");
     contentCell.dataset.label = "Contenido";
     contentCell.className = "document-content";
-    contentCell.textContent = `${documentRecord.page_count || 0} paginas · ${documentRecord.chunk_count || 0} fragmentos · ${formatBytes(documentRecord.size_bytes)}`;
+    contentCell.textContent = adminDocumentDetails(documentRecord);
 
     const actionCell = document.createElement("td");
     actionCell.dataset.label = "Acciones";
     actionCell.className = "document-actions";
-    const previewButton = document.createElement("button");
-    previewButton.className = "admin-action";
-    previewButton.type = "button";
-    previewButton.textContent = "Previsualizar";
-    previewButton.setAttribute("aria-label", `Previsualizar ${documentRecord.filename}`);
-    previewButton.addEventListener("click", () => {
-      void loadPreview(documentRecord);
-    });
-    actionCell.appendChild(previewButton);
+
+    if (documentRecord.preview_available === true) {
+      actionCell.appendChild(adminActionButton({
+        label: "Previsualizar",
+        accessibleLabel: `Previsualizar ${documentRecord.filename}`,
+        onClick: (event) => { void loadAdminPreview(documentRecord, 1, event.currentTarget); },
+      }));
+    }
 
     if (documentRecord.status === "available") {
-      const toggleButton = document.createElement("button");
-      toggleButton.className = "admin-action";
-      toggleButton.type = "button";
-      toggleButton.textContent = documentRecord.enabled ? "Deshabilitar" : "Habilitar";
-      toggleButton.addEventListener("click", async () => {
-        const nextEnabled = !documentRecord.enabled;
-        const action = nextEnabled ? "habilitar" : "deshabilitar";
-        if (!window.confirm(`Confirma ${action} ${documentRecord.filename}.`)) return;
-        toggleButton.disabled = true;
-        try {
-          const result = await api(`/api/admin/documents/${encodeURIComponent(documentRecord.id)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled: nextEnabled }),
-          });
-          const publicationState = nextEnabled ? "habilitado" : "deshabilitado";
-          setStatus($("#documents-status"), result.changed ? `Documento ${publicationState}.` : "Sin cambios: estado ya aplicado.", "success");
-          await loadDocuments();
-        } catch (error) {
-          toggleButton.disabled = false;
-          setStatus($("#documents-status"), error.message, "error");
-        }
+      const nextEnabled = !documentRecord.enabled;
+      const action = nextEnabled ? "habilitar" : "deshabilitar";
+      const toggleButton = adminActionButton({
+        label: nextEnabled ? "Habilitar" : "Deshabilitar",
+        accessibleLabel: `${nextEnabled ? "Habilitar" : "Deshabilitar"} ${documentRecord.filename}`,
+        onClick: async () => {
+          if (!window.confirm(`Confirma ${action} ${documentRecord.filename}.`)) return;
+          toggleButton.disabled = true;
+          setStatus($("#documents-status"), "Estamos actualizando la fuente...");
+          try {
+            const result = await adminApi(`/api/admin/documents/${encodeURIComponent(documentRecord.id)}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ enabled: nextEnabled }),
+            });
+            setStatus($("#documents-status"), result.changed ? `Fuente ${nextEnabled ? "habilitada" : "deshabilitada"}.` : "La fuente ya tenía ese estado.", "success");
+            await loadAdminDocuments();
+          } catch (error) {
+            toggleButton.disabled = false;
+            setStatus($("#documents-status"), adminErrorMessage(error, action), "error");
+          }
+        },
       });
       actionCell.appendChild(toggleButton);
     }
 
-    const deleteButton = document.createElement("button");
-    deleteButton.className = "delete-button";
-    deleteButton.type = "button";
-    deleteButton.textContent = "Eliminar";
-    deleteButton.setAttribute("aria-label", `Eliminar ${documentRecord.filename}`);
-    deleteButton.addEventListener("click", async () => {
-      if (!window.confirm(`Eliminar ${documentRecord.filename} de forma permanente? Esta accion no se puede deshacer.`)) return;
-      deleteButton.disabled = true;
-      try {
-        await api(`/api/admin/documents/${encodeURIComponent(documentRecord.id)}`, { method: "DELETE" });
-        setStatus($("#documents-status"), "Documento eliminado. El agente lo olvida sin reiniciar.", "success");
-        await loadDocuments();
-      } catch (error) {
-        deleteButton.disabled = false;
-        setStatus($("#documents-status"), error.message, "error");
-      }
+    const deleteButton = adminActionButton({
+      className: "delete-button",
+      label: "Eliminar",
+      accessibleLabel: `Eliminar ${documentRecord.filename}`,
+      onClick: async () => {
+        if (!window.confirm(`Eliminar ${documentRecord.filename} de forma permanente? Esta acción no se puede deshacer.`)) return;
+        deleteButton.disabled = true;
+        setStatus($("#documents-status"), "Estamos eliminando la fuente...");
+        try {
+          await adminApi(`/api/admin/documents/${encodeURIComponent(documentRecord.id)}`, { method: "DELETE" });
+          if (adminPreviewState.documentRecord?.id === documentRecord.id) closeAdminPreview(false);
+          setStatus($("#documents-status"), "Fuente eliminada. El agente la olvidó sin reiniciar.", "success");
+          await loadAdminDocuments();
+        } catch (error) {
+          deleteButton.disabled = false;
+          setStatus($("#documents-status"), adminErrorMessage(error, "eliminar"), "error");
+        }
+      },
     });
     actionCell.appendChild(deleteButton);
     row.append(nameCell, statusCell, publicationCell, contentCell, actionCell);
     return row;
   }
 
-  async function loadDocuments() {
+  function renderAdminEmptyRow(message) {
+    const empty = document.createElement("tr");
+    const emptyCell = document.createElement("td");
+    emptyCell.colSpan = 5;
+    emptyCell.className = "empty-state";
+    emptyCell.textContent = message;
+    empty.appendChild(emptyCell);
+    return empty;
+  }
+
+  async function loadAdminDocuments() {
     const rows = $("#document-rows");
     if (!rows) return;
+    rows.replaceChildren(renderAdminEmptyRow("Estamos cargando tus fuentes..."));
+    setStatus($("#documents-status"), "Estamos cargando tus fuentes...");
     try {
-      const data = await api("/api/admin/documents");
+      const data = await adminApi("/api/admin/documents");
       const documents = Array.isArray(data) ? data : (data.documents || []);
       rows.replaceChildren();
-      if (!documents.length) {
-        const empty = document.createElement("tr");
-        const emptyCell = document.createElement("td");
-        emptyCell.colSpan = 5;
-        emptyCell.className = "empty-state";
-        emptyCell.textContent = "Aun no hay documentos. Agrega la primera fuente.";
-        empty.appendChild(emptyCell);
-        rows.appendChild(empty);
-      } else {
-        documents.forEach((item) => rows.appendChild(renderDocumentRow(item)));
+      if (!documents.length) rows.appendChild(renderAdminEmptyRow("Aún no hay fuentes cargadas."));
+      else documents.forEach((item) => rows.appendChild(renderAdminDocumentRow(item)));
+      if (adminPreviewState.documentRecord) {
+        const refreshed = documents.find((item) => item.id === adminPreviewState.documentRecord.id);
+        if (refreshed) adminPreviewState.documentRecord = refreshed;
+        else closeAdminPreview(false);
       }
-      setStatus($("#documents-status"), `${documents.length} fuente${documents.length === 1 ? "" : "s"} en el corpus.`, "success");
-    } catch (error) {
-      setStatus($("#documents-status"), error.message, "error");
+      setStatus($("#documents-status"), documents.length ? `${documents.length} fuente${documents.length === 1 ? "" : "s"} en el inventario.` : "Aún no hay fuentes cargadas.", "success");
+    } catch (_) {
+      rows.replaceChildren(renderAdminEmptyRow("No pudimos cargar tus fuentes."));
+      setStatus($("#documents-status"), "No pudimos actualizar la lista. Inténtalo de nuevo.", "error");
     }
   }
 
@@ -218,7 +331,7 @@
     const fileLabel = $("#file-label");
     fileInput?.addEventListener("change", () => {
       const file = fileInput.files?.[0];
-      if (file) fileLabel.textContent = `${file.name} · ${formatBytes(file.size)}`;
+      if (file) fileLabel.textContent = `${file.name} · ${adminFormatBytes(file.size)}`;
     });
 
     $("#upload-form")?.addEventListener("submit", async (event) => {
@@ -227,33 +340,30 @@
       if (!file) return;
       const button = $("#upload-button");
       button.disabled = true;
-      setStatus($("#upload-status"), "Procesando y creando el indice...");
+      setStatus($("#upload-status"), "Estamos procesando la fuente...");
       const formData = new FormData();
       formData.append("file", file);
       try {
-        const record = await api("/api/admin/documents", { method: "POST", body: formData });
-        setStatus($("#upload-status"), `${record.filename}: ${statusLabel(record.status)}.`, "success");
+        const record = await adminApi("/api/admin/documents", { method: "POST", body: formData });
+        setStatus($("#upload-status"), `${record.filename}: ${adminStatusInfo(record.status).label}.`, "success");
         event.target.reset();
         fileLabel.textContent = "Elegir un documento";
-        await loadDocuments();
-      } catch (error) {
-        setStatus($("#upload-status"), error.message, "error");
+        await loadAdminDocuments();
+      } catch (_) {
+        setStatus($("#upload-status"), "No pudimos procesar la fuente. Revisa el formato e inténtalo de nuevo.", "error");
       } finally {
         button.disabled = false;
       }
     });
-    $("#refresh-documents")?.addEventListener("click", loadDocuments);
-    $("#preview-close")?.addEventListener("click", () => {
-      $("#preview-panel").hidden = true;
-      $(".admin-workspace")?.classList.remove("preview-open");
-      previewState.documentRecord = null;
-    });
+    $("#refresh-documents")?.addEventListener("click", loadAdminDocuments);
+    $("#preview-close")?.addEventListener("click", () => closeAdminPreview());
     $("#preview-load")?.addEventListener("click", () => {
-      if (!previewState.documentRecord) return;
+      if (!adminPreviewState.documentRecord) return;
       const page = Number($("#preview-page")?.value || 1);
-      if (Number.isInteger(page) && page > 0) void loadPreview(previewState.documentRecord, page);
+      if (Number.isInteger(page) && page > 0) void loadAdminPreview(adminPreviewState.documentRecord, page);
+      else setStatus($("#preview-status"), "Indica una página válida para consultar la fuente.", "error");
     });
-    loadDocuments();
+    loadAdminDocuments();
   }
 
   const TEXT_INPUT_TIMING = Object.freeze({

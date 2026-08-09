@@ -284,7 +284,10 @@ La tabla de `/admin` debe mostrar en badges separados:
 
 - procesamiento: Disponible, Necesita OCR, Procesando o Error;
 - publicacion: Habilitado, Deshabilitado o No disponible;
-- pagina/chunks, SHA abreviado, tamano, fechas y revision.
+- pagina/chunks, tipo de archivo, tamano y fechas en formato comprensible.
+
+La identidad SHA-256 y la revision del corpus siguen siendo contratos internos de API,
+persistencia, deduplicacion, auditoria y RAG; no se muestran en la interfaz administrativa.
 
 Acciones:
 
@@ -307,8 +310,10 @@ API, persistencia, deduplicacion y acciones internas. No cambia `status`, `enabl
 
 La implementacion local de la propuesta queda `IMPLEMENTED` en `app/web/`: el layout cerrado usa
 una sola columna, el preview abierto agrega una segunda zona y el inventario se transforma en
-fichas sin scroll horizontal en viewports estrechos. La inspeccion manual de navegador y lector
-de pantalla sigue pendiente. La
+fichas sin scroll horizontal en viewports estrechos. Los estados de procesamiento y publicacion
+se presentan por separado, las fechas se localizan y los errores de API se convierten en mensajes
+orientados al administrador sin filtrar codigos internos. La inspeccion manual de navegador y
+lector de pantalla sigue pendiente. La
 previsualizacion del archivo original pertenece a la spec 09 y no se considera incluida en este
 fix.
 

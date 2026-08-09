@@ -29,6 +29,7 @@ rutas canonicas; aqui se enlazan, no se duplican.
 - [Spec de timeout de escucha](../specs/05_patient_listening_timeout_specification.md).
 - [Spec de diagrama normativo](../specs/06_system_flow_diagram_specification.md).
 - [Spec de pruebas unitarias e integracion](../specs/07_testing_unit_integration_specification.md).
+- [Spec de inventario admin responsive](../specs/08_admin_inventory_ux_specification.md).
 
 ## Estado de evidencia
 
@@ -48,8 +49,8 @@ cambios posteriores. `dataset/` y los documentos canonicos de `docs/` se referen
 copian.
 
 La reestructuracion de entregables, la ampliacion de `/admin`, el timeout de escucha y el
-diagrama integrado estan aplicados y sincronizados; la evidencia manual de navegador, G2 y G5
-externo permanece pendiente.
+diagrama integrado estan aplicados y sincronizados. El contrato estatico del inventario admin
+esta documentado; la evidencia manual de navegador, G2 y G5 externo permanece pendiente.
 
 ## Fuentes canonicas
 
