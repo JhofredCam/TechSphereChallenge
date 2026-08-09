@@ -1,20 +1,25 @@
 # Spec: Reescritura integral de mensajes del bot y UX Writing VUI
 
 **ID:** `CONVERSATION-UX-001`
-**Estado:** `IMPLEMENTED`; catálogo aplicado al runtime y verificado localmente
-**Version:** 0.2.0
+**Estado:** `SPEC_UPDATED`; requiere migración del runtime para eliminar el límite temporal y
+garantizar paridad exacta audio-texto
+**Version:** 0.3.0
 **Fecha:** 2026-08-09
 **Propietario:** agente conversacional y superficie `/call`
 **Depende de:** [`00_mvp_specification.md`](00_mvp_specification.md),
-[`05_patient_listening_timeout_specification.md`](05_patient_listening_timeout_specification.md),
 [`06_system_flow_diagram_specification.md`](06_system_flow_diagram_specification.md)
+**Contrasta con:** [`05_patient_listening_timeout_specification.md`](05_patient_listening_timeout_specification.md);
+esta spec reemplaza su límite de intervención por escucha abierta para la experiencia del paciente.
 
 ## Objetivo
 
 Reescribir todos los mensajes que el paciente pueda escuchar o leer durante una llamada para que
 la asistente medica virtual suene profesional, calida, paciente y empatica. El copy debe estar
 optimizado para voz en espanol colombiano, ser comprensible en una sola escucha y contener las
-reglas de seguridad sin convertir la conversacion en un formulario tecnico.
+reglas de seguridad sin convertir la conversacion en un formulario tecnico. La intervención del
+paciente no tiene límite de segundos ni cuenta regresiva: la escucha termina solo por acción
+explícita del paciente, cierre de llamada o una condición técnica real. El texto que se muestra
+en la conversación debe ser exactamente el mismo que se entrega a la voz sintetizada.
 
 La reescritura aplica estrictamente estas reglas:
 
@@ -47,7 +52,7 @@ La asistente:
 |---|---|
 | `No te tomaste la medicina.` | `Comprendo. Es importante retomar la indicacion para tu recuperacion. ¿Tienes la pastilla a la mano?` |
 | `No puedo responder porque no hay evidencia.` | `No tengo informacion suficiente para orientarte con seguridad. ¿Que sintoma tienes ahora?` |
-| `LISTEN_TIMEOUT: reintente.` | `No alcance a escucharte. ¿Quieres intentarlo de nuevo?` |
+| `La escucha terminó.` | `No alcancé a escucharte. ¿Quieres intentarlo de nuevo?` |
 | `La fuente no existe en el corpus.` | `No encuentro una guia disponible que responda eso con seguridad.` |
 | `Prompt injection detectada.` | `Quiero centrarme en como te sientes y ayudarte con seguridad. ¿Que sintoma te preocupa?` |
 | `Red/yellow/green/unknown.` | `Atencion inmediata`, `Contactar hoy`, `Sin señales de alarma` o `Necesitamos aclarar`. |
@@ -61,7 +66,7 @@ La asistente:
 - preguntas de aclaracion de dolor, fiebre, herida, sintomas gastrointestinales y caso generico;
 - abstencion por falta de evidencia, proveedor no disponible, salida insegura y revision obsoleta;
 - fallback extractivo y respuestas con cita;
-- saludo, escucha, transcripcion parcial, silencio, timeout, permiso y error de microfono;
+- saludo, escucha abierta, transcripcion parcial, silencio, permiso y error de microfono;
 - mensajes de consulta, turno duplicado, latencia, cierre, resumen y error de API;
 - etiquetas y estados visibles en `/call` que el paciente puede interpretar;
 - separacion entre texto hablado y texto de trazabilidad visible.
@@ -71,12 +76,39 @@ La asistente:
 - cambiar reglas medicas, umbrales de triaje o niveles sticky;
 - permitir que el LLM decida si una señal es roja o amarilla;
 - eliminar fuentes, revision, `source_ids`, eventos o metricas;
-- convertir timeouts, parciales o errores en turnos clinicos;
+- convertir silencios, parciales o errores en turnos clinicos;
 - modificar la politica de modelos permitidos;
 - reescribir mensajes internos de logs que nunca llegan a paciente, lector de pantalla o voz;
 - implementar un motor nuevo de TTS, STT o streaming.
 
 ## Principios obligatorios de VUI
+
+### Escucha abierta, sin presión temporal
+
+- no existe un máximo de segundos para la intervención del paciente;
+- no mostrar cuenta regresiva, tiempo restante, `PATIENT_LISTEN_TIMEOUT_MS`, `deadline` ni
+  temporizadores equivalentes en la interfaz;
+- no usar `setTimeout` para cortar la escucha ni emitir un timeout clínico;
+- la escucha termina cuando el paciente pulsa `Terminar escucha`, cuando finaliza explícitamente
+  la llamada o cuando el navegador informa una condición técnica real;
+- el silencio no crea un turno, no cambia el triaje y no debe anunciar una respuesta clínica;
+- si el navegador o la conexión fallan, mostrar una explicación recuperable y ofrecer texto, sin
+  atribuir el fallo al paciente.
+
+La telemetría puede registrar duración efectiva para observabilidad, pero nunca debe convertirla
+en un límite, presión visible o condición de negocio para cortar el turno.
+
+### Paridad estricta entre audio y texto
+
+- cada respuesta dirigida al paciente tiene un único `patient_text` canónico;
+- `voice_text` y `display_text` son aliases exactos de `patient_text`, carácter por carácter;
+- `SpeechSynthesisUtterance.text` debe recibir exactamente el mismo valor que se inserta en la
+  burbuja visible de la conversación;
+- la UI no puede agregar citas, prefijos, etiquetas ni reformulaciones al texto que se habla;
+- nombre de fuente, página, chunk, revisión y razones internas viven en `source_display` o en
+  telemetría separada, nunca en el texto canónico del paciente;
+- una prueba de integración debe comparar el texto enviado al sintetizador con el texto renderizado
+  y fallar ante cualquier diferencia, incluso de espacios o puntuación.
 
 ### Una idea por turno
 
@@ -143,47 +175,47 @@ referencia de copy aplicada; las llaves como `{nombre}` se sustituyen con datos 
 
 | Clave | `voice_text` | `display_text` | Uso |
 |---|---|---|---|
-| `CALL_READY` | `La llamada esta lista. Cuando quieras, toca Hablar o escribe tu mensaje.` | Igual | llamada abierta |
-| `CALL_OPEN` | `Estoy aqui para escucharte. Cuentame como te has sentido desde tu procedimiento.` | `La llamada esta abierta.` | primer turno |
-| `CALL_CONTEXT_MISSING` | `Para orientarte mejor, necesito saber quien eres y que procedimiento te realizaron.` | `Completa el nombre y el procedimiento.` | validacion de inicio |
-| `FIRST_TRIAGE` | `Revisaremos como te sientes en tu primer mensaje.` | `Revisaremos tu estado de seguridad.` | estado inicial |
+| `CALL_READY` | `La llamada esta lista. Cuando quieras, toca Hablar o escribe tu mensaje.` | Igual, exactamente el mismo texto | llamada abierta |
+| `CALL_OPEN` | `Estoy aqui para escucharte. Cuentame como te has sentido desde tu procedimiento.` | Igual, exactamente el mismo texto | primer turno |
+| `CALL_CONTEXT_MISSING` | `Para orientarte mejor, necesito saber quien eres y que procedimiento te realizaron.` | Igual, exactamente el mismo texto | validacion de inicio |
+| `FIRST_TRIAGE` | `Revisaremos como te sientes en tu primer mensaje.` | Igual, exactamente el mismo texto | estado inicial |
 | `DEMO_DISCLAIMER` | `Esta informacion es de demostracion y no reemplaza la atencion de tu equipo clinico.` | Igual | pie y cierre |
 
 ### Escucha, microfono y silencio
 
 | Clave | `voice_text` | `display_text` | Regla |
 |---|---|---|---|
-| `LISTEN_START` | `Te escucho... Tienes hasta {segundos} segundos para contarme como te sientes.` | `Escuchando. Tienes {segundos} segundos.` | inicia timer total |
-| `LISTENING` | `Te escucho.` | `Escuchando...` | no repetir en cada parcial |
+| `LISTEN_START` | `Te escucho. Habla con calma y termina cuando estés listo.` | Igual, exactamente el mismo texto | inicia escucha abierta |
+| `LISTENING` | `Te escucho.` | Igual, exactamente el mismo texto | no repetir en cada parcial |
 | `LISTEN_PARTIAL` | no se habla | `Borrador de lo que entendi: {texto}` | parcial no clinico |
-| `LISTEN_NO_RESPONSE` | `No alcance a escucharte. ¿Quieres intentarlo de nuevo?` | Igual | una pregunta |
-| `LISTEN_TIMEOUT` | `No alcance a escucharte. ¿Quieres intentarlo de nuevo?` | `Se termino el tiempo de escucha. Puedes reintentar o escribir.` | nunca menciona codigo |
+| `LISTEN_NO_INPUT` | `No recibí un mensaje. Puedes intentarlo de nuevo cuando estés listo.` | Igual, exactamente el mismo texto | solo después de terminar sin hablar |
 | `LISTEN_ERROR` | `No pude escucharte bien. Puedes intentarlo otra vez o escribir tu mensaje.` | Igual | error recuperable |
 | `MIC_PERMISSION_DENIED` | `No pude activar el microfono. Puedes escribir tu mensaje o intentarlo de nuevo.` | Igual | permiso |
 | `MIC_UNAVAILABLE` | `Aqui no puedo activar el microfono. Prueba Chrome o Edge, o escribe tu mensaje.` | Igual | API no disponible |
 | `MIC_ENDED_EARLY` | `La escucha termino antes de recibir tu mensaje. ¿Quieres intentarlo de nuevo?` | Igual | onend temprano |
-| `LISTEN_CONFIG_ERROR` | `No pude preparar la escucha. Puedes escribir tu mensaje o intentarlo de nuevo.` | Igual | error de config |
-| `LISTEN_RETRY` | `Podemos intentarlo otra vez, sin afan.` | `Reintentar` | accion secundaria |
+| `LISTEN_PREPARATION_ERROR` | `No pude preparar la escucha. Puedes escribir tu mensaje o intentarlo de nuevo.` | Igual | error de preparación |
+| `LISTEN_RETRY` | `Podemos intentarlo otra vez, sin afan.` | Igual, exactamente el mismo texto | accion secundaria; el botón puede tener `action_label=Reintentar` |
 
-No se deben hablar `LISTEN_TIMEOUT`, `RECOGNITION_ERROR`, `SpeechRecognition`, `error_code`,
-milisegundos, `deadline`, `client_turn_id` ni mensajes crudos del navegador.
+No se deben hablar `RECOGNITION_ERROR`, `SpeechRecognition`, `error_code`, milisegundos, `deadline`,
+`client_turn_id` ni mensajes crudos del navegador. `LISTEN_TIMEOUT` deja de ser un estado de
+producto y no debe existir como camino de interacción del paciente.
 
 ### Consulta, respuesta y trazabilidad
 
 | Clave | `voice_text` | `display_text` | Regla |
 |---|---|---|---|
 | `KNOWLEDGE_LOOKUP` | `Estoy revisando la informacion disponible para orientarte...` | Igual | espera breve |
-| `GROUNDED_ANSWER_PREFIX` | `Segun la guia disponible, {respuesta_breve}.` | `Respuesta basada en una fuente disponible.` | no decir grounding |
-| `EXTRACTIVE_ANSWER` | `La guia disponible indica: {oracion_breve}.` | Igual, con fuente aparte | una idea |
-| `NO_EVIDENCE` | `No tengo informacion suficiente para orientarte con seguridad. ¿Que sintoma tienes ahora?` | `No encontramos informacion suficiente para responder con seguridad.` | una pregunta |
+| `GROUNDED_ANSWER_PREFIX` | `Segun la guia disponible, {respuesta_breve}.` | Igual, exactamente el mismo texto | no decir grounding |
+| `EXTRACTIVE_ANSWER` | `La guia disponible indica: {oracion_breve}.` | Igual, exactamente el mismo texto | una idea |
+| `NO_EVIDENCE` | `No tengo informacion suficiente para orientarte con seguridad. ¿Que sintoma tienes ahora?` | Igual, exactamente el mismo texto | una pregunta |
 | `RAG_UNAVAILABLE` | `No pude consultar la informacion ahora. ¿Quieres intentarlo de nuevo?` | Igual | error recuperable |
 | `UNSAFE_ANSWER` | `No pude preparar una orientacion segura. ¿Quieres intentarlo de nuevo?` | Igual | no revelar filtro |
 | `CORPUS_CHANGED` | `La informacion se actualizo mientras revisaba tu consulta. Intentalo de nuevo.` | Igual | no mencionar revision |
 | `EMPTY_RESPONSE` | `No pude preparar una respuesta ahora. ¿Quieres intentarlo de nuevo?` | Igual | fallback seguro |
-| `AGENT_ERROR` | `Lo siento, no pude preparar una respuesta ahora. Si tienes una señal de alarma, busca atencion inmediata; si no, intentalo de nuevo.` | `No pudimos preparar una respuesta. Puedes reintentar.` | conservar alerta |
-| `TURN_REGISTERED` | no hablar salvo que sea necesario | `Tu mensaje fue recibido.` | status |
-| `TURN_DUPLICATE` | `Ya habia recibido este mensaje y conserve la respuesta.` | `Este turno ya estaba registrado.` | idempotencia |
-| `LATENCY_NOT_SAVED` | no hablar | `Guardamos tu respuesta, pero no pudimos registrar el tiempo de voz.` | observabilidad |
+| `AGENT_ERROR` | `Lo siento, no pude preparar una respuesta ahora. Si tienes una señal de alarma, busca atencion inmediata; si no, intentalo de nuevo.` | Igual, exactamente el mismo texto | conservar alerta |
+| `TURN_REGISTERED` | `Tu mensaje fue recibido.` | Igual, exactamente el mismo texto | status |
+| `TURN_DUPLICATE` | `Ya habia recibido este mensaje y conserve la respuesta.` | Igual, exactamente el mismo texto | idempotencia |
+| `LATENCY_NOT_SAVED` | `Guardamos tu respuesta, pero no pudimos registrar el tiempo de voz.` | Igual, exactamente el mismo texto | observabilidad |
 
 Las citas se muestran en la zona de trazabilidad, no se leen completas por TTS. El paciente debe
 recibir una respuesta natural, mientras la UI conserva nombre de fuente, pagina, chunk y revision
@@ -194,10 +226,10 @@ score BM25 o `corpus_revision` como si fueran instrucciones clinicas.
 
 | Clave | `voice_text` | `display_text` | Nivel |
 |---|---|---|---|
-| `TRIAGE_RED` | `Siento que estes pasando por esto. Busca atencion inmediata en urgencias o llama ahora a tu equipo clinico. No esperes a terminar esta llamada.` | `Atencion inmediata` | `red` |
-| `TRIAGE_YELLOW` | `Entiendo que esto te preocupe. Contacta hoy a tu equipo clinico para recibir indicaciones.` | `Contactar hoy` | `yellow` |
-| `TRIAGE_GREEN` | `Que bueno saber que vas bien. Sigue las indicaciones de tu equipo clinico y cuentanos si aparece algo nuevo.` | `Sin señales de alarma` | `green` |
-| `TRIAGE_UNKNOWN` | `Quiero orientarte con cuidado. Necesito aclarar un detalle antes de continuar.` | `Necesitamos aclarar` | `unknown` |
+| `TRIAGE_RED` | `Siento que estes pasando por esto. Busca atencion inmediata en urgencias o llama ahora a tu equipo clinico; no esperes a terminar esta llamada.` | Igual, exactamente el mismo texto | `red`; badge `Atencion inmediata` |
+| `TRIAGE_YELLOW` | `Entiendo que esto te preocupe. Contacta hoy a tu equipo clinico para recibir indicaciones.` | Igual, exactamente el mismo texto | `yellow`; badge `Contactar hoy` |
+| `TRIAGE_GREEN` | `Que bueno saber que vas bien. Sigue las indicaciones de tu equipo clinico y cuentanos si aparece algo nuevo.` | Igual, exactamente el mismo texto | `green`; badge `Sin señales de alarma` |
+| `TRIAGE_UNKNOWN` | `Quiero orientarte con cuidado. Necesito aclarar un detalle antes de continuar.` | Igual, exactamente el mismo texto | `unknown`; badge `Necesitamos aclarar` |
 | `ALERT_RED_UI` | no duplicar automaticamente | `Busca atencion inmediata o llama a tu equipo clinico.` | `red` |
 | `ALERT_YELLOW_UI` | no duplicar automaticamente | `Contacta hoy a tu equipo clinico.` | `yellow` |
 
@@ -209,7 +241,8 @@ Reglas:
 - `unknown` no se convierte en verde por falta de datos;
 - la frase de urgencias no se oculta porque el proveedor falle;
 - el prefijo de seguridad no se combina con una lista extensa ni con una cita tecnica;
-- el texto visible y el hablado pueden diferir en formato, pero no en accion de seguridad.
+- el texto canónico visible y el hablado son idénticos; las insignias y acciones auxiliares pueden
+  tener una etiqueta corta adicional, pero no reemplazan ni contradicen ese texto.
 
 ### Preguntas de aclaracion, una a una
 
@@ -236,8 +269,8 @@ repita exactamente `si` o `no`.
 
 | Clave | `voice_text` | `display_text` |
 |---|---|---|
-| `UNTRUSTED_INPUT` | `Quiero centrarme en como te sientes y ayudarte con seguridad. ¿Que sintoma te preocupa?` | `La entrada no se pudo usar para orientar esta consulta.` |
-| `PROMPT_INJECTION` | Igual que `UNTRUSTED_INPUT` | Igual |
+| `UNTRUSTED_INPUT` | `Quiero centrarme en como te sientes y ayudarte con seguridad. ¿Que sintoma te preocupa?` | Igual, exactamente el mismo texto |
+| `PROMPT_INJECTION` | Igual que `UNTRUSTED_INPUT` | Igual, exactamente el mismo texto |
 
 No se debe decir `no puedo cambiar las reglas`, `instrucciones internas`, `prompt`, `modelo` o
 `inyeccion`. La defensa se mantiene en backend y el paciente solo recibe una redireccion calida a
@@ -262,9 +295,9 @@ stack traces o codigos tecnicos al paciente.
 
 | Clave | `voice_text` | `display_text` |
 |---|---|---|
-| `FINISH_PROMPT` | `Cuando terminemos, guardare un resumen de lo que hablamos. ¿Quieres finalizar la llamada?` | `Al finalizar se guardara un resumen de la llamada.` |
-| `CALL_FINISHED` | `La llamada termino y el resumen quedo guardado. Si aparece una señal de alarma, busca atencion inmediata.` | `Llamada cerrada y resumen guardado.` |
-| `SUMMARY_UNAVAILABLE` | `No pude guardar el resumen ahora. Si tienes una señal de alarma, busca atencion inmediata.` | `No pudimos guardar el resumen.` |
+| `FINISH_PROMPT` | `Cuando terminemos, guardare un resumen de lo que hablamos. ¿Quieres finalizar la llamada?` | Igual, exactamente el mismo texto |
+| `CALL_FINISHED` | `La llamada termino y el resumen quedo guardado. Si aparece una señal de alarma, busca atencion inmediata.` | Igual, exactamente el mismo texto |
+| `SUMMARY_UNAVAILABLE` | `No pude guardar el resumen ahora. Si tienes una señal de alarma, busca atencion inmediata.` | Igual, exactamente el mismo texto |
 | `SUMMARY_NEXT_STEPS` | no leer campos tecnicos | `Proximos pasos` |
 | `SUMMARY_EMPTY` | no aplica | `No registrado` |
 | `SUMMARY_UNKNOWN` | no aplica | `Por confirmar con tu equipo clinico` |
@@ -301,18 +334,33 @@ para identificarlo, pero no SHA, `document_id`, rutas ni mensajes tecnicos.
 La respuesta interna debe conservar, como minimo:
 
 - `text`, `answer` y `response` como aliases existentes;
+- `patient_text`, `voice_text` y `display_text` como canales de paciente con igualdad exacta;
 - `triage`, `alert`, `abstained`, `grounded`, `sources` y `reason`;
 - `input_tokens`, `output_tokens`, `model_calls`, `rag_queries` y `model_version`;
 - `source_ids`, pagina, chunk, cita y revision para trazabilidad;
 - resumen, alertas y `next_steps`.
 
-Se separan cuatro canales:
+Se separan cuatro canales, con una regla de paridad obligatoria:
 
-1. `voice_text`: breve, calido y sin metadatos tecnicos;
-2. `display_text`: puede incluir una fuente corta o instrucciones visuales, pero sigue siendo
-   entendible;
-3. `source_display`: nombre, pagina, chunk y revision para trazabilidad no hablada;
-4. `internal_reason`: logs y diagnostico, nunca presentado al paciente.
+1. `patient_text`: texto canónico, breve, cálido y sin metadatos técnicos;
+2. `voice_text`: alias exacto de `patient_text`, enviado sin transformación a
+   `SpeechSynthesisUtterance.text`;
+3. `display_text`: alias exacto de `patient_text`, insertado sin transformación en la burbuja o
+   región visible del paciente;
+4. `source_display`: nombre, página, chunk y revisión para trazabilidad no hablada;
+5. `internal_reason`: logs y diagnóstico, nunca presentado al paciente.
+
+No se permite que `display_text` agregue una cita o que `voice_text` quite una frase: ambos deben
+ser iguales byte a byte después de la serialización UTF-8. Las etiquetas de botones, badges y
+metadatos de administrador son controles auxiliares y no sustituyen el texto canónico.
+
+En el flujo browser, la secuencia obligatoria es:
+
+1. el backend entrega `patient_text` y sus aliases exactos;
+2. la UI renderiza la burbuja del agente con ese valor;
+3. `SpeechSynthesisUtterance.text` recibe ese mismo valor, sin volver a construirlo desde
+   `text`, `answer`, una cita o un fallback diferente;
+4. una respuesta duplicada no vuelve a pronunciarse ni crea una segunda burbuja.
 
 El contrato mantiene `response.text` como alias compatible y construye la separación en el
 adaptador de presentación, sin borrar los campos existentes.
@@ -330,40 +378,42 @@ sistema debe:
 - eliminar encabezados, listas, Markdown, emojis, nombres de campo, score, IDs y citas largas;
 - asegurar que una alerta roja/amarilla conserve su accion aunque el modelo falle;
 - usar fallback extractivo o abstencion si no pasa la validacion;
-- no convertir un timeout, parcial o error en respuesta clinica.
+- no convertir un silencio, parcial o error en respuesta clinica.
 
 La validacion de copy no sustituye las reglas deterministas de `triage.py`.
 
-## Estrategia de implementacion ejecutada
+## Corrección de contrato y migración requerida
 
 1. centralizar el copy en `app/services/messages.py` y su proyección browser en
    `app/web/messages.js`;
-2. separar `voice_text`, `display_text`, `source_display` e `internal_reason` sin quitar los
-   aliases internos existentes;
-3. aplicar el catálogo al agente, triaje, errores de llamada, corpus obsoleto y estados de voz;
-4. mantener una única pregunta por turno y un turno de escucha por intento;
-5. validar el texto antes de `SpeechSynthesis` y cubrirlo con `tests/test_conversational_ux.py`;
-6. verificar sintaxis JavaScript, Ruff y la suite enfocada; el smoke real en Chrome/Edge queda
-   `MANUAL_PENDING` porque el navegador in-app no estaba disponible en esta sesión.
+2. migrar a `patient_text` y conservar `voice_text`/`display_text` como aliases exactos, sin
+   quitar los aliases internos existentes;
+3. retirar del runtime `PATIENT_LISTEN_TIMEOUT_MS`, la cuenta regresiva, `deadline` y el corte por
+   `setTimeout`, manteniendo solo finalización explícita o fallos técnicos reales;
+4. aplicar el catálogo al agente, triaje, errores de llamada, corpus obsoleto y estados de voz;
+5. validar que `SpeechSynthesisUtterance.text` y la burbuja visible reciban exactamente el mismo
+   string, y cubrirlo con `tests/test_conversational_ux.py`;
+6. ejecutar pruebas de paridad y smoke real en Chrome/Edge antes de volver a declarar la spec
+   `IMPLEMENTED`.
 
-La matriz de inventario quedó resuelta para las superficies de paciente: mensajes clínicos y de
-triaje están `MIGRATED`, códigos/diagnóstico interno están `REMOVED_INTERNAL`, y la evidencia de
-navegador real permanece `PENDING_REVIEW`.
+La matriz de copy existente permanece `MIGRATED` para mensajes clínicos y de triaje, y
+`REMOVED_INTERNAL` para códigos técnicos. La eliminación del temporizador y la paridad audio-texto
+quedan `PENDING_REVIEW` hasta completar la migración del runtime.
 
-## Estructura implementada
+## Estructura de migración
 
 ```text
 app/services/agent.py       -> seleccion de respuesta, grounding y abstencion
 app/services/triage.py      -> reglas, triggers y preguntas de una etapa
 app/services/calls.py       -> errores, corpus obsoleto, cierre y resumen
-app/web/app.js              -> estados de voz, traduccion de errores y separacion TTS/UI
+app/web/app.js              -> escucha abierta y mismo texto para TTS/UI
 app/web/call.html           -> copy visible, labels y regiones live
 app/web/messages.js         -> proyección browser del catálogo y validación de voz
 tests/test_agent.py         -> tono, grounding, cita y seguridad
 tests/test_triage.py        -> niveles, sticky, si/no y aclaracion
 tests/test_calls.py         -> errores, resumen, alertas y corpus revision
-tests/test_timeout.py       -> timeout sin turno ni copy clinico falso
-tests/test_conversational_ux.py -> catálogo, canales, triaje y contrato browser
+tests/test_timeout.py       -> regresiones históricas; no autoriza límite temporal de voz
+tests/test_conversational_ux.py -> catálogo, canales, triaje, escucha abierta y paridad browser
 tests/test_voice_ui.*       -> smoke de SpeechRecognition/TTS `MANUAL_PENDING`
 specs/07_*                  -> piramide de pruebas y evidencia manual
 ```
@@ -380,7 +430,8 @@ specs/07_*                  -> piramide de pruebas y evidencia manual
 - no depender de color para rojo/amarillo/verde;
 - la transcripcion visible debe indicar que un borrador no es decision clinica;
 - el texto debe conservar tildes y signos de interrogacion para mejorar lectura y TTS;
-- el tiempo de escucha se muestra en lenguaje humano, no en milisegundos ni nombres de estado;
+- no se muestra tiempo restante ni cuenta regresiva; la escucha permanece abierta;
+- `patient_text`, `voice_text`, `display_text` y el texto enviado a TTS deben ser idénticos;
 - el usuario puede cambiar a texto sin perder el turno ni duplicar solicitud.
 
 ## Pruebas
@@ -390,7 +441,7 @@ specs/07_*                  -> piramide de pruebas y evidencia manual
 - cada rama de `AgentService.respond()` devuelve una clave de catalogo;
 - rojo, amarillo, verde y unknown conservan su accion y no degradan;
 - preguntas de dolor, fiebre y sangrado son si/no y solo una por turno;
-- cada `voice_text` tiene una o dos oraciones como maximo;
+- cada `patient_text` tiene una o dos oraciones como maximo;
 - no hay terminos `LISTEN_TIMEOUT`, `RECOGNITION_ERROR`, `GROQ`, `Whisper`, `FTS5`, `chunk`,
   `score`, `prompt`, `source_ids`, `corpus_revision`, `error_code` o stack trace;
 - no hay expresiones de reproche;
@@ -403,7 +454,7 @@ specs/07_*                  -> piramide de pruebas y evidencia manual
 - proveedor ausente usa fallback calido y grounded o abstencion;
 - proveedor caido conserva alerta y no expone error crudo;
 - revision del corpus cambia la respuesta a `CORPUS_CHANGED` sin citar revision al paciente;
-- timeout, parcial, no respuesta y error no crean turno clinico ni hablan una decision verde;
+- silencio, parcial, no entrada y error no crean turno clinico ni hablan una decision verde;
 - transcript tardio devuelve `late_transcript` internamente y un copy humano en UI;
 - duplicado reutiliza respuesta sin pronunciar dos veces;
 - el resumen conserva estructura, labels humanos y alerta;
@@ -419,7 +470,7 @@ Antes de declarar G4, probar en Chrome y Edge:
 4. respuesta ambigua, una aclaracion a la vez;
 5. falta de evidencia y abstencion calida;
 6. prompt injection sin revelar instrucciones internas;
-7. timeout, silencio, microfono denegado y fallback textual;
+7. escucha abierta, finalización explícita, micrófono denegado y fallback textual;
 8. proveedor caido o sin clave, sin excepcion hablada;
 9. fuente visible sin que TTS lea SHA, chunk, score o revision;
 10. cierre y resumen con labels comprensibles.
@@ -431,6 +482,7 @@ python -m pytest tests/test_agent.py tests/test_triage.py tests/test_calls.py te
 python -m pytest tests/test_api.py tests/test_http_contracts.py -q --basetemp <temp>/ux-writing-api
 ruff check .
 node --check app/web/app.js
+node --check app/web/messages.js
 git diff --check
 ```
 
@@ -446,15 +498,17 @@ fecha, navegador, permisos, modelo, proveedor, audio observado y limitaciones.
   fiebre y sangrado tienen confirmacion si/no cuando la situacion no exige escalar de inmediato.
 - **CONV-AC-04:** cada mensaje de alarma valida brevemente la emocion y comunica una accion clara;
   rojo siempre indica atencion inmediata y amarillo contacto oportuno.
-- **CONV-AC-05:** ninguna rama de error, timeout, proveedor o corpus obsoleto expone codigos,
+- **CONV-AC-05:** ninguna rama de error, proveedor o corpus obsoleto expone codigos,
   excepciones, nombres de modelos, prompts o metadatos tecnicos al paciente.
 - **CONV-AC-06:** el copy evita reproches y usa contencion antes de pedir acciones o datos.
 - **CONV-AC-07:** voz y texto conservan espanol colombiano claro, tildes, signos y `es-CO`.
 - **CONV-AC-08:** fuentes y metricas siguen trazables, pero SHA, score, chunk, revision y nombre
   tecnico no se pronuncian como contenido clinico.
 - **CONV-AC-09:** el fallback es seguro, grounded o abstentivo y nunca inventa dosis o diagnostico.
-- **CONV-AC-10:** timeout, parcial, no respuesta y error permanecen fuera de turnos clinicos y no
-  generan un falso verde.
+- **CONV-AC-10:** no existe límite temporal ni cuenta regresiva; silencio, parcial, no entrada y
+  error permanecen fuera de turnos clinicos y no generan un falso verde.
+- **CONV-AC-15:** `patient_text`, `voice_text`, `display_text`, la burbuja visible y
+  `SpeechSynthesisUtterance.text` son idénticos, sin agregar ni eliminar caracteres.
 - **CONV-AC-11:** el resumen conserva las claves estructuradas, pero presenta niveles y pasos en
   lenguaje humano.
 - **CONV-AC-12:** lectores de pantalla no son inundados por parciales/estados y las alertas tienen
@@ -470,18 +524,21 @@ fecha, navegador, permisos, modelo, proveedor, audio observado y limitaciones.
 |---|---|---|
 | Tono y grounding | Spec 00, rubrica | prompts, fallback y copy catalogado |
 | Niveles sticky | `triage.py`, Spec 06 | pruebas de rojo/amarillo/unknown |
-| Timeout seguro | Spec 05/06 | mensajes de reintento sin turno clínico |
+| Escucha abierta | Spec 06; contrasta con Spec 05 | sin límite ni cuenta regresiva; silencio fuera del turno |
+| Paridad audio-texto | `app/web/app.js`, `SpeechSynthesis` | mismo `patient_text` en audio y burbuja visible |
 | Fuentes | Spec 04/06 | `source_display` separado de voz |
 | G4 | rubrica | smoke Chrome/Edge `MANUAL_PENDING` |
 | Admin y preview | Specs 08/09 | copy separado, sin SHA visible |
 
-Verificación realizada:
+Verificación documental realizada:
 
 1. se conservaron los aliases y contratos definidos por las specs upstream;
-2. se aplicaron canales separados en agente, llamadas, triaje y browser;
-3. se cubrieron catalogo, preguntas, grounding, abstención, inyección, errores y duplicados;
-4. se actualizaron `README.md` y esta spec con el estado real;
-5. se ejecutaron Ruff, `node --check` y la suite enfocada; el smoke real requiere Chrome/Edge.
+2. se definió un canal canónico `patient_text` con aliases idénticos para agente, llamadas, triaje y browser;
+3. se definieron pruebas para catálogo, preguntas, grounding, abstención, inyección, errores,
+   duplicados, escucha abierta y paridad;
+4. se marcó la migración de runtime como pendiente hasta retirar el temporizador y comparar el
+   texto enviado a TTS con la burbuja visible;
+5. el smoke real requiere Chrome/Edge y no se declara completado por esta actualización documental.
 
 ## Limites
 
@@ -491,7 +548,7 @@ Verificación realizada:
   corpus, cambiar idioma, introducir SSML dependiente de proveedor o modificar el schema de
   respuestas.
 - **Nunca:** culpar al paciente, inventar dosis/diagnosticos, leer un SHA o error tecnico, hacer
-  listas largas por voz, convertir timeout en verde, ocultar una alerta roja o afirmar que un mock
+  listas largas por voz, convertir silencio en verde, ocultar una alerta roja o afirmar que un mock
   demuestra voz real.
 
 ## Preguntas abiertas
